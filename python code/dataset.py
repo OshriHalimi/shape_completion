@@ -64,11 +64,11 @@ class FaustProjectionsDataset(data.Dataset):
 
 
         #Apply random translation to part and to full template
-        part_trans = np.random.rand(1,part.shape[1]) - 0.5
-        template_trans = np.random.rand(1, template.shape[1]) - 0.5
-        part = part + part_trans
-        gt = gt + part_trans
-        template = template + template_trans
+        part_trans = np.random.rand(1,3) - 0.5
+        template_trans = np.random.rand(1, 3) - 0.5
+        part[:,:3] = part[:,:3]  + part_trans
+        gt[:,:3]  = gt[:,:3]  + part_trans
+        template[:,:3]  = template[:,:3]  + template_trans
 
         return part, template, gt, index
 
