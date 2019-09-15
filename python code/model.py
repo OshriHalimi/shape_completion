@@ -108,7 +108,10 @@ class PointGenCon(nn.Module):
         self.conv3 = torch.nn.Conv1d(self.point_code_size // 2, self.point_code_size // 4, 1)
         self.conv4 = torch.nn.Conv1d(self.point_code_size // 4, self.point_code_size // 8, 1)
         self.conv5 = torch.nn.Conv1d(self.point_code_size // 8, self.point_code_size // 16, 1)
-        self.conv6 = torch.nn.Conv1d(self.point_code_size // 16, 3, 1)  # OH: decoder output layer
+        self.conv6 = torch.nn.Conv1d(self.point_code_size // 16, self.point_code_size // 16, 1)
+        self.conv7 = torch.nn.Conv1d(self.point_code_size // 16, self.point_code_size // 16, 1)
+        self.conv8 = torch.nn.Conv1d(self.point_code_size // 16, self.point_code_size // 16, 1)
+        self.conv9 = torch.nn.Conv1d(self.point_code_size // 16, 3, 1)  # OH: decoder output layer
 
         self.th = nn.Tanh()
         self.bn1 = torch.nn.BatchNorm1d(self.point_code_size)
@@ -116,6 +119,9 @@ class PointGenCon(nn.Module):
         self.bn3 = torch.nn.BatchNorm1d(self.point_code_size // 4)
         self.bn4 = torch.nn.BatchNorm1d(self.point_code_size // 8)
         self.bn5 = torch.nn.BatchNorm1d(self.point_code_size // 16)
+        self.bn6 = torch.nn.BatchNorm1d(self.point_code_size // 16)
+        self.bn7 = torch.nn.BatchNorm1d(self.point_code_size // 16)
+        self.bn8 = torch.nn.BatchNorm1d(self.point_code_size // 16)
 
     def forward(self, x):
         x = F.relu(self.bn1(self.conv1(x)))
@@ -123,7 +129,10 @@ class PointGenCon(nn.Module):
         x = F.relu(self.bn3(self.conv3(x)))
         x = F.relu(self.bn4(self.conv4(x)))
         x = F.relu(self.bn5(self.conv5(x)))
-        x = 2 * self.th(self.conv6(x))
+        x = F.relu(self.bn6(self.conv6(x)))
+        x = F.relu(self.bn7(self.conv7(x)))
+        x = F.relu(self.bn8(self.conv8(x)))
+        x = 2 * self.th(self.conv9(x))
         return x
 
 

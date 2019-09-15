@@ -67,7 +67,7 @@ class FaustProjectionsDataset(data.Dataset):
         part_trans = np.random.rand(1,3) - 0.5
         template_trans = np.random.rand(1, 3) - 0.5
         part[:,:3] = part[:,:3]  + part_trans
-        gt[:,:3]  = gt[:,:3]  + part_trans
+        gt[:,:3]  = gt[:,:3] + part_trans
         template[:,:3]  = template[:,:3]  + template_trans
 
         return part, template, gt, index
