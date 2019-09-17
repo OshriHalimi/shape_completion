@@ -20,7 +20,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
-    parser.add_argument('--model', type=str, default='', help='optional reload model path')
+    parser.add_argument('--model', type=str, default='D:\shape_completion\python code\log/Simple network; Translation augmentation; Input normals; Deeper Decoder/network_last.pth', help='optional reload model path')
     parser.add_argument('--save_path', type=str, default='Simple network; Translation augmentation; Input normals; Deeper Decoder', help='save path')
     parser.add_argument('--env', type=str, default="3DCODED_supervised", help='visdom environment')  #OH: TODO edit
 
@@ -81,7 +81,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # =============start of the learning loop ======================================== #
     for epoch in range(opt.nepoch):
-        if (epoch % 50) == 49:  # OH: originally was 80
+        if (epoch % 100) == 99:  # OH: originally was 80
             lrate = lrate/2.0  # learning rate scheduled decay
             optimizer = optim.Adam(network.parameters(), lr=lrate)
 

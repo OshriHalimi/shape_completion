@@ -92,3 +92,306 @@ json_stats: {"val_loss_L2_smpl": 0.047501260914970235, "train_loss_L2_smpl": 0.0
 json_stats: {"val_loss_L2_smpl": 0.04112945538570094, "train_loss_L2_smpl": 0.046085922994913694, "epoch": 2, "lr": 0.001, "env": "3DCODED_supervised"}
 json_stats: {"val_loss_L2_smpl": 0.029905853841870847, "train_loss_L2_smpl": 0.038861867264414277, "epoch": 3, "lr": 0.001, "env": "3DCODED_supervised"}
 json_stats: {"val_loss_L2_smpl": 0.025764336144850707, "train_loss_L2_smpl": 0.030846200917683683, "epoch": 4, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.01626249350925706, "train_loss_L2_smpl": 0.026839414000075515, "epoch": 5, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.01590169051610953, "train_loss_L2_smpl": 0.022542031685392448, "epoch": 6, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.01284725557100425, "train_loss_L2_smpl": 0.021046207486947195, "epoch": 7, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.016137026730033557, "train_loss_L2_smpl": 0.019217054114803435, "epoch": 8, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.01498948292501749, "train_loss_L2_smpl": 0.01863209090674584, "epoch": 9, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.012556269401370154, "train_loss_L2_smpl": 0.017100958520089908, "epoch": 10, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.010333367481895317, "train_loss_L2_smpl": 0.01589871049000526, "epoch": 11, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00971417127774023, "train_loss_L2_smpl": 0.015275747110337586, "epoch": 12, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.007901986811762738, "train_loss_L2_smpl": 0.014533756227806954, "epoch": 13, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.013479904981122134, "train_loss_L2_smpl": 0.014439732240192491, "epoch": 14, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0076577214636610515, "train_loss_L2_smpl": 0.01426809553377798, "epoch": 15, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.007757306268627463, "train_loss_L2_smpl": 0.01300745284010417, "epoch": 16, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.007853115744455044, "train_loss_L2_smpl": 0.012850382262459386, "epoch": 17, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00776675467602813, "train_loss_L2_smpl": 0.011629282488292257, "epoch": 18, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.008176912145964258, "train_loss_L2_smpl": 0.01187523337078193, "epoch": 19, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.006463496439402804, "train_loss_L2_smpl": 0.012051271311661718, "epoch": 20, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.008885549842258157, "train_loss_L2_smpl": 0.011278851258788311, "epoch": 21, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.006341239642003881, "train_loss_L2_smpl": 0.010800775102311717, "epoch": 22, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.007147609273649885, "train_loss_L2_smpl": 0.010950577065544321, "epoch": 23, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0058341113224718395, "train_loss_L2_smpl": 0.01035633396659849, "epoch": 24, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00768872586212076, "train_loss_L2_smpl": 0.010485779681829527, "epoch": 25, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.006196644409837842, "train_loss_L2_smpl": 0.010114076914014216, "epoch": 26, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0060839076075645555, "train_loss_L2_smpl": 0.009999067370983166, "epoch": 27, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005881034165926371, "train_loss_L2_smpl": 0.009644152169046205, "epoch": 28, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005399266523737286, "train_loss_L2_smpl": 0.009541408498314087, "epoch": 29, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.006728141807434816, "train_loss_L2_smpl": 0.009036557762208089, "epoch": 30, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005354162857154935, "train_loss_L2_smpl": 0.009057476118934406, "epoch": 31, "lr": 0.001, "env": "3DCODED_supervised"}
+CompletionNet(
+  (encoder): Sequential(
+    (0): PointNetfeat(
+      (stn): STN3d(
+        (conv1): Conv1d(3, 64, kernel_size=(1,), stride=(1,))
+        (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
+        (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
+        (fc1): Linear(in_features=1024, out_features=512, bias=True)
+        (fc2): Linear(in_features=512, out_features=256, bias=True)
+        (fc3): Linear(in_features=256, out_features=1, bias=True)
+        (relu): ReLU()
+      )
+      (conv1): Conv1d(6, 64, kernel_size=(1,), stride=(1,))
+      (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
+      (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
+      (bn1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (bn2): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+      (bn3): BatchNorm1d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    )
+    (1): Linear(in_features=1024, out_features=1024, bias=True)
+    (2): BatchNorm1d(1024, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (3): ReLU()
+  )
+  (decoder): PointGenCon(
+    (conv1): Conv1d(2054, 2054, kernel_size=(1,), stride=(1,))
+    (conv2): Conv1d(2054, 1027, kernel_size=(1,), stride=(1,))
+    (conv3): Conv1d(1027, 513, kernel_size=(1,), stride=(1,))
+    (conv4): Conv1d(513, 256, kernel_size=(1,), stride=(1,))
+    (conv5): Conv1d(256, 128, kernel_size=(1,), stride=(1,))
+    (conv6): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
+    (conv7): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
+    (conv8): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
+    (conv9): Conv1d(128, 3, kernel_size=(1,), stride=(1,))
+    (th): Tanh()
+    (bn1): BatchNorm1d(2054, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn2): BatchNorm1d(1027, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn3): BatchNorm1d(513, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn4): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn5): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn7): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn8): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+  )
+)
+json_stats: {"val_loss_L2_smpl": 0.005771027777684743, "train_loss_L2_smpl": 0.008953889525179427, "epoch": 0, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005561793877984628, "train_loss_L2_smpl": 0.00891110536400709, "epoch": 1, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.006069742203837158, "train_loss_L2_smpl": 0.008753423543396775, "epoch": 2, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005331184642592208, "train_loss_L2_smpl": 0.00859380621448154, "epoch": 3, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004674752664042402, "train_loss_L2_smpl": 0.008517898193419622, "epoch": 4, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.007954047393212628, "train_loss_L2_smpl": 0.00865204006632659, "epoch": 5, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005769098220205374, "train_loss_L2_smpl": 0.008098221481158541, "epoch": 6, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0049712133661109475, "train_loss_L2_smpl": 0.00807998289491972, "epoch": 7, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0059796820307870665, "train_loss_L2_smpl": 0.008006233198333641, "epoch": 8, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005368886800023888, "train_loss_L2_smpl": 0.007979970260768167, "epoch": 9, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0044673216487892825, "train_loss_L2_smpl": 0.007434576097934595, "epoch": 10, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005104044428614206, "train_loss_L2_smpl": 0.007634885367841503, "epoch": 11, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0049095105862730914, "train_loss_L2_smpl": 0.00776207635206176, "epoch": 12, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004231388954199546, "train_loss_L2_smpl": 0.007139733283604801, "epoch": 13, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005079180579061544, "train_loss_L2_smpl": 0.0073041085938243214, "epoch": 14, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004713301174802114, "train_loss_L2_smpl": 0.006948680989636914, "epoch": 15, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0037510391735339783, "train_loss_L2_smpl": 0.0067568126414740345, "epoch": 16, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0038427561703086, "train_loss_L2_smpl": 0.007215204360247342, "epoch": 17, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0041745887496583405, "train_loss_L2_smpl": 0.00686912396147305, "epoch": 18, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005040723556611499, "train_loss_L2_smpl": 0.0067666332674710256, "epoch": 19, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00393955749680358, "train_loss_L2_smpl": 0.00674002824818932, "epoch": 20, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005131212315387556, "train_loss_L2_smpl": 0.007049473622729921, "epoch": 21, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0038818510387245097, "train_loss_L2_smpl": 0.006703839673244295, "epoch": 22, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004796606994053615, "train_loss_L2_smpl": 0.006588162972765449, "epoch": 23, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00523357000683475, "train_loss_L2_smpl": 0.0062448127026767915, "epoch": 24, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004061895468795734, "train_loss_L2_smpl": 0.00665634608877994, "epoch": 25, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004521838337439834, "train_loss_L2_smpl": 0.006453312542608096, "epoch": 26, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003645224757697426, "train_loss_L2_smpl": 0.006240833351066328, "epoch": 27, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004934349160862776, "train_loss_L2_smpl": 0.006428163762606718, "epoch": 28, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004123447143491615, "train_loss_L2_smpl": 0.006204102794107292, "epoch": 29, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004728172349612231, "train_loss_L2_smpl": 0.005976231029598748, "epoch": 30, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003585276996183867, "train_loss_L2_smpl": 0.006385266424251218, "epoch": 31, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003032733220525836, "train_loss_L2_smpl": 0.006171849668865437, "epoch": 32, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003779000494038858, "train_loss_L2_smpl": 0.006061075194376022, "epoch": 33, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0057339204135587706, "train_loss_L2_smpl": 0.005784852396002336, "epoch": 34, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.006015144818397611, "train_loss_L2_smpl": 0.006241054955059909, "epoch": 35, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004264538980755192, "train_loss_L2_smpl": 0.006142349847623142, "epoch": 36, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00448289426803878, "train_loss_L2_smpl": 0.0061304375152948865, "epoch": 37, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0037094625105247745, "train_loss_L2_smpl": 0.005740685897589995, "epoch": 38, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004089314733037876, "train_loss_L2_smpl": 0.0061438923967340004, "epoch": 39, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003788625106986707, "train_loss_L2_smpl": 0.005796635252193538, "epoch": 40, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004264648838972083, "train_loss_L2_smpl": 0.0061080121005429745, "epoch": 41, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004492102813932725, "train_loss_L2_smpl": 0.00569419912837387, "epoch": 42, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003999808923961193, "train_loss_L2_smpl": 0.0056211781339920025, "epoch": 43, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005609870695014822, "train_loss_L2_smpl": 0.005918837156573501, "epoch": 44, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003376167436498285, "train_loss_L2_smpl": 0.006051997153910569, "epoch": 45, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004399080865153918, "train_loss_L2_smpl": 0.005772220519791644, "epoch": 46, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004087547599093393, "train_loss_L2_smpl": 0.005514895962548632, "epoch": 47, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002976288643479628, "train_loss_L2_smpl": 0.005683230438416147, "epoch": 48, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033879699012304403, "train_loss_L2_smpl": 0.005524692272697921, "epoch": 49, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033557353923508227, "train_loss_L2_smpl": 0.005686651141741503, "epoch": 50, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00395969773667515, "train_loss_L2_smpl": 0.005458052706458379, "epoch": 51, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004203738219334893, "train_loss_L2_smpl": 0.005561635548075307, "epoch": 52, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0051588063476104735, "train_loss_L2_smpl": 0.0056125428835180615, "epoch": 53, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0038239885849026406, "train_loss_L2_smpl": 0.0058328198300417935, "epoch": 54, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004327667147747758, "train_loss_L2_smpl": 0.005142028027728859, "epoch": 55, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033303580484767593, "train_loss_L2_smpl": 0.005316403230578378, "epoch": 56, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0032977741018905683, "train_loss_L2_smpl": 0.005321404246329523, "epoch": 57, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00422040702084948, "train_loss_L2_smpl": 0.005462211878345515, "epoch": 58, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0047086808777018095, "train_loss_L2_smpl": 0.005418810842588747, "epoch": 59, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003919175087592195, "train_loss_L2_smpl": 0.005490562812730672, "epoch": 60, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033588287995736737, "train_loss_L2_smpl": 0.005206272213506696, "epoch": 61, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003699950220638766, "train_loss_L2_smpl": 0.005651860996052286, "epoch": 62, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0039339693335279525, "train_loss_L2_smpl": 0.005306289613429478, "epoch": 63, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033189678983894426, "train_loss_L2_smpl": 0.005018185927257935, "epoch": 64, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003933551722847257, "train_loss_L2_smpl": 0.005412847136320154, "epoch": 65, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0036313324849557163, "train_loss_L2_smpl": 0.005352760067126379, "epoch": 66, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0034039527244125694, "train_loss_L2_smpl": 0.005581438363754448, "epoch": 67, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035871147196613086, "train_loss_L2_smpl": 0.005105721936231612, "epoch": 68, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035455000754447586, "train_loss_L2_smpl": 0.005245304137591735, "epoch": 69, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003530054930946582, "train_loss_L2_smpl": 0.005130590224877409, "epoch": 70, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005351270349797603, "train_loss_L2_smpl": 0.0049280078635093845, "epoch": 71, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033667442007536907, "train_loss_L2_smpl": 0.0051536174031718025, "epoch": 72, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035911627287406813, "train_loss_L2_smpl": 0.005083334773904837, "epoch": 73, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0032051094766803877, "train_loss_L2_smpl": 0.005015138533386695, "epoch": 74, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0034788764294904385, "train_loss_L2_smpl": 0.005041000667656057, "epoch": 75, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004826879303440049, "train_loss_L2_smpl": 0.004972194856853282, "epoch": 76, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0048004608154342135, "train_loss_L2_smpl": 0.005091613569596537, "epoch": 77, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003409669605159318, "train_loss_L2_smpl": 0.004789618544805116, "epoch": 78, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003299970415126305, "train_loss_L2_smpl": 0.004988067430795715, "epoch": 79, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035451949639367882, "train_loss_L2_smpl": 0.005217200791398485, "epoch": 80, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004068270741924299, "train_loss_L2_smpl": 0.004821011018103967, "epoch": 81, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003501721158293198, "train_loss_L2_smpl": 0.005112174859025129, "epoch": 82, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004846053044695748, "train_loss_L2_smpl": 0.004950818129289076, "epoch": 83, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004605692312890236, "train_loss_L2_smpl": 0.004946403221384154, "epoch": 84, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003211785486015068, "train_loss_L2_smpl": 0.004650185583584979, "epoch": 85, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00414181982819194, "train_loss_L2_smpl": 0.004709113835679506, "epoch": 86, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005796873089387242, "train_loss_L2_smpl": 0.004740691385955391, "epoch": 87, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004188028513375869, "train_loss_L2_smpl": 0.004946650088593258, "epoch": 88, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004849544478011066, "train_loss_L2_smpl": 0.005092636145226974, "epoch": 89, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004475225898479981, "train_loss_L2_smpl": 0.004887837055625706, "epoch": 90, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003797086918057473, "train_loss_L2_smpl": 0.004587654535006714, "epoch": 91, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0032226751572222516, "train_loss_L2_smpl": 0.004900524296392096, "epoch": 92, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004228619471289852, "train_loss_L2_smpl": 0.004860326826119207, "epoch": 93, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035727083856580254, "train_loss_L2_smpl": 0.004762891809988413, "epoch": 94, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0034160604353117505, "train_loss_L2_smpl": 0.004876798137510235, "epoch": 95, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003291533336232812, "train_loss_L2_smpl": 0.004679395837530768, "epoch": 96, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003652126999997994, "train_loss_L2_smpl": 0.004662879243120994, "epoch": 97, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00425581899646596, "train_loss_L2_smpl": 0.0048987499136783855, "epoch": 98, "lr": 0.001, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00277750385513335, "train_loss_L2_smpl": 0.00412758064329431, "epoch": 99, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004102125712297564, "train_loss_L2_smpl": 0.004155242368721726, "epoch": 100, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003083240083328313, "train_loss_L2_smpl": 0.004024483070917894, "epoch": 101, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003668860532412385, "train_loss_L2_smpl": 0.0037875302945906643, "epoch": 102, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002993856726335906, "train_loss_L2_smpl": 0.004006896227368908, "epoch": 103, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004513363610042365, "train_loss_L2_smpl": 0.0038572466586762463, "epoch": 104, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0029803325549302533, "train_loss_L2_smpl": 0.003820684636669351, "epoch": 105, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0038771285249595425, "train_loss_L2_smpl": 0.004017282256162753, "epoch": 106, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00364929921589217, "train_loss_L2_smpl": 0.004138150957476552, "epoch": 107, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0039628232477977345, "train_loss_L2_smpl": 0.003971989196954765, "epoch": 108, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003215105985334272, "train_loss_L2_smpl": 0.004015227094219827, "epoch": 109, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00356515415867307, "train_loss_L2_smpl": 0.004074477316400641, "epoch": 110, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00326716838552017, "train_loss_L2_smpl": 0.0039102561949385705, "epoch": 111, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002966403801686583, "train_loss_L2_smpl": 0.003910650057170477, "epoch": 112, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033203918459820247, "train_loss_L2_smpl": 0.003924168553481419, "epoch": 113, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033100186887116087, "train_loss_L2_smpl": 0.003936208677116943, "epoch": 114, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003208706622275125, "train_loss_L2_smpl": 0.003989262487386697, "epoch": 115, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033698119501548484, "train_loss_L2_smpl": 0.003703345059986576, "epoch": 116, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004516110527713684, "train_loss_L2_smpl": 0.003782977966129198, "epoch": 117, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0034577136296777763, "train_loss_L2_smpl": 0.003810925420894115, "epoch": 118, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003546253762047112, "train_loss_L2_smpl": 0.003724088580567358, "epoch": 119, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003336418988605403, "train_loss_L2_smpl": 0.0037292629206039617, "epoch": 120, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003471696828717604, "train_loss_L2_smpl": 0.0037298231809490367, "epoch": 121, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0037177967467446715, "train_loss_L2_smpl": 0.003848778819149787, "epoch": 122, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003576891629637307, "train_loss_L2_smpl": 0.004008759649927079, "epoch": 123, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0027622363044198187, "train_loss_L2_smpl": 0.003958212312307734, "epoch": 124, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003255759988348688, "train_loss_L2_smpl": 0.0037603402837625946, "epoch": 125, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003959448778074094, "train_loss_L2_smpl": 0.003664737853963535, "epoch": 126, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0027591435666636057, "train_loss_L2_smpl": 0.0037167538227063685, "epoch": 127, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0032788334733283102, "train_loss_L2_smpl": 0.0037148831490918864, "epoch": 128, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033005432909093703, "train_loss_L2_smpl": 0.0037543505124672917, "epoch": 129, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0030433814799161614, "train_loss_L2_smpl": 0.0038955135449620206, "epoch": 130, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003529806260265558, "train_loss_L2_smpl": 0.003943795923476201, "epoch": 131, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003057444771623483, "train_loss_L2_smpl": 0.0039483259346552195, "epoch": 132, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003928787882196166, "train_loss_L2_smpl": 0.003783417390946658, "epoch": 133, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004146099891026408, "train_loss_L2_smpl": 0.0036400577462062495, "epoch": 134, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002888347782277703, "train_loss_L2_smpl": 0.003695423570287614, "epoch": 135, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0032344849434342835, "train_loss_L2_smpl": 0.0036936793451075914, "epoch": 136, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0029780299130931264, "train_loss_L2_smpl": 0.0037730965401978887, "epoch": 137, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004582548120566474, "train_loss_L2_smpl": 0.0038524579039563166, "epoch": 138, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003141488125991768, "train_loss_L2_smpl": 0.0037440230187408994, "epoch": 139, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003450992694208177, "train_loss_L2_smpl": 0.0034840412609352016, "epoch": 140, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00533542849004297, "train_loss_L2_smpl": 0.004132251644296435, "epoch": 141, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0038140783042552454, "train_loss_L2_smpl": 0.003851762782540998, "epoch": 142, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0031427627211636816, "train_loss_L2_smpl": 0.003747960338022612, "epoch": 143, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0027185928718500394, "train_loss_L2_smpl": 0.003724510127885714, "epoch": 144, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003050165490257757, "train_loss_L2_smpl": 0.003755732706848651, "epoch": 145, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0029061477862011636, "train_loss_L2_smpl": 0.003804608386478434, "epoch": 146, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0036625897667761317, "train_loss_L2_smpl": 0.0036423875273068384, "epoch": 147, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0034634767445029294, "train_loss_L2_smpl": 0.0034805004881041774, "epoch": 148, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0030148243423540172, "train_loss_L2_smpl": 0.003774350802582699, "epoch": 149, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0027353382030823174, "train_loss_L2_smpl": 0.003778414438705504, "epoch": 150, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0038248018508497145, "train_loss_L2_smpl": 0.0037056035614879417, "epoch": 151, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003724400511635752, "train_loss_L2_smpl": 0.00387329520775132, "epoch": 152, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0029118065846612216, "train_loss_L2_smpl": 0.003708678272116413, "epoch": 153, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0033744365982163326, "train_loss_L2_smpl": 0.0036946163560240917, "epoch": 154, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00312177107715254, "train_loss_L2_smpl": 0.003760183679598214, "epoch": 155, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0039141668270061365, "train_loss_L2_smpl": 0.0035320139966281503, "epoch": 156, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003907028286592887, "train_loss_L2_smpl": 0.0035155839125624515, "epoch": 157, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004001819075733363, "train_loss_L2_smpl": 0.003596209416189672, "epoch": 158, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0032514152196967453, "train_loss_L2_smpl": 0.003701351999653836, "epoch": 159, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003963743928553378, "train_loss_L2_smpl": 0.0037117584884239566, "epoch": 160, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0029908021533023997, "train_loss_L2_smpl": 0.0037171745375247783, "epoch": 161, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0030607696219547517, "train_loss_L2_smpl": 0.0036713854088952706, "epoch": 162, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003206396926088983, "train_loss_L2_smpl": 0.0037804449755459626, "epoch": 163, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0037007888476155446, "train_loss_L2_smpl": 0.003850154323549826, "epoch": 164, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003518335974017311, "train_loss_L2_smpl": 0.003529740571422333, "epoch": 165, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035005063851906142, "train_loss_L2_smpl": 0.003540320867211014, "epoch": 166, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0038345184774389953, "train_loss_L2_smpl": 0.003762735726015909, "epoch": 167, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003119513398155409, "train_loss_L2_smpl": 0.003549824072571865, "epoch": 168, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0027390404018539922, "train_loss_L2_smpl": 0.0036789459563030197, "epoch": 169, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0032203541590587444, "train_loss_L2_smpl": 0.003836645692716587, "epoch": 170, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005082882600992326, "train_loss_L2_smpl": 0.0036008648969583943, "epoch": 171, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0029938455327887044, "train_loss_L2_smpl": 0.0035009859123053743, "epoch": 172, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0030780830786734646, "train_loss_L2_smpl": 0.00329484720206664, "epoch": 173, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00329769529851706, "train_loss_L2_smpl": 0.0037584279416113626, "epoch": 174, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0038627831892655896, "train_loss_L2_smpl": 0.0036000165864339293, "epoch": 175, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003013915361242399, "train_loss_L2_smpl": 0.0036103955900927283, "epoch": 176, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002926668747069122, "train_loss_L2_smpl": 0.0036952639158979363, "epoch": 177, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0029911851413746723, "train_loss_L2_smpl": 0.0035158994196744825, "epoch": 178, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004699505266275936, "train_loss_L2_smpl": 0.0035161741797940967, "epoch": 179, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0025963980457405075, "train_loss_L2_smpl": 0.003532226716935048, "epoch": 180, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035457578334327634, "train_loss_L2_smpl": 0.003604113761108324, "epoch": 181, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003592426403947833, "train_loss_L2_smpl": 0.003454636725816817, "epoch": 182, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003857857652107833, "train_loss_L2_smpl": 0.003466250705202119, "epoch": 183, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0026905330453295302, "train_loss_L2_smpl": 0.00357797447563344, "epoch": 184, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002330002575237307, "train_loss_L2_smpl": 0.0035998992352475286, "epoch": 185, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035248709687341205, "train_loss_L2_smpl": 0.0035398907378556125, "epoch": 186, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002611140773578755, "train_loss_L2_smpl": 0.0035061247711694952, "epoch": 187, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0028755283268444448, "train_loss_L2_smpl": 0.0035581154974150073, "epoch": 188, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0029933932021932405, "train_loss_L2_smpl": 0.0035716775680706466, "epoch": 189, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003966545195743384, "train_loss_L2_smpl": 0.0036970874430794142, "epoch": 190, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003373419802969713, "train_loss_L2_smpl": 0.0035584448929160033, "epoch": 191, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002552858652136579, "train_loss_L2_smpl": 0.0034050114174172695, "epoch": 192, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0030979488761702163, "train_loss_L2_smpl": 0.003301069102779173, "epoch": 193, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002978682436672267, "train_loss_L2_smpl": 0.0034426433165424455, "epoch": 194, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005307904908405132, "train_loss_L2_smpl": 0.003611972600903195, "epoch": 195, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002774312966612115, "train_loss_L2_smpl": 0.003373053468194991, "epoch": 196, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0034294895353628994, "train_loss_L2_smpl": 0.0035091043568552275, "epoch": 197, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003077023813223643, "train_loss_L2_smpl": 0.003573197857856673, "epoch": 198, "lr": 0.0005, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002981628106399214, "train_loss_L2_smpl": 0.0033564061605494988, "epoch": 199, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003711621805004797, "train_loss_L2_smpl": 0.0031818496738330137, "epoch": 200, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003046569413747793, "train_loss_L2_smpl": 0.003304960691946351, "epoch": 201, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035000266122158868, "train_loss_L2_smpl": 0.0028852858396534904, "epoch": 202, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002866888191205059, "train_loss_L2_smpl": 0.0031950906634633327, "epoch": 203, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00321737566118767, "train_loss_L2_smpl": 0.003207302040632793, "epoch": 204, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035129861927544396, "train_loss_L2_smpl": 0.0030715777911734863, "epoch": 205, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005477355953626592, "train_loss_L2_smpl": 0.0030773622676844243, "epoch": 206, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003714630239381701, "train_loss_L2_smpl": 0.0031264677832341732, "epoch": 207, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005275635762535082, "train_loss_L2_smpl": 0.003068813070829257, "epoch": 208, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0026919832077681935, "train_loss_L2_smpl": 0.003008839264527594, "epoch": 209, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0027891120169490926, "train_loss_L2_smpl": 0.003078643178236189, "epoch": 210, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0026502534865324094, "train_loss_L2_smpl": 0.0030582504383736163, "epoch": 211, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0044961441864153585, "train_loss_L2_smpl": 0.0029138576104914223, "epoch": 212, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0037536032123631187, "train_loss_L2_smpl": 0.003129416698394971, "epoch": 213, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0029193471628615507, "train_loss_L2_smpl": 0.0031562967825754487, "epoch": 214, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004492696930425967, "train_loss_L2_smpl": 0.002833587561240299, "epoch": 215, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002945321389453143, "train_loss_L2_smpl": 0.0031154285849312817, "epoch": 216, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003217484327440841, "train_loss_L2_smpl": 0.002910021617244948, "epoch": 217, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003423677982820705, "train_loss_L2_smpl": 0.003099281952035662, "epoch": 218, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003417044105809169, "train_loss_L2_smpl": 0.002891640608568967, "epoch": 219, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003200500600737902, "train_loss_L2_smpl": 0.003092331581579872, "epoch": 220, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0035931886698246708, "train_loss_L2_smpl": 0.0029376955181377516, "epoch": 221, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003505500985361372, "train_loss_L2_smpl": 0.0031707478313514055, "epoch": 222, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.00298819323467457, "train_loss_L2_smpl": 0.0028325781819309014, "epoch": 223, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0034527715756679177, "train_loss_L2_smpl": 0.0030377991035951905, "epoch": 224, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0028860186273538054, "train_loss_L2_smpl": 0.0030565122909047096, "epoch": 225, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0030866894696454316, "train_loss_L2_smpl": 0.0030651100144048855, "epoch": 226, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.003271493520370259, "train_loss_L2_smpl": 0.003159493344236675, "epoch": 227, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.002835250129717242, "train_loss_L2_smpl": 0.0030302931308780427, "epoch": 228, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.0032043230511418163, "train_loss_L2_smpl": 0.0029039539807313984, "epoch": 229, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.005315714436835047, "train_loss_L2_smpl": 0.003042142000281635, "epoch": 230, "lr": 0.00025, "env": "3DCODED_supervised"}
+json_stats: {"val_loss_L2_smpl": 0.004371829340324022, "train_loss_L2_smpl": 0.0029890936381886204, "epoch": 231, "lr": 0.00025, "env": "3DCODED_supervised"}
