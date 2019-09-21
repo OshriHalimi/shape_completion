@@ -1,4 +1,4 @@
-function shape = load_off(filename, force_sum)
+function shape = load_off(filename)
 
 shape = [];
 
@@ -28,7 +28,7 @@ shape.VERT = data';
 
 fclose(f);
 
-if (nargin==2 && force_sum) || min(min(shape.TRIV))==0
+if min(min(shape.TRIV))==0
     shape.TRIV = 1+shape.TRIV;
 end
 

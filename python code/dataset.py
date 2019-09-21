@@ -14,7 +14,31 @@ class IndexExceedDataset(Exception):
         message = "Index exceeds dataset size! index is:{}, size is:{}".format(self.index, self.dataset_size)
         return repr(message)
 
+class SHREC16CutsDavidDataset(data.Dataset):
+    def __init__(self):
+        self.path = "D:/shape_completion/data/shrec16_evaluation/train_cuts_david/"
 
+    def get_shapes(self, index):
+        part_id = index + 1
+        name = "cuts_david_shape_" + "{}".format(part_id)
+        x = sio.loadmat(self.path + name + ".mat")
+        part = x['partial_shape']  # OH: matrix of vertices
+
+        x = sio.loadmat(self.path + "david.mat")
+        template = x['full_shape']  # OH: matrix of vertices
+
+        return part, template, name
+
+    def __getitem__(self, index):
+        if index < 15:
+            part, template, name = self.get_shapes(index)
+        else:
+            raise IndexExceedDataset(index, self.__len__())
+
+        return part, template, name, index
+
+    def __len__(self):
+        return 15
 class FaustProjectionsDataset(data.Dataset):
     def __init__(self, train):
         self.train = train
