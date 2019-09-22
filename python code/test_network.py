@@ -62,7 +62,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
             # Forward pass
             pointsReconstructed = network(part, template).double()
-            sio.savemat(save_path + "part_" + name_part[0] + "full_" + name_full[0]+ '.mat', {'pointsReconstructed': pointsReconstructed.cpu().numpy()})
+            sio.savemat(save_path + "part_" + name_part[0] + "_full_" + name_full[0]+ '.mat', {'pointsReconstructed': pointsReconstructed.cpu().numpy()})
             # VIZUALIZE
             vis.scatter(X=part[0,:3,:].transpose(1, 0).contiguous().data.cpu(), win='Test_Part',
                         opts=dict(title="Test_Part", markersize=2, ), )
