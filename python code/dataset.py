@@ -17,31 +17,32 @@ class IndexExceedDataset(Exception):
 class SHREC16CutsDavidDataset(data.Dataset):
     def __init__(self):
         #self.path = "D:/shape_completion/data/shrec16_evaluation/train_cuts_david/"
-        self.path = "D:/shape_completion/data/tosca_plane_cut\david/"
-        #self.path = "D:/shape_completion/data/faust_projections/dataset/"
+        #self.path = "D:/shape_completion/data/tosca_plane_cut\david/"
+        self.path = "D:/oshri.halimi/shape_completion/data/faust_projections/dataset/"
 
     def get_shapes(self, index):
         part_id = index + 1
         #name = "cuts_david_shape_" + "{}".format(part_id)
-        name = "david13_part"
-        #name = "tr_reg_000_001"
-        x = sio.loadmat(self.path + name + ".mat")
+        #name = "david13_part"
+        name_part = "tr_reg_090_001"
+        x = sio.loadmat(self.path + name_part + ".mat")
         part = x['partial_shape']  # OH: matrix of vertices
 
         #x = sio.loadmat(self.path + "david.mat")
-        x = sio.loadmat(self.path + "david13.mat")
-        #x = sio.loadmat(self.path + "tr_reg_000.mat")
+        #x = sio.loadmat(self.path + "david13.mat")
+        name_full = "tr_reg_090"
+        x = sio.loadmat(self.path + name_full + ".mat")
         template = x['full_shape']  # OH: matrix of vertices
 
-        return part, template, name
+        return part, template, name_part, name_full
 
     def __getitem__(self, index):
         if index < 1:
-            part, template, name = self.get_shapes(index)
+            part, template, name_part, name_full = self.get_shapes(index)
         else:
             raise IndexExceedDataset(index, self.__len__())
 
-        return part, template, name, index
+        return part, template, name_part, name_full, index
 
     def __len__(self):
         return 1

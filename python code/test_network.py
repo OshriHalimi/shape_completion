@@ -20,8 +20,8 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser = argparse.ArgumentParser()
     parser.add_argument('--batchSize', type=int, default=1, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=1)
-    parser.add_argument('--model', type=str, default='D:\shape_completion\python code\log/Simple network; Translation augmentation; Input normals; Deeper Decoder/network_last.pth', help='optional reload model path')
-    parser.add_argument('--save_path', type=str, default='D:\shape_completion\python code\log/Simple network; Translation augmentation; Input normals; Deeper Decoder/test/', help='save path')
+    parser.add_argument('--model', type=str, default='D:\oshri.halimi\experiments/Simple network; Translation augmentation; Input normals; Deeper Decoder (12)/network_last.pth', help='optional reload model path')
+    parser.add_argument('--save_path', type=str, default='D:\oshri.halimi\experiments\Simple network; Translation augmentation; Input normals; Deeper Decoder (12)/test/', help='save path')
     parser.add_argument('--env', type=str, default="3DCODED_supervised", help='visdom environment')  #OH: TODO edit
 
     opt = parser.parse_args()
@@ -55,14 +55,14 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
         network.eval()
 
         for i, data in enumerate(dataloader_test, 0):
-            part, template, name, _ = data
+            part, template, name_part, name_full, _ = data
             # OH: place on GPU
             part = part.transpose(2, 1).contiguous().cuda(non_blocking=True).float()
             template = template.transpose(2, 1).contiguous().cuda(non_blocking=True).float()
 
             # Forward pass
             pointsReconstructed = network(part, template).double()
-            sio.savemat(save_path + name[0] + '.mat', {'pointsReconstructed': pointsReconstructed.cpu().numpy()})
+            sio.savemat(save_path + "part_" + name_part[0] + "full_" + name_full[0]+ '.mat', {'pointsReconstructed': pointsReconstructed.cpu().numpy()})
             # VIZUALIZE
             vis.scatter(X=part[0,:3,:].transpose(1, 0).contiguous().data.cpu(), win='Test_Part',
                         opts=dict(title="Test_Part", markersize=2, ), )
