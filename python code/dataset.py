@@ -16,23 +16,28 @@ class IndexExceedDataset(Exception):
 
 class SHREC16CutsDavidDataset(data.Dataset):
     def __init__(self):
-        #self.path = "D:/shape_completion/data/shrec16_evaluation/train_cuts_david/"
-        #self.path = "D:/shape_completion/data/tosca_plane_cut\david/"
+        #self.path = "D:/oshri.halimi/shape_completion/data/shrec16_evaluation/train_cuts_david/"
+        #self.path = "D:/oshri.halimi/shape_completion/data/tosca_plane_cut/david/"
         self.path = "D:/oshri.halimi/shape_completion/data/faust_projections/dataset/"
 
     def get_shapes(self, index):
         part_id = index + 1
-        #name = "cuts_david_shape_" + "{}".format(part_id)
-        #name = "david13_part"
-        name_part = "tr_reg_090_001"
+        #name_part = "cuts_david_shape_" + "{}".format(part_id)
+        #name_part = "david13_part"
+        name_part = "tr_reg_091_001"
         x = sio.loadmat(self.path + name_part + ".mat")
         part = x['partial_shape']  # OH: matrix of vertices
 
-        #x = sio.loadmat(self.path + "david.mat")
-        #x = sio.loadmat(self.path + "david13.mat")
+        #name_full = "david"
+        #name_full = "david13"
         name_full = "tr_reg_090"
         x = sio.loadmat(self.path + name_full + ".mat")
         template = x['full_shape']  # OH: matrix of vertices
+
+        #part_trans = 0.3*np.random.rand(1,3) - 0.15
+        #template_trans = 0.3*np.random.rand(1, 3) - 0.15
+        #part[:,:3] = part[:,:3]  + part_trans
+        #template[:,:3]  = template[:,:3]  + template_trans
 
         return part, template, name_part, name_full
 

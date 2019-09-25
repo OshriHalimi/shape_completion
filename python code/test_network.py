@@ -20,8 +20,8 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser = argparse.ArgumentParser()
     parser.add_argument('--batchSize', type=int, default=1, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=1)
-    parser.add_argument('--model', type=str, default='D:\oshri.halimi\experiments/Simple network; Translation augmentation; Input normals; Deeper Decoder (12)/network_last.pth', help='optional reload model path')
-    parser.add_argument('--save_path', type=str, default='D:\oshri.halimi\experiments\Simple network; Translation augmentation; Input normals; Deeper Decoder (12)/test/', help='save path')
+    parser.add_argument('--model', type=str, default='D:/oshri.halimi/shape_completion/python code/log/No augmentation; Input normals; Deeper Decoder/network_last.pth', help='optional reload model path')
+    parser.add_argument('--save_path', type=str, default='D:/oshri.halimi/shape_completion/python code/log/No augmentation; Input normals; Deeper Decoder/test/', help='save path')
     parser.add_argument('--env', type=str, default="3DCODED_supervised", help='visdom environment')  #OH: TODO edit
 
     opt = parser.parse_args()
