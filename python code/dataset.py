@@ -24,13 +24,13 @@ class SHREC16CutsDavidDataset(data.Dataset):
         part_id = index + 1
         #name_part = "cuts_david_shape_" + "{}".format(part_id)
         #name_part = "david13_part"
-        name_part = "tr_reg_091_001"
+        name_part = "tr_reg_097_001"
         x = sio.loadmat(self.path + name_part + ".mat")
         part = x['partial_shape']  # OH: matrix of vertices
 
         #name_full = "david"
         #name_full = "david13"
-        name_full = "tr_reg_090"
+        name_full = "tr_reg_092"
         x = sio.loadmat(self.path + name_full + ".mat")
         template = x['full_shape']  # OH: matrix of vertices
 

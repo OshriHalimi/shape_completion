@@ -81,8 +81,8 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # =============start of the learning loop ======================================== #
     for epoch in range(opt.nepoch):
-        if (epoch % 100) == 99:  # OH: originally was 80
-            lrate = lrate/2.0  # learning rate scheduled decay
+        if (epoch % 100) == 99:
+            lrate = lrate/2.0
             optimizer = optim.Adam(network.parameters(), lr=lrate)
 
         # TRAIN MODE
