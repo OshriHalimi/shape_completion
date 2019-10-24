@@ -1,0 +1,25 @@
+[V1_S1_T1] AMASS Data Preparation Began.
+ Initial use of standard AMASS dataset preparation pipeline 
+Stage I: Fetch data from AMASS npz files
+randomly selecting data points from HumanEva.
+randomly selecting data points from MPI_HDM05.
+randomly selecting data points from SFU.
+randomly selecting data points from MPI_mosh.
+randomly selecting data points from Transitions_mocap.
+randomly selecting data points from SSM_synced.
+randomly selecting data points from CMU.
+randomly selecting data points from MPI_Limits.
+randomly selecting data points from TotalCapture.
+randomly selecting data points from Eyes_Japan_Dataset.
+randomly selecting data points from KIT.
+randomly selecting data points from BML.
+randomly selecting data points from EKUT.
+randomly selecting data points from TCD_handMocap.
+randomly selecting data points from ACCAD.
+Stage II: augment the data and save into h5 files to be used in a cross framework scenario.
+vald has 10374 data points!
+test has 867 data points!
+train has 112776 data points!
+
+Stage III: dump every data field for all the splits as final pytorch pt files
+Dumped final pytorch dataset at /home/giovanni/Desktop/amass_op/V1_S1_T1/stage_III
