@@ -23,4 +23,6 @@ amass_splits = {
               'BML', 'EKUT', 'TCD_handMocap', 'ACCAD']
 }
 
+# NOTE: BML has to be renamed, CMU's folder has to be rearrenged
+
 prepare_amass(amass_splits, amass_dir, work_dir, logger=logger)
