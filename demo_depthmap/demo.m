@@ -18,7 +18,6 @@ for i=1:length(shapes)
     full_model = load_off(sprintf('%s/%s', shapes_dir, shapes(i).name));
     full_model.VERT = full_model.VERT * 80;
     full_model.S_tri = calc_tri_areas(full_model);
-    full_model.VERT
     full_model.VERT = full_model.VERT - repmat(mean(full_model.VERT),full_model.n,1);
     
     
@@ -69,7 +68,7 @@ for i=1:length(shapes)
             end
             
             out_fname = sprintf('%s/%s.range%d.mat', out_dir, nm, (k-1)*5+ai);
-            parsave(out_fname, M, depth);
+            parsave(out_fname, M.gt);
             
             fig = figure('visible', 'off');
             subplot(121), imagesc(depth), axis equal, colormap(gray), colorbar, title(sprintf('angle %.4f',a)), axis image

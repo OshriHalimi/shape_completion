@@ -1,6 +1,6 @@
-function parsave(fname, inp1, inp2)
+function parsave(fname, inp)
     
-    save(fname, 'inp1', 'inp2');
+    save(fname, 'inp');
     %var_name=genvarname(inputname(2)); 
     %eval([var_name '=data;']);
 
