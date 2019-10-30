@@ -70,12 +70,12 @@ for i=1:length(shapes)
             out_fname = sprintf('%s/%s.range%d.mat', out_dir, nm, (k-1)*5+ai);
             parsave(out_fname, M.gt);
             
-            fig = figure('visible', 'off');
-            subplot(121), imagesc(depth), axis equal, colormap(gray), colorbar, title(sprintf('angle %.4f',a)), axis image
-            subplot(122), plot_mesh(M), axis off; view([90 -90]); shading faceted
-            fig_fname = sprintf('%s/%s.range%d.png', out_dir, nm, (k-1)*5+ai);
-            saveas(fig, fig_fname);
-            autocrop_image(fig_fname, true);
+            %fig = figure('visible', 'off');
+            %subplot(121), imagesc(depth), axis equal, colormap(gray), colorbar, title(sprintf('angle %.4f',a)), axis image
+            %subplot(122), plot_mesh(M), axis off; view([90 -90]); shading faceted
+            %fig_fname = sprintf('%s/%s.range%d.png', out_dir, nm, (k-1)*5+ai);
+            %saveas(fig, fig_fname);
+            %autocrop_image(fig_fname, true);
             
         end % next rotation
         toc
