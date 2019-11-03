@@ -17,10 +17,17 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     # of the multi-process data loader (see pytorch documentation)
     # =============PARAMETERS======================================== #
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
+    parser.add_argument('--batchSize', type=int, default=15,opt.manualSeed = 1 #random.randint(1, 10000)  # fix seed
+    print("Random Seed: ", opt.manualSeed)
+    random.seed(opt.manualSeed)
+    torch.manual_seed(opt.manualSeed)
+    np.random.seed(opt.manualSeed)
+    L2curve_train_smpl = []
+    L2curve_val_smlp = [] help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
-    parser.add_argument('--model', type=str, default='D:\shape_completion\python code\log/Simple network; Translation augmentation; Input normals; Deeper Decoder/network_last.pth', help='optional reload model path')
+    os.path.join(os.getcwd(), "log", "Simple network; Translation augmentation; Input normals; Deeper Decoder", "network_last.pth")
+    parser.add_argument('--model', type=str, default=os.path.join(os.getcwd(), "log", "Simple network; Translation augmentation; Input normals; Deeper Decoder", "network_last.pth"), help='optional reload model path')
     parser.add_argument('--save_path', type=str, default='Simple network; Translation augmentation; Input normals; Deeper Decoder', help='save path')
     parser.add_argument('--env', type=str, default="3DCODED_supervised", help='visdom environment')  #OH: TODO edit
 
@@ -53,10 +60,10 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # ===================CREATE DATASET================================= #
 
-    dataset = FaustProjectionsDataset(train=True)
+    dataset = AmassProjectionsDataset(train=True)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=int(opt.workers), pin_memory=True)
     # OH: pin_memory=True used to increase the performance when transferring the fetched data from CPU to GPU
-    dataset_test = FaustProjectionsDataset(train=False)
+    dataset_test = AmassProjectionsDataset(train=False)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True, num_workers=int(opt.workers), pin_memory=True)
     len_dataset = len(dataset)
     len_dataset_test = len(dataset_test)

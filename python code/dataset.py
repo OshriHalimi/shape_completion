@@ -126,7 +126,7 @@ class AmassProjectionsDataset(data.Dataset):
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "train")
             self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
         else:
-            self.path = os.path.join(os.getcwd(), os.pardir, "data", "test")
+            self.path = os.path.join(os.getcwd(), os.pardir, "data", "vald")
             self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
         # self.path = "D:/Shape-Completion/data/faust_projections/dataset/"
 
@@ -188,7 +188,7 @@ if __name__ == '__main__':
     print('Testing Faust Projections Dataset')
 
     import visdom
-    vis = visdom.Visdom(port=8097, env="main")
+    vis = visdom.Visdom(port=8888, env="test-rot")
 
     d = AmassProjectionsDataset(train=True)
     i = 11
