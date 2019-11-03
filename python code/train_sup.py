@@ -17,13 +17,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     # of the multi-process data loader (see pytorch documentation)
     # =============PARAMETERS======================================== #
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batchSize', type=int, default=15,opt.manualSeed = 1) #random.randint(1, 10000)  # fix seed
-    print("Random Seed: ", opt.manualSeed)
-    random.seed(opt.manualSeed)
-    torch.manual_seed(opt.manualSeed)
-    np.random.seed(opt.manualSeed)
-    L2curve_train_smpl = []
-    L2curve_val_smlp = [] help='input batch size')
+    parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
     os.path.join(os.getcwd(), "log", "Simple network; Translation augmentation; Input normals; Deeper Decoder", "network_last.pth")
