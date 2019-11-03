@@ -3,6 +3,8 @@ import torch.utils.data as data
 from utils import *
 import numpy as np
 import scipy.io as sio
+import json
+import os
 
 
 class IndexExceedDataset(Exception):
@@ -115,19 +117,86 @@ class FaustProjectionsDataset(data.Dataset):
             return 1000
 
 
+
+class AmassProjectionsDataset(data.Dataset):
+
+    def __init__(self, train):
+        self.train = train
+        if train:
+            self.path = os.path.join(os.getcwd(), os.pardir, "data", "train")
+            self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
+        else:
+            self.path = os.path.join(os.getcwd(), os.pardir, "data", "test")
+            self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
+        # self.path = "D:/Shape-Completion/data/faust_projections/dataset/"
+
+    def translate_index(self, index):
+
+        subject_id = np.random.choice(list(map(int, self.dict_counts.keys())))
+        pose_id_full, pose_id_part = np.random.choice(self.dict_counts[str(subject_id)], 2, replace=False)
+        mask_id = np.random.choice(10)
+
+        return subject_id, pose_id_full, pose_id_part, mask_id
+
+    def get_shapes(self, index):
+
+        subject_id, pose_id_full, pose_id_part, mask_id = self.translate_index(index)
+
+        template = self.read_off(subject_id, pose_id_full)
+        gt = self.read_off(subject_id, pose_id_part)
+        part = self.read_npz(subject_id, pose_id_part, mask_id)
+        part = gt[part]
+
+        return part, template, gt
+
+    def read_npz(self, s_id, p_id, m_id):
+
+        name = os.path.join(self.path, "projection",
+                            "subjectID_{}_poseID_{}_projectionID_{}.npz".format(s_id, p_id, m_id))
+        mask = np.load(name)
+        mask = mask["mask"]
+
+        return mask
+
+    def read_off(self, s_id, p_id):
+
+        name = os.path.join(self.path, "original", "subjectID_{}_poseID_{}.OFF".format(s_id, p_id))
+
+        lines = [l.strip() for l in open(name, "r")]
+        words = [int(i) for i in lines[1].split(' ')]
+        vn = words[0]
+        vertices = np.zeros((vn, 3), dtype='float32')
+        for i in range(2, 2 + vn):
+            vertices[i - 2] = [float(w) for w in lines[i].split(' ')]
+
+        return vertices
+
+    def __getitem__(self, index):
+
+        part, template, gt = self.get_shapes(index)
+
+        return part, template, gt, index
+
+    def __len__(self):
+        if self.train:
+            return 100000
+        else:
+            return 1000
+
+
 if __name__ == '__main__':
     print('Testing Faust Projections Dataset')
 
     import visdom
-    vis = visdom.Visdom(port=8888, env="test-rot")
+    vis = visdom.Visdom(port=8097, env="main")
 
-    d = FaustProjectionsDataset(train=True)
+    d = AmassProjectionsDataset(train=True)
     i = 11
     part, template, gt, index = d[i]
     vis.scatter(X=template, win="template train sample #{}".format(i),
                 opts=dict(title='template train sample #{}'.format(i), markersize=2,),)
 
-    d = FaustProjectionsDataset(train=False)
+    d = AmassProjectionsDataset(train=False)
     i = 11
     part, template, gt, index = d[i]
     vis.scatter(X=template, win="template test sample #{}".format(i),
