@@ -17,7 +17,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     # of the multi-process data loader (see pytorch documentation)
     # =============PARAMETERS======================================== #
     parser = argparse.ArgumentParser()
-    parser.add_argument('--batchSize', type=int, default=15,opt.manualSeed = 1 #random.randint(1, 10000)  # fix seed
+    parser.add_argument('--batchSize', type=int, default=15,opt.manualSeed = 1) #random.randint(1, 10000)  # fix seed
     print("Random Seed: ", opt.manualSeed)
     random.seed(opt.manualSeed)
     torch.manual_seed(opt.manualSeed)
