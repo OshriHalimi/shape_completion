@@ -144,8 +144,11 @@ class AmassProjectionsDataset(data.Dataset):
 
         template = self.read_off(subject_id, pose_id_full)
         gt = self.read_off(subject_id, pose_id_part)
-        part = self.read_npz(subject_id, pose_id_part, mask_id)
-        part = gt[part]
+        mask = self.read_npz(subject_id, pose_id_part, mask_id)
+        part = gt[mask]
+
+        if len(mask) == 1:
+            part, template, gt = self.get_shapes(index)
 
         return part, template, gt
 
