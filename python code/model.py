@@ -61,7 +61,7 @@ class PointNetfeat(nn.Module):
         self.global_feat = global_feat
 
         self.stn = STN3d()
-        self.conv1 = torch.nn.Conv1d(6, 64, 1)
+        self.conv1 = torch.nn.Conv1d(3, 64, 1)
         self.conv2 = torch.nn.Conv1d(64, 128, 1)
         self.conv3 = torch.nn.Conv1d(128, self.bottleneck_size, 1)
 

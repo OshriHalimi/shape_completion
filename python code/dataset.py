@@ -145,10 +145,10 @@ class AmassProjectionsDataset(data.Dataset):
         template = self.read_off(subject_id, pose_id_full)
         gt = self.read_off(subject_id, pose_id_part)
         mask = self.read_npz(subject_id, pose_id_part, mask_id)
-        mask_full = np.zeros(template.shape[0])
+        mask_full = np.zeros(template.shape[0], dtype=int)
         mask_full[:len(mask)] = mask
         mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
-        part = gt[mask]
+        part = gt[mask_full]
 
         if len(mask) == 1:
             part, template, gt = self.get_shapes(index)
