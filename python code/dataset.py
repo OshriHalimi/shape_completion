@@ -127,7 +127,7 @@ class AmassProjectionsDataset(data.Dataset):
             self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
         else:
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "vald")
-            self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
+            self.dict_counts = json.load(open(os.path.join("support_material", "vald_dict.json")))
         # self.path = "D:/Shape-Completion/data/faust_projections/dataset/"
 
     def translate_index(self, index):
