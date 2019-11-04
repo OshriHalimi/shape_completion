@@ -153,7 +153,7 @@ class CompletionNet(nn.Module):  # OH: inherits from the base class - torch.nn.M
         )
 
         # OH: The decoder takes as an input the template coordinates with the global feature vector of the input shape
-        self.decoder = PointGenCon(point_code_size=6 + self.bottleneck_size + self.bottleneck_size)
+        self.decoder = PointGenCon(point_code_size=3 + self.bottleneck_size + self.bottleneck_size)
 
     # OH: Takes as an input the partial point cloud and the template point cloud, encoding them, and decoding
     # the template deformation

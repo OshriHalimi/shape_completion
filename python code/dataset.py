@@ -133,6 +133,9 @@ class AmassProjectionsDataset(data.Dataset):
     def translate_index(self, index):
 
         subject_id = np.random.choice(list(map(int, self.dict_counts.keys())))
+        while subject_id == 288: # this needs to be fixed/removed (has only one pose???)
+            subject_id = np.random.choice(list(map(int, self.dict_counts.keys())))
+
         pose_id_full, pose_id_part = np.random.choice(self.dict_counts[str(subject_id)], 2, replace=False)
         mask_id = np.random.choice(10)
 
