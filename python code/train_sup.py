@@ -146,23 +146,23 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 ax_train_template = tmp_fig.add_subplot(142, projection='3d')
                 ax_train_output = tmp_fig.add_subplot(143, projection='3d')
                 ax_train_ground_truth = tmp_fig.add_subplot(144, projection='3d')
-                ax_train_part.scatter(part[0, 0, :].contiguous().data.cpu(),
-                                      part[0, 1, :].contiguous().data.cpu(),
-                                      part[0, 2, :].contiguous().data.cpu())
-                ax_train_template.scatter(template[0, 0, :].contiguous().data.cpu(),
-                                      template[0, 1, :].contiguous().data.cpu(),
-                                      template[0, 2, :].contiguous().data.cpu())
-                ax_train_output.scatter(pointsReconstructed[0, 0, :].contiguous().data.cpu(),
-                                          pointsReconstructed[0, 1, :].contiguous().data.cpu(),
-                                          pointsReconstructed[0, 2, :].contiguous().data.cpu())
-                ax_train_ground_truth.scatter(gt[0, 0, :].contiguous().data.cpu(),
-                                          gt[0, 1, :].contiguous().data.cpu(),
-                                          gt[0, 2, :].contiguous().data.cpu())
+                ax_train_part.scatter(part[i, 0, :].contiguous().data.cpu(),
+                                      part[i, 1, :].contiguous().data.cpu(),
+                                      part[i, 2, :].contiguous().data.cpu())
+                ax_train_template.scatter(template[i, 0, :].contiguous().data.cpu(),
+                                      template[i, 1, :].contiguous().data.cpu(),
+                                      template[i, 2, :].contiguous().data.cpu())
+                ax_train_output.scatter(pointsReconstructed[i, 0, :].contiguous().data.cpu(),
+                                          pointsReconstructed[i, 1, :].contiguous().data.cpu(),
+                                          pointsReconstructed[i, 2, :].contiguous().data.cpu())
+                ax_train_ground_truth.scatter(gt[i, 0, :].contiguous().data.cpu(),
+                                          gt[i, 1, :].contiguous().data.cpu(),
+                                          gt[i, 2, :].contiguous().data.cpu())
                 plt.savefig(os.path.join(str(ts),'train_'+str(epoch)+'_'+str(i)+'.png'))
             sio.savemat('train_'+str(epoch)+'.mat',{"Train_Part":part[:, :3, :].contiguous().data.cpu(),
                                        "Train_Template":template[:, :3, :].contiguous().data.cpu(),
                                        "Train_output":pointsReconstructed[0, :3, :].contiguous().data.cpu(),
-                                       "Train_Ground_Truth":gt[0, :3, :].contiguous().data.cpu()})
+                                       "Train_Ground_Truth":gt[:, :3, :].contiguous().data.cpu()})
 
 
         # Validation
@@ -206,25 +206,25 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                     ax_test_template = tmp_fig.add_subplot(142, projection='3d')
                     ax_test_output = tmp_fig.add_subplot(143, projection='3d')
                     ax_test_ground_truth = tmp_fig.add_subplot(144, projection='3d')
-                    ax_test_part.scatter(part[0, 0, :].contiguous().data.cpu(),
-                                          part[0, 1, :].contiguous().data.cpu(),
-                                          part[0, 2, :].contiguous().data.cpu())
-                    ax_test_template.scatter(template[0, 0, :].contiguous().data.cpu(),
-                                              template[0, 1, :].contiguous().data.cpu(),
-                                              template[0, 2, :].contiguous().data.cpu())
-                    ax_test_output.scatter(pointsReconstructed[0, 0, :].contiguous().data.cpu(),
-                                            pointsReconstructed[0, 1, :].contiguous().data.cpu(),
-                                            pointsReconstructed[0, 2, :].contiguous().data.cpu())
-                    ax_test_ground_truth.scatter(gt[0, 0, :].contiguous().data.cpu(),
-                                                  gt[0, 1, :].contiguous().data.cpu(),
-                                                  gt[0, 2, :].contiguous().data.cpu())
+                    ax_test_part.scatter(part[i, 0, :].contiguous().data.cpu(),
+                                          part[i, 1, :].contiguous().data.cpu(),
+                                          part[i, 2, :].contiguous().data.cpu())
+                    ax_test_template.scatter(template[i, 0, :].contiguous().data.cpu(),
+                                              template[i, 1, :].contiguous().data.cpu(),
+                                              template[i, 2, :].contiguous().data.cpu())
+                    ax_test_output.scatter(pointsReconstructed[i, 0, :].contiguous().data.cpu(),
+                                            pointsReconstructed[i, 1, :].contiguous().data.cpu(),
+                                            pointsReconstructed[i, 2, :].contiguous().data.cpu())
+                    ax_test_ground_truth.scatter(gt[i, 0, :].contiguous().data.cpu(),
+                                                  gt[i, 1, :].contiguous().data.cpu(),
+                                                  gt[i, 2, :].contiguous().data.cpu())
                     plt.savefig(os.path.join(str(ts), 'test_' + str(epoch) + '_' + str(i) + '.png'))
                 sio.savemat('test_' + str(epoch) + '.mat', {"Test_Part": part[:, :3, :].contiguous().data.cpu(),
                                                              "Test_Template": template[:, :3,
                                                                                :].contiguous().data.cpu(),
                                                              "Test_output": pointsReconstructed[0, :3,
                                                                              :].contiguous().data.cpu(),
-                                                             "Test_Ground_Truth": gt[0, :3,
+                                                             "Test_Ground_Truth": gt[:, :3,
                                                                                    :].contiguous().data.cpu()})
             # UPDATE CURVES
             L2curve_train_smpl.append(train_loss_L2_smpl.avg)
