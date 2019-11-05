@@ -22,10 +22,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
-    parser.add_argument('--model', type=str, default=os.path.join(os.getcwd(), "log",
-                                                                  "Simple network; Translation augmentation; Input normals; Deeper Decoder",
-                                                                  "network_last.pth"),
-                        help='optional reload model path')
+    parser.add_argument('--model', type=str, default='',help='optional reload model path')
     parser.add_argument('--save_path', type=str,
                         default='Simple network; Translation augmentation; Input normals; Deeper Decoder',
                         help='save path')
@@ -132,16 +129,14 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
             # VIZUALIZE
             if i % 100 == 0:
-                # VIZUALIZE
-                if i % 100 == 0:
-                    vis.scatter(X=part[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Part',
-                                opts=dict(title="Train_Part", markersize=2, ), )
-                    vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Template',
-                                opts=dict(title="Train_Template", markersize=2, ), )
-                    vis.scatter(X=pointsReconstructed[0].transpose(1, 0).contiguous().data.cpu(), win='Train_output',
-                                opts=dict(title="Train_output", markersize=2, ), )
-                    vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Ground_Truth',
-                                opts=dict(title="Train_Ground_Truth", markersize=2, ), )
+                vis.scatter(X=part[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Part',
+                            opts=dict(title="Train_Part", markersize=2, ), )
+                vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Template',
+                            opts=dict(title="Train_Template", markersize=2, ), )
+                vis.scatter(X=pointsReconstructed[0].transpose(1, 0).contiguous().data.cpu(), win='Train_output',
+                            opts=dict(title="Train_output", markersize=2, ), )
+                vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Ground_Truth',
+                            opts=dict(title="Train_Ground_Truth", markersize=2, ), )
 
             print('[%d: %d/%d] train loss:  %f' % (epoch, i, len_dataset / opt.batchSize, loss_net.item()))
         if opt.saveOffline:
