@@ -49,7 +49,7 @@ class PointNetfeat(nn.Module):
     # and outputs a (batch) global feature vector
     # (dimensions: [B x bottleneck_size] )
     # or point features (dimensions: [B x (64 + bottleneck_size) x num_points_input] )
-    def __init__(self, global_feat=True, trans=False, bottleneck_size = 1024):
+    def __init__(self, global_feat=True, trans=False, bottleneck_size = 1024, num_input_channels = 3):
         # OH: If trans is True alignment transformation is applied to the point cloud; If global_feat is True,
         # a single global feature vector is returned for each point cloud; If global_feat is False, the global
         # feature vector is copied for each point and concatenated with the point features; In this case,
@@ -57,11 +57,12 @@ class PointNetfeat(nn.Module):
         # https://arxiv.org/pdf/1612.00593.pdf)
         super(PointNetfeat, self).__init__()
         self.bottleneck_size = bottleneck_size
+        self.num_input_channels = num_input_channels
         self.trans = trans
         self.global_feat = global_feat
 
         self.stn = STN3d()
-        self.conv1 = torch.nn.Conv1d(3, 64, 1)
+        self.conv1 = torch.nn.Conv1d(self.num_input_channels, 64, 1)
         self.conv2 = torch.nn.Conv1d(64, 128, 1)
         self.conv3 = torch.nn.Conv1d(128, self.bottleneck_size, 1)
 
@@ -139,21 +140,22 @@ class PointGenCon(nn.Module):
 # OH:
 class CompletionNet(nn.Module):  # OH: inherits from the base class - torch.nn.Module
     # OH: V
-    def __init__(self, bottleneck_size=1024):
+    def __init__(self, bottleneck_size=1024, num_input_channels = 3):
         super(CompletionNet, self).__init__()
         self.bottleneck_size = bottleneck_size
+        self.num_input_channels = num_input_channels
 
         # OH: The encoder takes a 3D point cloud as an input. Note that a linear layer is applied to the global
         # feature vector, as a final step in the encoder
         self.encoder = nn.Sequential(
-            PointNetfeat(global_feat=True, trans=False, bottleneck_size=self.bottleneck_size),
+            PointNetfeat(global_feat=True, trans=False, bottleneck_size=self.bottleneck_size, num_input_channels = self.num_input_channels),
             nn.Linear(self.bottleneck_size, self.bottleneck_size),
             nn.BatchNorm1d(self.bottleneck_size),
             nn.ReLU()
         )
 
         # OH: The decoder takes as an input the template coordinates with the global feature vector of the input shape
-        self.decoder = PointGenCon(point_code_size=3 + self.bottleneck_size + self.bottleneck_size)
+        self.decoder = PointGenCon(point_code_size = num_input_channels + self.bottleneck_size + self.bottleneck_size)
 
     # OH: Takes as an input the partial point cloud and the template point cloud, encoding them, and decoding
     # the template deformation

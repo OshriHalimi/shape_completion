@@ -54,9 +54,10 @@ class SHREC16CutsDavidDataset(data.Dataset):
         return 1
 
 class FaustProjectionsDataset(data.Dataset):
-    def __init__(self, train):
+    def __init__(self, train, num_input_channels):
         self.train = train
-        self.path = "D:/Shape-Completion/data/faust_projections/dataset/"
+        self.num_input_channels = num_input_channels
+        self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
 
     def translate_index(self, index):
         subject_id = np.floor(index / 1000).astype(int)
@@ -77,11 +78,11 @@ class FaustProjectionsDataset(data.Dataset):
         template_id = self.subject_and_pose2shape_ind(subject_id, pose_id_full)
         part_id = self.subject_and_pose2shape_ind(subject_id, pose_id_part)
 
-        x = sio.loadmat(self.path + "tr_reg_" + "{0:0=3d}".format(template_id) + ".mat")
+        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(template_id) + ".mat"))
         template = x['full_shape']  # OH: matrix of vertices
-        x = sio.loadmat(self.path + "tr_reg_" + "{0:0=3d}".format(part_id) + ".mat")
+        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + ".mat"))
         gt = x['full_shape']  # OH: matrix of vertices
-        x = sio.loadmat(self.path + "tr_reg_" + "{0:0=3d}".format(part_id) + "_" + "{0:0=3d}".format(mask_id) + ".mat")
+        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + "_" + "{0:0=3d}".format(mask_id) + ".mat"))
         part = x['partial_shape']  # OH: matrix of vertices
 
         return part, template, gt
@@ -102,11 +103,15 @@ class FaustProjectionsDataset(data.Dataset):
 
 
         #Apply random translation to part and to full template
-        part_trans = np.random.rand(1,3) - 0.5
-        template_trans = np.random.rand(1, 3) - 0.5
-        part[:,:3] = part[:,:3]  + part_trans
-        gt[:,:3]  = gt[:,:3] + part_trans
-        template[:,:3]  = template[:,:3]  + template_trans
+        #part_trans = np.random.rand(1,3) - 0.5
+        #template_trans = np.random.rand(1, 3) - 0.5
+        #part[:,:3] = part[:,:3]  + part_trans
+        #gt[:,:3]  = gt[:,:3] + part_trans
+        #template[:,:3]  = template[:,:3]  + template_trans
+
+        template = template[:,:self.num_input_channels]
+        part = part[:, :self.num_input_channels]
+        gt = gt[:, :self.num_input_channels]
 
         return part, template, gt, index
 
@@ -119,7 +124,7 @@ class FaustProjectionsDataset(data.Dataset):
 
 
 class AmassProjectionsDataset(data.Dataset):
-    def __init__(self, train):
+    def __init__(self, train, num_input_channels):
         self.train = train
         if train:
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")

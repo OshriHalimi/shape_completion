@@ -33,6 +33,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--save_path', type=str, default='experiment with AMASS data (incomplete)', help='save path')
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
     parser.add_argument('--saveOffline', type=bool, default=False)
+    parser.add_argument('--num_input_channels', type=int, default=3)
 
     opt = parser.parse_args()
     print(opt)
@@ -66,18 +67,18 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # ===================CREATE DATASET================================= #
 
-    dataset = AmassProjectionsDataset(train=True)
+    dataset = AmassProjectionsDataset(train=True, num_input_channels = opt.num_input_channels)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
     # OH: pin_memory=True used to increase the performance when transferring the fetched data from CPU to GPU
-    dataset_test = AmassProjectionsDataset(train=False)
+    dataset_test = FaustProjectionsDataset(train=False, num_input_channels = opt.num_input_channels)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True,
                                                   num_workers=int(opt.workers), pin_memory=True)
     len_dataset = len(dataset)
     len_dataset_test = len(dataset_test)
 
     # ===================CREATE network================================= #
-    network = CompletionNet()
+    network = CompletionNet(num_input_channels = opt.num_input_channels)
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
     if opt.model != '':
