@@ -123,10 +123,12 @@ class AmassProjectionsDataset(data.Dataset):
         self.train = train
         if train:
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
+            print("Train set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
         else:
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "vald")
+            print("Validation set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "vald_dict.json")))
 

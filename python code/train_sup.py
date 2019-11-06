@@ -15,6 +15,13 @@ from dataset import *
 from model import *
 from utils import *
 
+try:
+    import visdom
+except:
+    print("Please install the module 'visdom' for visualization, e.g.")
+    print("pip install visdom")
+    sys.exit(-1)
+
 if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is necessary for Windows compatibility
     # of the multi-process data loader (see pytorch documentation)
     # =============PARAMETERS======================================== #
@@ -44,19 +51,17 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
         os.mkdir(dir_name)
     logname = os.path.join(dir_name, 'log.txt')
 
-    blue = lambda x: '\033[94m' + x + '\033[0m'
-
     opt.manualSeed = 1  # random.randint(1, 10000)  # fix seed
     print("Random Seed: ", opt.manualSeed)
     random.seed(opt.manualSeed)
     torch.manual_seed(opt.manualSeed)
     np.random.seed(opt.manualSeed)
-    L2curve_train_smpl = []
-    L2curve_val_smlp = []
+    Loss_curve_train = []
+    Loss_curve_val = []
 
     # meters to record stats on learning
-    train_loss_L2_smpl = AverageValueMeter()
-    val_loss_L2_smpl = AverageValueMeter()
+    train_loss = AverageValueMeter()
+    val_loss = AverageValueMeter()
     tmp_val_loss = AverageValueMeter()
 
     # ===================CREATE DATASET================================= #
@@ -72,7 +77,6 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     len_dataset_test = len(dataset_test)
 
     # ===================CREATE network================================= #
-    # TODO: update network class AE_AtlasNet_Humans(): The decoder deform a given template, based on the encoding of the template and the partial shape
     network = CompletionNet()
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
@@ -101,7 +105,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
             optimizer = optim.Adam(network.parameters(), lr=lrate)
 
         # TRAIN MODE
-        train_loss_L2_smpl.reset()
+        train_loss.reset()
         network.train()
         for i, data in enumerate(dataloader, 0):
             optimizer.zero_grad()
@@ -113,12 +117,12 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
             gt = gt.transpose(2, 1).contiguous().cuda().float()
 
             # Forward pass
-            pointsReconstructed = network(part, template).double()
-            loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :].double()) ** 2)
+            pointsReconstructed = network(part, template)
+            loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
 
             loss_net = loss_points
             loss_net.backward()
-            train_loss_L2_smpl.update(loss_net.item())
+            train_loss.update(loss_net.item())
             optimizer.step()  # gradient update
 
             # VIZUALIZE
@@ -164,7 +168,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
         # Validation
         with torch.no_grad():
             network.eval()
-            val_loss_L2_smpl.reset()
+            val_loss.reset()
             for i, data in enumerate(dataloader_test, 0):
                 part, template, gt, _ = data
                 # OH: place on GPU
@@ -177,7 +181,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 loss_points = torch.mean((pointsReconstructed - gt[:, :3, :].double()) ** 2)
 
                 loss_net = loss_points
-                val_loss_L2_smpl.update(loss_net.item())
+                val_loss.update(loss_net.item())
 
                 # VIZUALIZE
                 if i % 100 == 0:
@@ -221,23 +225,23 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                                              "Test_Ground_Truth": gt[:, :3,
                                                                                    :].contiguous().data.cpu()})
             # UPDATE CURVES
-            L2curve_train_smpl.append(train_loss_L2_smpl.avg)
-            L2curve_val_smlp.append(val_loss_L2_smpl.avg)
+            Loss_curve_train.append(train_loss.avg)
+            Loss_curve_val.append(val_loss.avg)
 
-            vis.line(X=np.column_stack((np.arange(len(L2curve_train_smpl)), np.arange(len(L2curve_val_smlp)))),
-                     Y=np.column_stack((np.array(L2curve_train_smpl), np.array(L2curve_val_smlp))),
+            vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
+                     Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val))),
                      win='loss',
-                     opts=dict(title="loss", legend=["L2curve_train_smpl" + opt.env, "L2curve_val_smlp" + opt.env, ]))
+                     opts=dict(title="loss", legend=["Train loss", "Validation loss", ]))
 
-            vis.line(X=np.column_stack((np.arange(len(L2curve_train_smpl)), np.arange(len(L2curve_val_smlp)))),
-                     Y=np.log(np.column_stack((np.array(L2curve_train_smpl), np.array(L2curve_val_smlp)))),
+            vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
+                     Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val)))),
                      win='log',
-                     opts=dict(title="log", legend=["L2curve_train_smpl" + opt.env, "L2curve_val_smlp" + opt.env, ]))
+                     opts=dict(title="log", legend=["Train loss", "Validation loss", ]))
 
             # dump stats in log file
             log_table = {
-                "val_loss_L2_smpl": val_loss_L2_smpl.avg,
-                "train_loss_L2_smpl": train_loss_L2_smpl.avg,
+                "val_loss": val_loss.avg,
+                "train_loss": train_loss.avg,
                 "epoch": epoch,
                 "lr": lrate,
                 "env": opt.env,
