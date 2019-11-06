@@ -35,6 +35,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
     parser.add_argument('--saveOffline', type=bool, default=False)
     parser.add_argument('--num_input_channels', type=int, default=3)
+    parser.add_argument('--use_same_subject', type=int, default=True) #OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
 
     opt = parser.parse_args()
     print(opt)
@@ -68,7 +69,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # ===================CREATE DATASET================================= #
 
-    dataset = AmassProjectionsDataset(train=True, num_input_channels = opt.num_input_channels)
+    dataset = AmassProjectionsDataset(train=True, num_input_channels = opt.num_input_channels, use_same_subject = opt.use_same_subject)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
     # OH: pin_memory=True used to increase the performance when transferring the fetched data from CPU to GPU

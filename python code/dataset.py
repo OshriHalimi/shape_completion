@@ -149,7 +149,7 @@ class AmassProjectionsDataset(data.Dataset):
         while subject_id_full == 288: # this needs to be fixed/removed (has only one pose???)
             subject_id_full = np.random.choice(list(map(int, self.dict_counts.keys())))
 
-        if self.use_same_subject:
+        if self.use_same_subject == True:
             subject_id_part = subject_id_full
         else:
             subject_id_part = np.random.choice(list(map(int, self.dict_counts.keys())))
@@ -162,13 +162,13 @@ class AmassProjectionsDataset(data.Dataset):
         pose_id_part = np.random.choice(self.dict_counts[str(subject_id_part)])
         mask_id = np.random.choice(10)
 
-        return subject_id_part, subject_id_part, pose_id_full, pose_id_part, mask_id
+        return subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id
 
     def get_shapes(self):
 
-        subject_id_part, subject_id_part, pose_id_full, pose_id_part, mask_id = self.translate_index()
+        subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id = self.translate_index()
 
-        template = self.read_off(subject_id_part, pose_id_full)
+        template = self.read_off(subject_id_full, pose_id_full)
         gt = self.read_off(subject_id_part, pose_id_part)
         mask = self.read_npz(subject_id_part, pose_id_part, mask_id)
         mask_full = np.zeros(template.shape[0], dtype=int)
@@ -222,13 +222,13 @@ if __name__ == '__main__':
     import visdom
     vis = visdom.Visdom(port=8888, env="test-amass-dataset")
 
-    d = AmassProjectionsDataset(train=True)
+    d = AmassProjectionsDataset(train=True, num_input_channels = 3, use_same_subject = True)
     for i in range(10):
         part, template, gt, index = d[i]
         vis.scatter(X=template, win="template train sample #{}".format(i),
                     opts=dict(title='template train sample #{}'.format(i), markersize=2,),)
 
-    d = AmassProjectionsDataset(train=False)
+    d = AmassProjectionsDataset(train=False, num_input_channels = 3, use_same_subject = True)
     for i in range(10):
         part, template, gt, index = d[i]
         vis.scatter(X=template, win="template test sample #{}".format(i),
