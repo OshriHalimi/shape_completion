@@ -126,8 +126,11 @@ class FaustProjectionsDataset(data.Dataset):
 
 
 class AmassProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels):
+    def __init__(self, train, num_input_channels, use_same_subject = True):
         self.train = train
+        self.num_input_channels = num_input_channels
+        self.use_same_subject = use_same_subject
+
         if train:
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
             print("Train set path:")
@@ -142,22 +145,32 @@ class AmassProjectionsDataset(data.Dataset):
 
     def translate_index(self):
 
-        subject_id = np.random.choice(list(map(int, self.dict_counts.keys())))
-        while subject_id == 288: # this needs to be fixed/removed (has only one pose???)
-            subject_id = np.random.choice(list(map(int, self.dict_counts.keys())))
+        subject_id_full = np.random.choice(list(map(int, self.dict_counts.keys())))
+        while subject_id_full == 288: # this needs to be fixed/removed (has only one pose???)
+            subject_id_full = np.random.choice(list(map(int, self.dict_counts.keys())))
 
-        pose_id_full, pose_id_part = np.random.choice(self.dict_counts[str(subject_id)], 2, replace=False)
+        if self.use_same_subject:
+            subject_id_part = subject_id_full
+        else:
+            subject_id_part = np.random.choice(list(map(int, self.dict_counts.keys())))
+            while subject_id_part == 288:  # this needs to be fixed/removed (has only one pose???)
+                subject_id_part = np.random.choice(list(map(int, self.dict_counts.keys())))
+
+
+
+        pose_id_full = np.random.choice(self.dict_counts[str(subject_id_full)])
+        pose_id_part = np.random.choice(self.dict_counts[str(subject_id_part)])
         mask_id = np.random.choice(10)
 
-        return subject_id, pose_id_full, pose_id_part, mask_id
+        return subject_id_part, subject_id_part, pose_id_full, pose_id_part, mask_id
 
     def get_shapes(self):
 
-        subject_id, pose_id_full, pose_id_part, mask_id = self.translate_index()
+        subject_id_part, subject_id_part, pose_id_full, pose_id_part, mask_id = self.translate_index()
 
-        template = self.read_off(subject_id, pose_id_full)
-        gt = self.read_off(subject_id, pose_id_part)
-        mask = self.read_npz(subject_id, pose_id_part, mask_id)
+        template = self.read_off(subject_id_part, pose_id_full)
+        gt = self.read_off(subject_id_part, pose_id_part)
+        mask = self.read_npz(subject_id_part, pose_id_part, mask_id)
         mask_full = np.zeros(template.shape[0], dtype=int)
         mask_full[:len(mask)] = mask
         mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
