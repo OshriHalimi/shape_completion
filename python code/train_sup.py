@@ -29,7 +29,8 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
-    parser.add_argument('--model', type=str, default='',help='optional reload model path')
+    parser.add_argument('--model_dir', type=str, default='experiment with AMASS data (incomplete)',help='optional reload model directory')
+    parser.add_argument('--model_file', type=str, default='network_last.pth',help='optional reload model file in model directory')
     parser.add_argument('--save_path', type=str, default='experiment with AMASS data (incomplete)', help='save path')
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
     parser.add_argument('--saveOffline', type=bool, default=False)
@@ -81,8 +82,10 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     network = CompletionNet(num_input_channels = opt.num_input_channels)
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
-    if opt.model != '':
-        network.load_state_dict(torch.load(opt.model))
+    if opt.model_dir != '':
+        model_path = os.path.join(os.getcwd(), "log", opt.model_dir, opt.model_file)
+        print(model_path)
+        network.load_state_dict(torch.load(model_path))
         print(" Previous weight loaded ")
     # ========================================================== #
 
