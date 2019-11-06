@@ -1,11 +1,10 @@
 from __future__ import print_function
 import torch.utils.data as data
-from utils import *
 import numpy as np
 import scipy.io as sio
 import json
 import os
-
+import time
 
 class IndexExceedDataset(Exception):
     def __init__(self, index, dataset_size):
@@ -53,6 +52,7 @@ class SHREC16CutsDavidDataset(data.Dataset):
 
     def __len__(self):
         return 1
+
 class FaustProjectionsDataset(data.Dataset):
     def __init__(self, train):
         self.train = train
@@ -119,16 +119,17 @@ class FaustProjectionsDataset(data.Dataset):
 
 
 class AmassProjectionsDataset(data.Dataset):
-
     def __init__(self, train):
         self.train = train
         if train:
-            self.path = os.path.join(os.getcwd(), os.pardir, "data", "train")
+            self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
+            print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
         else:
-            self.path = os.path.join(os.getcwd(), os.pardir, "data", "vald")
+            self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "vald")
+            print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "vald_dict.json")))
-        # self.path = "D:/Shape-Completion/data/faust_projections/dataset/"
+
 
     def translate_index(self, index):
 
@@ -154,7 +155,7 @@ class AmassProjectionsDataset(data.Dataset):
         part = gt[mask_full]
 
         if len(mask) == 1:
-            part, template, gt = self.get_shapes(index)
+            part, template, gt = self.get_shapes(index) #OH: recursive call?
 
         return part, template, gt
 
@@ -194,19 +195,19 @@ class AmassProjectionsDataset(data.Dataset):
 
 
 if __name__ == '__main__':
-    print('Testing Faust Projections Dataset')
+    print('AMASS Projections Dataset')
 
     import visdom
-    vis = visdom.Visdom(port=8888, env="test-rot")
+    vis = visdom.Visdom(port=8888, env="test-amass-dataset")
 
     d = AmassProjectionsDataset(train=True)
-    i = 11
-    part, template, gt, index = d[i]
-    vis.scatter(X=template, win="template train sample #{}".format(i),
-                opts=dict(title='template train sample #{}'.format(i), markersize=2,),)
+    for i in range(10):
+        part, template, gt, index = d[i]
+        vis.scatter(X=template, win="template train sample #{}".format(i),
+                    opts=dict(title='template train sample #{}'.format(i), markersize=2,),)
 
     d = AmassProjectionsDataset(train=False)
-    i = 11
-    part, template, gt, index = d[i]
-    vis.scatter(X=template, win="template test sample #{}".format(i),
-                opts=dict(title='template test sample #{}'.format(i), markersize=2,),)
+    for i in range(10):
+        part, template, gt, index = d[i]
+        vis.scatter(X=template, win="template test sample #{}".format(i),
+                    opts=dict(title='template test sample #{}'.format(i), markersize=2,),)

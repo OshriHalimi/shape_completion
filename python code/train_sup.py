@@ -23,10 +23,8 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
     parser.add_argument('--model', type=str, default='',help='optional reload model path')
-    parser.add_argument('--save_path', type=str,
-                        default='Simple network; Translation augmentation; Input normals; Deeper Decoder',
-                        help='save path')
-    parser.add_argument('--env', type=str, default="3DCODED_supervised", help='visdom environment')  # OH: TODO edit
+    parser.add_argument('--save_path', type=str, default='experiment with AMASS data (incomplete)', help='save path')
+    parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
     parser.add_argument('--saveOffline', type=bool, default=False)
 
     opt = parser.parse_args()
@@ -116,10 +114,6 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
             # Forward pass
             pointsReconstructed = network(part, template).double()
-            # D_reconstructed = calc_euclidean_dist_matrix(pointsReconstructed).double()
-            # D_gt = calc_euclidean_dist_matrix(gtV).double()
-            # loss_euclidean = torch.mean((D_reconstructed - D_gt) ** 2)
-
             loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :].double()) ** 2)
 
             loss_net = loss_points
@@ -139,7 +133,8 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                             opts=dict(title="Train_Ground_Truth", markersize=2, ), )
 
             print('[%d: %d/%d] train loss:  %f' % (epoch, i, len_dataset / opt.batchSize, loss_net.item()))
-        if opt.saveOffline:
+
+        if opt.saveOffline: #save the last training batch in each epoch
             for i in range(opt.batchSize):
                 tmp_fig = plt.figure()
                 ax_train_part = tmp_fig.add_subplot(141, projection='3d')
@@ -159,6 +154,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                           gt[i, 1, :].contiguous().data.cpu(),
                                           gt[i, 2, :].contiguous().data.cpu())
                 plt.savefig(os.path.join(str(ts),'train_'+str(epoch)+'_'+str(i)+'.png'))
+
             sio.savemat('train_'+str(epoch)+'.mat',{"Train_Part":part[:, :3, :].contiguous().data.cpu(),
                                        "Train_Template":template[:, :3, :].contiguous().data.cpu(),
                                        "Train_output":pointsReconstructed[0, :3, :].contiguous().data.cpu(),
@@ -178,10 +174,6 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
                 # Forward pass
                 pointsReconstructed = network(part, template).double()
-                # D_reconstructed = calc_euclidean_dist_matrix(pointsReconstructed).double()
-                # D_gt = calc_euclidean_dist_matrix(gtV).double()
-                # loss_euclidean = torch.mean((D_reconstructed - D_gt) ** 2)
-
                 loss_points = torch.mean((pointsReconstructed - gt[:, :3, :].double()) ** 2)
 
                 loss_net = loss_points
@@ -199,7 +191,8 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                 opts=dict(title="Test_Ground_Truth", markersize=2, ), )
 
                 print('[%d: %d/%d] test smlp loss:  %f' % (epoch, i, len_dataset_test / opt.batchSize, loss_net.item()))
-            if opt.saveOffline:
+
+            if opt.saveOffline: #save the last validation batch in each epoch
                 for i in range(opt.batchSize):
                     tmp_fig = plt.figure()
                     ax_test_part = tmp_fig.add_subplot(141, projection='3d')
@@ -219,6 +212,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                                   gt[i, 1, :].contiguous().data.cpu(),
                                                   gt[i, 2, :].contiguous().data.cpu())
                     plt.savefig(os.path.join(str(ts), 'test_' + str(epoch) + '_' + str(i) + '.png'))
+
                 sio.savemat('test_' + str(epoch) + '.mat', {"Test_Part": part[:, :3, :].contiguous().data.cpu(),
                                                              "Test_Template": template[:, :3,
                                                                                :].contiguous().data.cpu(),
