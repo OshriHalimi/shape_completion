@@ -72,7 +72,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
     # OH: pin_memory=True used to increase the performance when transferring the fetched data from CPU to GPU
-    dataset_test = FaustProjectionsDataset(train=False, num_input_channels = opt.num_input_channels)
+    dataset_test = FaustProjectionsDataset(train=True, num_input_channels = opt.num_input_channels)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True,
                                                   num_workers=int(opt.workers), pin_memory=True)
     len_dataset = len(dataset)

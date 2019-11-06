@@ -58,6 +58,8 @@ class FaustProjectionsDataset(data.Dataset):
         self.train = train
         self.num_input_channels = num_input_channels
         self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
+        self.train_size = 10000 #was 9000 when we train on FaustProjectionsDataset, but we set it to 10000 (full size: train and test) when we use it for evaluation
+        self.test_size = 1000
 
     def translate_index(self, index):
         subject_id = np.floor(index / 1000).astype(int)
@@ -90,13 +92,13 @@ class FaustProjectionsDataset(data.Dataset):
     def __getitem__(self, index):
         # OH: TODO Consider augmentations such as rotation, translation and downsampling, scale, noise
         if self.train:
-            if index < 9000:
+            if index < self.train_size:
                 part, template, gt = self.get_shapes(index)
             else:
                 raise IndexExceedDataset(index, self.__len__())
         else:
-            if index < 1000:
-                index = index + 9000
+            if index < self.test_size:
+                index = index + self.train_size
                 part, template, gt = self.get_shapes(index)
             else:
                 raise IndexExceedDataset(index, self.__len__())
@@ -117,9 +119,9 @@ class FaustProjectionsDataset(data.Dataset):
 
     def __len__(self):
         if self.train:
-            return 9000
+            return self.train_size
         else:
-            return 1000
+            return self.test_size
 
 
 
@@ -196,9 +198,9 @@ class AmassProjectionsDataset(data.Dataset):
 
     def __len__(self):
         if self.train:
-            return 150
+            return 100000
         else:
-            return 150
+            return 10000
 
 
 if __name__ == '__main__':
