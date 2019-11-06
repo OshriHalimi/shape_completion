@@ -138,12 +138,23 @@ class PointGenCon(nn.Module):
 
 
 # OH:
+
+def center_shape(shape):
+    '''
+    :param shape: (batch) point cloud [B x 3 x V]
+    :return: centered shape with the same dimensions
+    '''
+    center_of_mass = torch.mean(shape, dim=2, keepdim=True)
+    centered_shape = shape - center_of_mass
+    return centered_shape, center_of_mass
+
 class CompletionNet(nn.Module):  # OH: inherits from the base class - torch.nn.Module
     # OH: V
-    def __init__(self, bottleneck_size=1024, num_input_channels = 3):
+    def __init__(self, bottleneck_size=1024, num_input_channels = 3, centering = False):
         super(CompletionNet, self).__init__()
         self.bottleneck_size = bottleneck_size
         self.num_input_channels = num_input_channels
+        self.centering = centering
 
         # OH: The encoder takes a 3D point cloud as an input. Note that a linear layer is applied to the global
         # feature vector, as a final step in the encoder
@@ -165,6 +176,13 @@ class CompletionNet(nn.Module):  # OH: inherits from the base class - torch.nn.M
         batch_size = part.size(0)
         num_points_template = template.size(2)
 
+        if self.centering:
+            template[:, :3, :], shift_template = center_shape(template[:, :3, :])
+            part[:, :3, :], shift_part = center_shape(part[:, :3, :])
+        else:
+            shift_template = torch.zeros_like(template)
+            shift_part = torch.zeros_like(part)
+
         part_code = self.encoder(part)  # OH: [B x code_size]
         template_code = self.encoder(template)  # OH: [B x code_size]
 
@@ -173,9 +191,8 @@ class CompletionNet(nn.Module):  # OH: inherits from the base class - torch.nn.M
 
         y = torch.cat((template, part_code, template_code), 1).contiguous()  # OH: [B x (3 + 2*code_size) x num_points_template]
         out = self.decoder(y).contiguous()
-        # OH: [B x 9 x num_points_template]; first 3 channels represent axis location,
-        # 3 next channels represent axis-angle vector, 3 last channels represent additional translation
-        return out
+
+        return out, shift_template, shift_part
 
 
 

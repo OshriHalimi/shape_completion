@@ -54,11 +54,11 @@ class SHREC16CutsDavidDataset(data.Dataset):
         return 1
 
 class FaustProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels):
+    def __init__(self, train, num_input_channels, train_size):
         self.train = train
         self.num_input_channels = num_input_channels
         self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
-        self.train_size = 10000 #was 9000 when we train on FaustProjectionsDataset, but we set it to 10000 (full size: train and test) when we use it for evaluation
+        self.train_size = train_size #was 9000 when we train on FaustProjectionsDataset, but we set it to 10000 (full size: train and test) when we use it for evaluation
         self.test_size = 1000
 
     def translate_index(self, index):
@@ -126,10 +126,12 @@ class FaustProjectionsDataset(data.Dataset):
 
 
 class AmassProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, use_same_subject = True):
+    def __init__(self, train, num_input_channels, use_same_subject = True, train_size = 100000, validation_size = 10000):
         self.train = train
         self.num_input_channels = num_input_channels
         self.use_same_subject = use_same_subject
+        self.train_size = train_size
+        self.validation_size = validation_size
 
         if train:
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
@@ -211,9 +213,9 @@ class AmassProjectionsDataset(data.Dataset):
 
     def __len__(self):
         if self.train:
-            return 100000
+            return self.train_size
         else:
-            return 10000
+            return self.validation_size
 
 
 if __name__ == '__main__':

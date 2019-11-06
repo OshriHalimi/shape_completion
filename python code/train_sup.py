@@ -35,7 +35,11 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
     parser.add_argument('--saveOffline', type=bool, default=False)
     parser.add_argument('--num_input_channels', type=int, default=3)
-    parser.add_argument('--use_same_subject', type=int, default=True) #OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
+    parser.add_argument('--use_same_subject', type=bool, default=True) #OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
+    parser.add_argument('--centering', type=bool, default=True) #OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
+    parser.add_argument('--amass_train_size', type=int, default=100000)
+    parser.add_argument('--amass_validation_size', type=int, default=10000)
+    parser.add_argument('--faust_train_size', type=int, default=10000)
 
     opt = parser.parse_args()
     print(opt)
@@ -69,18 +73,18 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # ===================CREATE DATASET================================= #
 
-    dataset = AmassProjectionsDataset(train=True, num_input_channels = opt.num_input_channels, use_same_subject = opt.use_same_subject)
+    dataset = AmassProjectionsDataset(train=True, num_input_channels = opt.num_input_channels, use_same_subject = opt.use_same_subject, train_size = opt.amass_train_size, validation_size = opt.amass_validation_size)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
     # OH: pin_memory=True used to increase the performance when transferring the fetched data from CPU to GPU
-    dataset_test = FaustProjectionsDataset(train=True, num_input_channels = opt.num_input_channels)
+    dataset_test = FaustProjectionsDataset(train=True, num_input_channels = opt.num_input_channels, train_size = opt.faust_train_size)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True,
                                                   num_workers=int(opt.workers), pin_memory=True)
     len_dataset = len(dataset)
     len_dataset_test = len(dataset_test)
 
     # ===================CREATE network================================= #
-    network = CompletionNet(num_input_channels = opt.num_input_channels)
+    network = CompletionNet(num_input_channels = opt.num_input_channels, centering = opt.centering)
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
     if opt.model_dir != '':
@@ -122,9 +126,10 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
             gt = gt.transpose(2, 1).contiguous().cuda().float()
 
             # Forward pass
-            pointsReconstructed = network(part, template)
-            loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
+            pointsReconstructed, shift_template, shift_part = network(part, template)
+            gt = gt - shift_part
 
+            loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
             loss_net = loss_points
             loss_net.backward()
             train_loss.update(loss_net.item())
@@ -182,9 +187,9 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 gt = gt.transpose(2, 1).contiguous().cuda(non_blocking=True).float()
 
                 # Forward pass
-                pointsReconstructed = network(part, template).double()
-                loss_points = torch.mean((pointsReconstructed - gt[:, :3, :].double()) ** 2)
-
+                pointsReconstructed, shift_template, shift_part = network(part, template)
+                gt = gt - shift_part
+                loss_points = torch.mean((pointsReconstructed - gt[:, :3, :]) ** 2)
                 loss_net = loss_points
                 val_loss.update(loss_net.item())
 
@@ -199,7 +204,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                     vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Ground_Truth',
                                 opts=dict(title="Test_Ground_Truth", markersize=2, ), )
 
-                print('[%d: %d/%d] test smlp loss:  %f' % (epoch, i, len_dataset_test / opt.batchSize, loss_net.item()))
+                print('[%d: %d/%d] test loss:  %f' % (epoch, i, len_dataset_test / opt.batchSize, loss_net.item()))
 
             if opt.saveOffline: #save the last validation batch in each epoch
                 for i in range(opt.batchSize):
