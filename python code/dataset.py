@@ -133,7 +133,7 @@ class AmassProjectionsDataset(data.Dataset):
             self.dict_counts = json.load(open(os.path.join("support_material", "vald_dict.json")))
 
 
-    def translate_index(self, index):
+    def translate_index(self):
 
         subject_id = np.random.choice(list(map(int, self.dict_counts.keys())))
         while subject_id == 288: # this needs to be fixed/removed (has only one pose???)
@@ -144,9 +144,9 @@ class AmassProjectionsDataset(data.Dataset):
 
         return subject_id, pose_id_full, pose_id_part, mask_id
 
-    def get_shapes(self, index):
+    def get_shapes(self):
 
-        subject_id, pose_id_full, pose_id_part, mask_id = self.translate_index(index)
+        subject_id, pose_id_full, pose_id_part, mask_id = self.translate_index()
 
         template = self.read_off(subject_id, pose_id_full)
         gt = self.read_off(subject_id, pose_id_part)
@@ -157,7 +157,7 @@ class AmassProjectionsDataset(data.Dataset):
         part = gt[mask_full]
 
         if len(mask) == 1:
-            part, template, gt = self.get_shapes(index) #OH: recursive call?
+            part, template, gt = self.get_shapes() #OH: recursive call?
 
         return part, template, gt
 
@@ -185,15 +185,15 @@ class AmassProjectionsDataset(data.Dataset):
 
     def __getitem__(self, index):
 
-        part, template, gt = self.get_shapes(index)
+        part, template, gt = self.get_shapes()
 
         return part, template, gt, index
 
     def __len__(self):
         if self.train:
-            return 100000
+            return 150
         else:
-            return 1000
+            return 150
 
 
 if __name__ == '__main__':
