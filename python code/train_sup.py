@@ -40,6 +40,8 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--amass_train_size', type=int, default=100000)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--faust_train_size', type=int, default=10000)
+    parser.add_argument('--filtering', type=float, default=0, help='amount of filtering to apply on l2 distances')
+    parser.add_argument('--penalty_loss', type=int, default=1, help='penalty applied to points belonging to the mask')
 
     opt = parser.parse_args()
     print(opt)
@@ -73,18 +75,20 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # ===================CREATE DATASET================================= #
 
-    dataset = AmassProjectionsDataset(train=True, num_input_channels = opt.num_input_channels, use_same_subject = opt.use_same_subject, train_size = opt.amass_train_size, validation_size = opt.amass_validation_size)
+    dataset = AmassProjectionsDataset(train=True, num_input_channels=opt.num_input_channels, filtering=opt.filtering,
+                                      mask_penalty=opt.penalty_loss, use_same_subject=opt.use_same_subject,
+                                      train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
     # OH: pin_memory=True used to increase the performance when transferring the fetched data from CPU to GPU
-    dataset_test = FaustProjectionsDataset(train=True, num_input_channels = opt.num_input_channels, train_size = opt.faust_train_size)
+    dataset_test = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels, train_size=opt.faust_train_size)
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True,
                                                   num_workers=int(opt.workers), pin_memory=True)
     len_dataset = len(dataset)
     len_dataset_test = len(dataset_test)
 
     # ===================CREATE network================================= #
-    network = CompletionNet(num_input_channels = opt.num_input_channels, centering = opt.centering)
+    network = CompletionNet(num_input_channels=opt.num_input_channels, centering=opt.centering)
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
     if opt.model_dir != '':
@@ -108,6 +112,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
         template = None
         pointsReconstructed = None
         gt = None
+        mask = None
 
         if (epoch % 100) == 99:
             lrate = lrate / 2.0
@@ -118,18 +123,21 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
         network.train()
         for i, data in enumerate(dataloader, 0):
             optimizer.zero_grad()
-            part, template, gt, _ = data
+            part, template, gt, mask, _ = data
 
             # OH: place on GPU
             part = part.transpose(2, 1).contiguous().cuda().float()
             template = template.transpose(2, 1).contiguous().cuda().float()
             gt = gt.transpose(2, 1).contiguous().cuda().float()
+            mask = mask.transpose(2, 1).contiguous().cuda().float()
 
             # Forward pass
             pointsReconstructed, shift_template, shift_part = network(part, template)
             gt = gt - shift_part
 
-            loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
+            loss_vec = (pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2
+            loss_points = torch.mean(loss_vec * mask)
+
             loss_net = loss_points
             loss_net.backward()
             train_loss.update(loss_net.item())

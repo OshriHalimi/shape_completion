@@ -124,14 +124,16 @@ class FaustProjectionsDataset(data.Dataset):
             return self.test_size
 
 
-
 class AmassProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, use_same_subject = True, train_size = 100000, validation_size = 10000):
+    def __init__(self, train, num_input_channels, filtering, mask_penalty,
+                 use_same_subject=True, train_size=100000, validation_size=10000):
         self.train = train
         self.num_input_channels = num_input_channels
         self.use_same_subject = use_same_subject
         self.train_size = train_size
         self.validation_size = validation_size
+        self.filtering = filtering
+        self.mask_penalty = mask_penalty
 
         if train:
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
@@ -158,8 +160,6 @@ class AmassProjectionsDataset(data.Dataset):
             while subject_id_part == 288:  # this needs to be fixed/removed (has only one pose???)
                 subject_id_part = np.random.choice(list(map(int, self.dict_counts.keys())))
 
-
-
         pose_id_full = np.random.choice(self.dict_counts[str(subject_id_full)])
         pose_id_part = np.random.choice(self.dict_counts[str(subject_id_part)])
         mask_id = np.random.choice(10)
@@ -169,19 +169,34 @@ class AmassProjectionsDataset(data.Dataset):
     def get_shapes(self):
 
         subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id = self.translate_index()
-
         template = self.read_off(subject_id_full, pose_id_full)
         gt = self.read_off(subject_id_part, pose_id_part)
+        euc_dist = np.mean((template - gt) ** 2)
+
+        if self.filtering > 0:
+            if self.use_same_subject == False:
+                while np.random.rand() > (euc_dist / self.filtering):
+                    subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id = self.translate_index()
+                    template = self.read_off(subject_id_full, pose_id_full)
+                    gt = self.read_off(subject_id_part, pose_id_part)
+                    euc_dist = np.mean((template - gt) ** 2)
+
         mask = self.read_npz(subject_id_part, pose_id_part, mask_id)
+        mask_loss_mat = np.ones((template.shape[0], template.shape[1]), dtype=int)
+        mask_loss = np.ones(template.shape[0], dtype=int)
+        mask_loss[mask] = self.mask_penalty
+        mask_loss_mat[:, 0] = mask_loss
+        mask_loss_mat[:, 1] = mask_loss
+        mask_loss_mat[:, 2] = mask_loss
         mask_full = np.zeros(template.shape[0], dtype=int)
         mask_full[:len(mask)] = mask
         mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
         part = gt[mask_full]
 
         if len(mask) == 1:
-            part, template, gt = self.get_shapes() #OH: recursive call?
+            raise Exception("MASK IS CORRUPTED")
 
-        return part, template, gt
+        return part, template, gt, mask_loss_mat
 
     def read_npz(self, s_id, p_id, m_id):
 
@@ -207,9 +222,9 @@ class AmassProjectionsDataset(data.Dataset):
 
     def __getitem__(self, index):
 
-        part, template, gt = self.get_shapes()
+        part, template, gt, mask_loss = self.get_shapes()
 
-        return part, template, gt, index
+        return part, template, gt, mask_loss, index
 
     def __len__(self):
         if self.train:
