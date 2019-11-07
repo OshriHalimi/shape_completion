@@ -174,7 +174,7 @@ class AmassProjectionsDataset(data.Dataset):
         euc_dist = np.mean((template - gt) ** 2)
 
         if self.filtering > 0:
-            if self.use_same_subject == False:
+            if self.use_same_subject == True:
                 while np.random.rand() > (euc_dist / self.filtering):
                     subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id = self.translate_index()
                     template = self.read_off(subject_id_full, pose_id_full)

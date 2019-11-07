@@ -129,14 +129,17 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
             part = part.transpose(2, 1).contiguous().cuda().float()
             template = template.transpose(2, 1).contiguous().cuda().float()
             gt = gt.transpose(2, 1).contiguous().cuda().float()
-            mask = mask.transpose(2, 1).contiguous().cuda().float()
 
             # Forward pass
             pointsReconstructed, shift_template, shift_part = network(part, template)
             gt = gt - shift_part
 
-            loss_vec = (pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2
-            loss_points = torch.mean(loss_vec * mask)
+            if opt.penalty_loss != 1:
+                mask = mask.transpose(2, 1).contiguous().cuda().float()
+                loss_vec = (pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2
+                loss_points = torch.mean(loss_vec * mask)
+            else:
+                loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
 
             loss_net = loss_points
             loss_net.backward()
