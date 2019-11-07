@@ -1,7 +1,7 @@
 from __future__ import print_function
 import argparse
 import random
-import numpy as np
+# import numpy as np
 import torch
 import torch.optim as optim
 import os
@@ -132,7 +132,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
             # Forward pass
             pointsReconstructed, shift_template, shift_part = network(part, template)
-            gt = gt - shift_part
+            gt[:, :3, :] = gt[:,:3,:] - shift_part
 
             if opt.penalty_loss != 1:
                 mask = mask.transpose(2, 1).contiguous().cuda().float()
@@ -199,7 +199,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
                 # Forward pass
                 pointsReconstructed, shift_template, shift_part = network(part, template)
-                gt = gt - shift_part
+                gt[:, :3, :] = gt[:, :3, :] - shift_part
                 loss_points = torch.mean((pointsReconstructed - gt[:, :3, :]) ** 2)
                 loss_net = loss_points
                 val_loss.update(loss_net.item())
