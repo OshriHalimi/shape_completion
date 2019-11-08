@@ -38,19 +38,23 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--save_path', type=str, default='experiment with AMASS data (incomplete)', help='save path')
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
     parser.add_argument('--saveOffline', type=bool, default=False)
-    parser.add_argument('--num_input_channels', type=int, default=6)
-    parser.add_argument('--use_same_subject', type=bool,
-                        default=True)  # OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
-    parser.add_argument('--centering', type=bool,
-                        default=True)  # OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
-    parser.add_argument('--amass_train_size', type=int, default=100000)
 
+    # Network params
+
+    parser.add_argument('--num_input_channels', type=int, default=3)
+    parser.add_argument('--use_same_subject', type=bool, default=True)
+    # OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
+    parser.add_argument('--centering', type=bool, default=True)
+    # OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
+
+    # Dataset params
+    parser.add_argument('--amass_train_size', type=int, default=10000)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
     parser.add_argument('--faust_train_size', type=int, default=10)
     parser.add_argument('--filtering', type=float, default=0, help='amount of filtering to apply on l2 distances')
 
-    #Loss params
+    # Loss params
     parser.add_argument('--penalty_loss', type=int, default=1, help='penalty applied to points belonging to the mask')
 
     opt = parser.parse_args()
@@ -85,13 +89,14 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # ===================CREATE DATASET================================= #
 
-    dataset = AmassProjectionsDataset(type = 'train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
+    dataset = AmassProjectionsDataset(type='train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
                                       mask_penalty=opt.penalty_loss, use_same_subject=opt.use_same_subject,
                                       train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
     # OH: pin_memory=True used to increase the performance when transferring the fetched data from CPU to GPU
-    dataset_test = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels, train_size=opt.faust_train_size)
+    dataset_test = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
+                                           train_size=opt.faust_train_size)
 
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True,
                                                   num_workers=int(opt.workers), pin_memory=True)
@@ -146,7 +151,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
             # Forward pass
             pointsReconstructed, shift_template, shift_part = network(part, template)
-            gt[:, :3, :] = gt[:,:3,:] - shift_part
+            gt[:, :3, :] = gt[:, :3, :] - shift_part
 
             if opt.penalty_loss != 1:
                 mask = mask.transpose(2, 1).contiguous().cuda().float()
@@ -154,7 +159,6 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 loss_points = torch.mean(loss_vec * mask)
             else:
                 loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
-
 
             loss_net = loss_points
             loss_net.backward()
