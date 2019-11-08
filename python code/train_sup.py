@@ -44,7 +44,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--centering', type=bool, default=True) #OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
 
     #Dataset params
-    parser.add_argument('--amass_train_size', type=int, default=10)
+    parser.add_argument('--amass_train_size', type=int, default=10000)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
     parser.add_argument('--faust_train_size', type=int, default=10)
