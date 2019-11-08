@@ -2138,6 +2138,7 @@ CompletionNet(
         (fc3): Linear(in_features=256, out_features=1, bias=True)
         (relu): ReLU()
       )
+<<<<<<< Updated upstream
       (conv1): Conv1d(3, 64, kernel_size=(1,), stride=(1,))
       (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
       (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
@@ -2183,6 +2184,9 @@ CompletionNet(
         (relu): ReLU()
       )
       (conv1): Conv1d(3, 64, kernel_size=(1,), stride=(1,))
+=======
+      (conv1): Conv1d(6, 64, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
       (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
       (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
       (bn1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2194,19 +2198,32 @@ CompletionNet(
     (3): ReLU()
   )
   (decoder): PointGenCon(
+<<<<<<< Updated upstream
     (conv1): Conv1d(2051, 2051, kernel_size=(1,), stride=(1,))
     (conv2): Conv1d(2051, 1025, kernel_size=(1,), stride=(1,))
     (conv3): Conv1d(1025, 512, kernel_size=(1,), stride=(1,))
     (conv4): Conv1d(512, 256, kernel_size=(1,), stride=(1,))
+=======
+    (conv1): Conv1d(2054, 2054, kernel_size=(1,), stride=(1,))
+    (conv2): Conv1d(2054, 1027, kernel_size=(1,), stride=(1,))
+    (conv3): Conv1d(1027, 513, kernel_size=(1,), stride=(1,))
+    (conv4): Conv1d(513, 256, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
     (conv5): Conv1d(256, 128, kernel_size=(1,), stride=(1,))
     (conv6): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv7): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv8): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv9): Conv1d(128, 3, kernel_size=(1,), stride=(1,))
     (th): Tanh()
+<<<<<<< Updated upstream
     (bn1): BatchNorm1d(2051, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn2): BatchNorm1d(1025, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn3): BatchNorm1d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+=======
+    (bn1): BatchNorm1d(2054, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn2): BatchNorm1d(1027, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn3): BatchNorm1d(513, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+>>>>>>> Stashed changes
     (bn4): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn5): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2226,7 +2243,11 @@ CompletionNet(
         (fc3): Linear(in_features=256, out_features=1, bias=True)
         (relu): ReLU()
       )
+<<<<<<< Updated upstream
       (conv1): Conv1d(3, 64, kernel_size=(1,), stride=(1,))
+=======
+      (conv1): Conv1d(6, 64, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
       (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
       (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
       (bn1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2238,19 +2259,32 @@ CompletionNet(
     (3): ReLU()
   )
   (decoder): PointGenCon(
+<<<<<<< Updated upstream
     (conv1): Conv1d(2051, 2051, kernel_size=(1,), stride=(1,))
     (conv2): Conv1d(2051, 1025, kernel_size=(1,), stride=(1,))
     (conv3): Conv1d(1025, 512, kernel_size=(1,), stride=(1,))
     (conv4): Conv1d(512, 256, kernel_size=(1,), stride=(1,))
+=======
+    (conv1): Conv1d(2054, 2054, kernel_size=(1,), stride=(1,))
+    (conv2): Conv1d(2054, 1027, kernel_size=(1,), stride=(1,))
+    (conv3): Conv1d(1027, 513, kernel_size=(1,), stride=(1,))
+    (conv4): Conv1d(513, 256, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
     (conv5): Conv1d(256, 128, kernel_size=(1,), stride=(1,))
     (conv6): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv7): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv8): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv9): Conv1d(128, 3, kernel_size=(1,), stride=(1,))
     (th): Tanh()
+<<<<<<< Updated upstream
     (bn1): BatchNorm1d(2051, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn2): BatchNorm1d(1025, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn3): BatchNorm1d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+=======
+    (bn1): BatchNorm1d(2054, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn2): BatchNorm1d(1027, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn3): BatchNorm1d(513, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+>>>>>>> Stashed changes
     (bn4): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn5): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2270,7 +2304,11 @@ CompletionNet(
         (fc3): Linear(in_features=256, out_features=1, bias=True)
         (relu): ReLU()
       )
+<<<<<<< Updated upstream
       (conv1): Conv1d(3, 64, kernel_size=(1,), stride=(1,))
+=======
+      (conv1): Conv1d(6, 64, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
       (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
       (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
       (bn1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2282,19 +2320,32 @@ CompletionNet(
     (3): ReLU()
   )
   (decoder): PointGenCon(
+<<<<<<< Updated upstream
     (conv1): Conv1d(2051, 2051, kernel_size=(1,), stride=(1,))
     (conv2): Conv1d(2051, 1025, kernel_size=(1,), stride=(1,))
     (conv3): Conv1d(1025, 512, kernel_size=(1,), stride=(1,))
     (conv4): Conv1d(512, 256, kernel_size=(1,), stride=(1,))
+=======
+    (conv1): Conv1d(2054, 2054, kernel_size=(1,), stride=(1,))
+    (conv2): Conv1d(2054, 1027, kernel_size=(1,), stride=(1,))
+    (conv3): Conv1d(1027, 513, kernel_size=(1,), stride=(1,))
+    (conv4): Conv1d(513, 256, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
     (conv5): Conv1d(256, 128, kernel_size=(1,), stride=(1,))
     (conv6): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv7): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv8): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv9): Conv1d(128, 3, kernel_size=(1,), stride=(1,))
     (th): Tanh()
+<<<<<<< Updated upstream
     (bn1): BatchNorm1d(2051, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn2): BatchNorm1d(1025, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn3): BatchNorm1d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+=======
+    (bn1): BatchNorm1d(2054, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn2): BatchNorm1d(1027, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn3): BatchNorm1d(513, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+>>>>>>> Stashed changes
     (bn4): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn5): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2314,7 +2365,11 @@ CompletionNet(
         (fc3): Linear(in_features=256, out_features=1, bias=True)
         (relu): ReLU()
       )
+<<<<<<< Updated upstream
       (conv1): Conv1d(3, 64, kernel_size=(1,), stride=(1,))
+=======
+      (conv1): Conv1d(6, 64, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
       (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
       (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
       (bn1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2326,19 +2381,32 @@ CompletionNet(
     (3): ReLU()
   )
   (decoder): PointGenCon(
+<<<<<<< Updated upstream
     (conv1): Conv1d(2051, 2051, kernel_size=(1,), stride=(1,))
     (conv2): Conv1d(2051, 1025, kernel_size=(1,), stride=(1,))
     (conv3): Conv1d(1025, 512, kernel_size=(1,), stride=(1,))
     (conv4): Conv1d(512, 256, kernel_size=(1,), stride=(1,))
+=======
+    (conv1): Conv1d(2054, 2054, kernel_size=(1,), stride=(1,))
+    (conv2): Conv1d(2054, 1027, kernel_size=(1,), stride=(1,))
+    (conv3): Conv1d(1027, 513, kernel_size=(1,), stride=(1,))
+    (conv4): Conv1d(513, 256, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
     (conv5): Conv1d(256, 128, kernel_size=(1,), stride=(1,))
     (conv6): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv7): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv8): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv9): Conv1d(128, 3, kernel_size=(1,), stride=(1,))
     (th): Tanh()
+<<<<<<< Updated upstream
     (bn1): BatchNorm1d(2051, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn2): BatchNorm1d(1025, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn3): BatchNorm1d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+=======
+    (bn1): BatchNorm1d(2054, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn2): BatchNorm1d(1027, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn3): BatchNorm1d(513, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+>>>>>>> Stashed changes
     (bn4): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn5): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2358,7 +2426,11 @@ CompletionNet(
         (fc3): Linear(in_features=256, out_features=1, bias=True)
         (relu): ReLU()
       )
+<<<<<<< Updated upstream
       (conv1): Conv1d(3, 64, kernel_size=(1,), stride=(1,))
+=======
+      (conv1): Conv1d(6, 64, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
       (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
       (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
       (bn1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2370,19 +2442,32 @@ CompletionNet(
     (3): ReLU()
   )
   (decoder): PointGenCon(
+<<<<<<< Updated upstream
     (conv1): Conv1d(2051, 2051, kernel_size=(1,), stride=(1,))
     (conv2): Conv1d(2051, 1025, kernel_size=(1,), stride=(1,))
     (conv3): Conv1d(1025, 512, kernel_size=(1,), stride=(1,))
     (conv4): Conv1d(512, 256, kernel_size=(1,), stride=(1,))
+=======
+    (conv1): Conv1d(2054, 2054, kernel_size=(1,), stride=(1,))
+    (conv2): Conv1d(2054, 1027, kernel_size=(1,), stride=(1,))
+    (conv3): Conv1d(1027, 513, kernel_size=(1,), stride=(1,))
+    (conv4): Conv1d(513, 256, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
     (conv5): Conv1d(256, 128, kernel_size=(1,), stride=(1,))
     (conv6): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv7): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv8): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv9): Conv1d(128, 3, kernel_size=(1,), stride=(1,))
     (th): Tanh()
+<<<<<<< Updated upstream
     (bn1): BatchNorm1d(2051, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn2): BatchNorm1d(1025, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn3): BatchNorm1d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+=======
+    (bn1): BatchNorm1d(2054, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn2): BatchNorm1d(1027, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn3): BatchNorm1d(513, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+>>>>>>> Stashed changes
     (bn4): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn5): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2402,7 +2487,11 @@ CompletionNet(
         (fc3): Linear(in_features=256, out_features=1, bias=True)
         (relu): ReLU()
       )
+<<<<<<< Updated upstream
       (conv1): Conv1d(3, 64, kernel_size=(1,), stride=(1,))
+=======
+      (conv1): Conv1d(6, 64, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
       (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
       (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
       (bn1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2414,19 +2503,32 @@ CompletionNet(
     (3): ReLU()
   )
   (decoder): PointGenCon(
+<<<<<<< Updated upstream
     (conv1): Conv1d(2051, 2051, kernel_size=(1,), stride=(1,))
     (conv2): Conv1d(2051, 1025, kernel_size=(1,), stride=(1,))
     (conv3): Conv1d(1025, 512, kernel_size=(1,), stride=(1,))
     (conv4): Conv1d(512, 256, kernel_size=(1,), stride=(1,))
+=======
+    (conv1): Conv1d(2054, 2054, kernel_size=(1,), stride=(1,))
+    (conv2): Conv1d(2054, 1027, kernel_size=(1,), stride=(1,))
+    (conv3): Conv1d(1027, 513, kernel_size=(1,), stride=(1,))
+    (conv4): Conv1d(513, 256, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
     (conv5): Conv1d(256, 128, kernel_size=(1,), stride=(1,))
     (conv6): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv7): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv8): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv9): Conv1d(128, 3, kernel_size=(1,), stride=(1,))
     (th): Tanh()
+<<<<<<< Updated upstream
     (bn1): BatchNorm1d(2051, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn2): BatchNorm1d(1025, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn3): BatchNorm1d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+=======
+    (bn1): BatchNorm1d(2054, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn2): BatchNorm1d(1027, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn3): BatchNorm1d(513, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+>>>>>>> Stashed changes
     (bn4): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn5): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2446,7 +2548,11 @@ CompletionNet(
         (fc3): Linear(in_features=256, out_features=1, bias=True)
         (relu): ReLU()
       )
+<<<<<<< Updated upstream
       (conv1): Conv1d(3, 64, kernel_size=(1,), stride=(1,))
+=======
+      (conv1): Conv1d(6, 64, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
       (conv2): Conv1d(64, 128, kernel_size=(1,), stride=(1,))
       (conv3): Conv1d(128, 1024, kernel_size=(1,), stride=(1,))
       (bn1): BatchNorm1d(64, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
@@ -2458,19 +2564,32 @@ CompletionNet(
     (3): ReLU()
   )
   (decoder): PointGenCon(
+<<<<<<< Updated upstream
     (conv1): Conv1d(2051, 2051, kernel_size=(1,), stride=(1,))
     (conv2): Conv1d(2051, 1025, kernel_size=(1,), stride=(1,))
     (conv3): Conv1d(1025, 512, kernel_size=(1,), stride=(1,))
     (conv4): Conv1d(512, 256, kernel_size=(1,), stride=(1,))
+=======
+    (conv1): Conv1d(2054, 2054, kernel_size=(1,), stride=(1,))
+    (conv2): Conv1d(2054, 1027, kernel_size=(1,), stride=(1,))
+    (conv3): Conv1d(1027, 513, kernel_size=(1,), stride=(1,))
+    (conv4): Conv1d(513, 256, kernel_size=(1,), stride=(1,))
+>>>>>>> Stashed changes
     (conv5): Conv1d(256, 128, kernel_size=(1,), stride=(1,))
     (conv6): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv7): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv8): Conv1d(128, 128, kernel_size=(1,), stride=(1,))
     (conv9): Conv1d(128, 3, kernel_size=(1,), stride=(1,))
     (th): Tanh()
+<<<<<<< Updated upstream
     (bn1): BatchNorm1d(2051, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn2): BatchNorm1d(1025, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn3): BatchNorm1d(512, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+=======
+    (bn1): BatchNorm1d(2054, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn2): BatchNorm1d(1027, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+    (bn3): BatchNorm1d(513, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
+>>>>>>> Stashed changes
     (bn4): BatchNorm1d(256, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn5): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
     (bn6): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)

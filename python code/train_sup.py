@@ -29,14 +29,18 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
-    parser.add_argument('--model_dir', type=str, default='experiment with AMASS data (incomplete)',help='optional reload model directory')
-    parser.add_argument('--model_file', type=str, default='network_last.pth',help='optional reload model file in model directory')
+    parser.add_argument('--model_dir', type=str, default='experiment with AMASS data (incomplete)',
+                        help='optional reload model directory')
+    parser.add_argument('--model_file', type=str, default='network_last.pth',
+                        help='optional reload model file in model directory')
     parser.add_argument('--save_path', type=str, default='experiment with AMASS data (incomplete)', help='save path')
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
     parser.add_argument('--saveOffline', type=bool, default=False)
-    parser.add_argument('--num_input_channels', type=int, default=3)
-    parser.add_argument('--use_same_subject', type=bool, default=True) #OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
-    parser.add_argument('--centering', type=bool, default=True) #OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
+    parser.add_argument('--num_input_channels', type=int, default=6)
+    parser.add_argument('--use_same_subject', type=bool,
+                        default=True)  # OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
+    parser.add_argument('--centering', type=bool,
+                        default=True)  # OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
     parser.add_argument('--amass_train_size', type=int, default=100000)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--faust_train_size', type=int, default=10000)
@@ -82,6 +86,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                              num_workers=int(opt.workers), pin_memory=True)
     # OH: pin_memory=True used to increase the performance when transferring the fetched data from CPU to GPU
     dataset_test = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels, train_size=opt.faust_train_size)
+
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True,
                                                   num_workers=int(opt.workers), pin_memory=True)
     len_dataset = len(dataset)
@@ -91,11 +96,14 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     network = CompletionNet(num_input_channels=opt.num_input_channels, centering=opt.centering)
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
-    if opt.model_dir != '':
-        model_path = os.path.join(os.getcwd(), "log", opt.model_dir, opt.model_file)
-        print(model_path)
-        network.load_state_dict(torch.load(model_path))
-        print(" Previous weight loaded ")
+    try:
+        if opt.model_dir != '':
+            model_path = os.path.join(os.getcwd(), "log", opt.model_dir, opt.model_file)
+            print(model_path)
+            network.load_state_dict(torch.load(model_path))
+            print(" Previous weight loaded ")
+    except:
+        print('Saved weights mismatch in input size - Retraining')
     # ========================================================== #
 
     # ===================CREATE optimizer================================= #
@@ -141,6 +149,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
             else:
                 loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
 
+
             loss_net = loss_points
             loss_net.backward()
             train_loss.update(loss_net.item())
@@ -159,7 +168,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
             print('[%d: %d/%d] train loss:  %f' % (epoch, i, len_dataset / opt.batchSize, loss_net.item()))
 
-        if opt.saveOffline: #save the last training batch in each epoch
+        if opt.saveOffline:  # save the last training batch in each epoch
             for i in range(opt.batchSize):
                 tmp_fig = plt.figure()
                 ax_train_part = tmp_fig.add_subplot(141, projection='3d')
@@ -170,21 +179,21 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                       part[i, 1, :].contiguous().data.cpu(),
                                       part[i, 2, :].contiguous().data.cpu())
                 ax_train_template.scatter(template[i, 0, :].contiguous().data.cpu(),
-                                      template[i, 1, :].contiguous().data.cpu(),
-                                      template[i, 2, :].contiguous().data.cpu())
+                                          template[i, 1, :].contiguous().data.cpu(),
+                                          template[i, 2, :].contiguous().data.cpu())
                 ax_train_output.scatter(pointsReconstructed[i, 0, :].contiguous().data.cpu(),
-                                          pointsReconstructed[i, 1, :].contiguous().data.cpu(),
-                                          pointsReconstructed[i, 2, :].contiguous().data.cpu())
+                                        pointsReconstructed[i, 1, :].contiguous().data.cpu(),
+                                        pointsReconstructed[i, 2, :].contiguous().data.cpu())
                 ax_train_ground_truth.scatter(gt[i, 0, :].contiguous().data.cpu(),
-                                          gt[i, 1, :].contiguous().data.cpu(),
-                                          gt[i, 2, :].contiguous().data.cpu())
-                plt.savefig(os.path.join(str(ts),'train_'+str(epoch)+'_'+str(i)+'.png'))
+                                              gt[i, 1, :].contiguous().data.cpu(),
+                                              gt[i, 2, :].contiguous().data.cpu())
+                plt.savefig(os.path.join(str(ts), 'train_' + str(epoch) + '_' + str(i) + '.png'))
 
-            sio.savemat('train_'+str(epoch)+'.mat',{"Train_Part":part[:, :3, :].contiguous().data.cpu(),
-                                       "Train_Template":template[:, :3, :].contiguous().data.cpu(),
-                                       "Train_output":pointsReconstructed[0, :3, :].contiguous().data.cpu(),
-                                       "Train_Ground_Truth":gt[:, :3, :].contiguous().data.cpu()})
-
+            sio.savemat('train_' + str(epoch) + '.mat', {"Train_Part": part[:, :3, :].contiguous().data.cpu(),
+                                                         "Train_Template": template[:, :3, :].contiguous().data.cpu(),
+                                                         "Train_output": pointsReconstructed[0, :3,
+                                                                         :].contiguous().data.cpu(),
+                                                         "Train_Ground_Truth": gt[:, :3, :].contiguous().data.cpu()})
 
         # Validation
         with torch.no_grad():
@@ -200,6 +209,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 # Forward pass
                 pointsReconstructed, shift_template, shift_part = network(part, template)
                 gt[:, :3, :] = gt[:, :3, :] - shift_part
+
                 loss_points = torch.mean((pointsReconstructed - gt[:, :3, :]) ** 2)
                 loss_net = loss_points
                 val_loss.update(loss_net.item())
@@ -217,7 +227,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
                 print('[%d: %d/%d] test loss:  %f' % (epoch, i, len_dataset_test / opt.batchSize, loss_net.item()))
 
-            if opt.saveOffline: #save the last validation batch in each epoch
+            if opt.saveOffline:  # save the last validation batch in each epoch
                 for i in range(opt.batchSize):
                     tmp_fig = plt.figure()
                     ax_test_part = tmp_fig.add_subplot(141, projection='3d')
@@ -225,26 +235,26 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                     ax_test_output = tmp_fig.add_subplot(143, projection='3d')
                     ax_test_ground_truth = tmp_fig.add_subplot(144, projection='3d')
                     ax_test_part.scatter(part[i, 0, :].contiguous().data.cpu(),
-                                          part[i, 1, :].contiguous().data.cpu(),
-                                          part[i, 2, :].contiguous().data.cpu())
+                                         part[i, 1, :].contiguous().data.cpu(),
+                                         part[i, 2, :].contiguous().data.cpu())
                     ax_test_template.scatter(template[i, 0, :].contiguous().data.cpu(),
-                                              template[i, 1, :].contiguous().data.cpu(),
-                                              template[i, 2, :].contiguous().data.cpu())
+                                             template[i, 1, :].contiguous().data.cpu(),
+                                             template[i, 2, :].contiguous().data.cpu())
                     ax_test_output.scatter(pointsReconstructed[i, 0, :].contiguous().data.cpu(),
-                                            pointsReconstructed[i, 1, :].contiguous().data.cpu(),
-                                            pointsReconstructed[i, 2, :].contiguous().data.cpu())
+                                           pointsReconstructed[i, 1, :].contiguous().data.cpu(),
+                                           pointsReconstructed[i, 2, :].contiguous().data.cpu())
                     ax_test_ground_truth.scatter(gt[i, 0, :].contiguous().data.cpu(),
-                                                  gt[i, 1, :].contiguous().data.cpu(),
-                                                  gt[i, 2, :].contiguous().data.cpu())
+                                                 gt[i, 1, :].contiguous().data.cpu(),
+                                                 gt[i, 2, :].contiguous().data.cpu())
                     plt.savefig(os.path.join(str(ts), 'test_' + str(epoch) + '_' + str(i) + '.png'))
 
                 sio.savemat('test_' + str(epoch) + '.mat', {"Test_Part": part[:, :3, :].contiguous().data.cpu(),
-                                                             "Test_Template": template[:, :3,
-                                                                               :].contiguous().data.cpu(),
-                                                             "Test_output": pointsReconstructed[0, :3,
+                                                            "Test_Template": template[:, :3,
                                                                              :].contiguous().data.cpu(),
-                                                             "Test_Ground_Truth": gt[:, :3,
-                                                                                   :].contiguous().data.cpu()})
+                                                            "Test_output": pointsReconstructed[0, :3,
+                                                                           :].contiguous().data.cpu(),
+                                                            "Test_Ground_Truth": gt[:, :3,
+                                                                                 :].contiguous().data.cpu()})
             # UPDATE CURVES
             Loss_curve_train.append(train_loss.avg)
             Loss_curve_val.append(val_loss.avg)
