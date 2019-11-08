@@ -41,7 +41,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # Network params
 
-    parser.add_argument('--num_input_channels', type=int, default=3)
+    parser.add_argument('--num_input_channels', type=int, default=3) # If 6, normals are used as input as well
     parser.add_argument('--use_same_subject', type=bool, default=True)
     # OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
     parser.add_argument('--centering', type=bool, default=True)
