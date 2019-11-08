@@ -137,21 +137,21 @@ class AmassProjectionsDataset(data.Dataset):
         self.use_same_subject = use_same_subject
         self.train_size = train_size
         self.validation_size = validation_size
-        self.test_size = test_size
+        # self.test_size = test_size
         self.filtering = filtering
         self.mask_penalty = mask_penalty
 
-        if type == 'train':
+        if self.train == 'train':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
             print("Train set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
-        if type == 'validation':
+        if self.train == 'validation':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "vald")
             print("Validation set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "vald_dict.json")))
-        if type == 'test':
+        if self.train == 'test':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "test")
             print("Test set path:")
             print(self.path)
@@ -286,11 +286,11 @@ class AmassProjectionsDataset(data.Dataset):
         return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, index
 
     def __len__(self):
-        if self.type == 'train':
+        if self.train == 'train':
             return self.train_size
-        if self.type == 'validation':
+        if self.train == 'validation':
             return self.validation_size
-        if self.type == 'test':
+        if self.train == 'test':
             return self.test_size
 
 

@@ -31,11 +31,11 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
 
-    parser.add_argument('--model_dir', type=str, default='experiment with AMASS data (incomplete)',
+    parser.add_argument('--model_dir', type=str, default='experiment_with_filtering_012',
                         help='optional reload model directory')
     parser.add_argument('--model_file', type=str, default='network_last.pth',
                         help='optional reload model file in model directory')
-    parser.add_argument('--save_path', type=str, default='experiment with AMASS data (incomplete)', help='save path')
+    parser.add_argument('--save_path', type=str, default='experiment_with_filtering_012', help='save path')
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
     parser.add_argument('--saveOffline', type=bool, default=False)
 
@@ -52,10 +52,10 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
     parser.add_argument('--faust_train_size', type=int, default=10000)
-    parser.add_argument('--filtering', type=float, default=0, help='amount of filtering to apply on l2 distances')
+    parser.add_argument('--filtering', type=float, default=0.12, help='amount of filtering to apply on l2 distances')
 
     # Loss params
-    parser.add_argument('--penalty_loss', type=int, default=1, help='penalty applied to points belonging to the mask')
+    parser.add_argument('--penalty_loss', type=int, default=1, help='penalty applied to points belonging to the mask') #why this is int?
 
     opt = parser.parse_args()
     print(opt)
@@ -81,15 +81,17 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     np.random.seed(opt.manualSeed)
     Loss_curve_train = []
     Loss_curve_val = []
+    Loss_curve_val_amass = []
 
     # meters to record stats on learning
     train_loss = AverageValueMeter()
     val_loss = AverageValueMeter()
+    val_loss_amass = AverageValueMeter()
     tmp_val_loss = AverageValueMeter()
 
     # ===================CREATE DATASET================================= #
 
-    dataset = AmassProjectionsDataset(type='train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
+    dataset = AmassProjectionsDataset(train='train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
                                       mask_penalty=opt.penalty_loss, use_same_subject=opt.use_same_subject,
                                       train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
@@ -100,8 +102,14 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True,
                                                   num_workers=int(opt.workers), pin_memory=True)
+    dataset_test_amass = AmassProjectionsDataset(train='validation', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
+                                      mask_penalty=opt.penalty_loss, use_same_subject=opt.use_same_subject,
+                                      train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
+    dataloader_test_amass = torch.utils.data.DataLoader(dataset_test_amass, batch_size=opt.batchSize, shuffle=True,
+                                             num_workers=int(opt.workers), pin_memory=True)
     len_dataset = len(dataset)
     len_dataset_test = len(dataset_test)
+    len_dataset_test_amass = len(dataset_test_amass)
 
     # ===================CREATE network================================= #
     network = CompletionNet(num_input_channels=opt.num_input_channels, centering=opt.centering)
@@ -205,7 +213,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                                                          :].contiguous().data.cpu(),
                                                          "Train_Ground_Truth": gt[:, :3, :].contiguous().data.cpu()})
 
-        # Validation
+        # Validation Faust
         with torch.no_grad():
             network.eval()
             val_loss.reset()
@@ -236,6 +244,38 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                 opts=dict(title="Test_Ground_Truth", markersize=2, ), )
 
                 print('[%d: %d/%d] test loss:  %f' % (epoch, i, len_dataset_test / opt.batchSize, loss_net.item()))
+
+        # Validation AMASS
+        with torch.no_grad():
+            network.eval()
+            val_loss_amass.reset()
+            for i, data in enumerate(dataloader_test_amass, 0):
+                template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, _ = data
+                # OH: place on GPU
+                part = part.transpose(2, 1).contiguous().cuda(non_blocking=True).float()
+                template = template.transpose(2, 1).contiguous().cuda(non_blocking=True).float()
+                gt = gt.transpose(2, 1).contiguous().cuda(non_blocking=True).float()
+
+                # Forward pass
+                pointsReconstructed, shift_template, shift_part = network(part, template)
+                gt[:, :3, :] = gt[:, :3, :] - shift_part
+
+                loss_points = torch.mean((pointsReconstructed - gt[:, :3, :]) ** 2)
+                loss_net = loss_points
+                val_loss_amass.update(loss_net.item())
+
+                # VIZUALIZE
+                if i % 100 == 0:
+                    vis.scatter(X=part[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test__Amass_Part',
+                                opts=dict(title="Test_Part", markersize=2, ), )
+                    vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_Template',
+                                opts=dict(title="Test_Template", markersize=2, ), )
+                    vis.scatter(X=pointsReconstructed[0].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_output',
+                                opts=dict(title="Test_output", markersize=2, ), )
+                    vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_Ground_Truth',
+                                opts=dict(title="Test_Ground_Truth", markersize=2, ), )
+
+                print('[%d: %d/%d] test loss:  %f' % (epoch, i, len_dataset_test_amass / opt.batchSize, loss_net.item()))
 
             if opt.saveOffline:  # save the last validation batch in each epoch
                 for i in range(opt.batchSize):
@@ -268,21 +308,31 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
             # UPDATE CURVES
             Loss_curve_train.append(train_loss.avg)
             Loss_curve_val.append(val_loss.avg)
+            Loss_curve_val_amass.append(val_loss_amass.avg)
 
             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
                      Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val))),
-                     win='loss',
-                     opts=dict(title="loss", legend=["Train loss", "Validation loss", ]))
-
+                     win='Faust loss',
+                     opts=dict(title="Faust loss", legend=["Train loss", "Faust Validation loss", ]))
             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
                      Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val)))),
-                     win='log',
-                     opts=dict(title="log", legend=["Train loss", "Validation loss", ]))
+                     win='"Faust log loss',
+                     opts=dict(title="Faust log loss", legend=["Train loss", "Faust Validation loss", ]))
+
+            vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
+                     Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass))),
+                     win='AMASS loss',
+                     opts=dict(title="AMASS loss", legend=["Train loss", "Validation loss", "Validation loss amass"]))
+            vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
+                     Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass)))),
+                     win='AMASS log loss',
+                     opts=dict(title="AMASS log loss", legend=["Train loss", "Faust Validation loss", ]))
 
             # dump stats in log file
             log_table = {
                 "val_loss": val_loss.avg,
                 "train_loss": train_loss.avg,
+                "val_loss_amass" : val_loss_amass.avg,
                 "epoch": epoch,
                 "lr": lrate,
                 "env": opt.env,
