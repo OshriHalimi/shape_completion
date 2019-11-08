@@ -1,5 +1,7 @@
 data/
-data_old
+data_old/
+log/
+.idea/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

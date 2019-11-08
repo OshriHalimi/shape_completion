@@ -1,74 +1,103 @@
 from __future__ import print_function
 import argparse
 import random
-import numpy as np
+#import numpy as np
 import torch
 import torch.optim as optim
 import os
 import json
 import visdom
 import time
+import matplotlib.pyplot as plt
+import scipy.io as sio
 
 from dataset import *
 from model import *
 from utils import *
-import scipy.io as sio
+
+try:
+    import visdom
+except:
+    print("Please install the module 'visdom' for visualization, e.g.")
+    print("pip install visdom")
+    sys.exit(-1)
 
 if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is necessary for Windows compatibility
     # of the multi-process data loader (see pytorch documentation)
     # =============PARAMETERS======================================== #
     parser = argparse.ArgumentParser()
+    # Learning params
     parser.add_argument('--batchSize', type=int, default=1, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=1)
-    parser.add_argument('--model', type=str, default='D:/oshri.halimi/shape_completion/python code/log/No augmentation; Input normals; Deeper Decoder/network_last.pth', help='optional reload model path')
-    parser.add_argument('--save_path', type=str, default='D:/oshri.halimi/shape_completion/python code/log/No augmentation; Input normals; Deeper Decoder/test/', help='save path')
-    parser.add_argument('--env', type=str, default="3DCODED_supervised", help='visdom environment')  #OH: TODO edit
+
+    # Path params
+    parser.add_argument('--model_dir', type=str, default='experiment with AMASS data (incomplete)',help='optional reload model directory')
+    parser.add_argument('--model_file', type=str, default='network_last.pth',help='optional reload model file in model directory')
+    parser.add_argument('--save_path', type=str, default='Amass test set generalization', help='save path')
+    parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
+    parser.add_argument('--saveOffline', type=bool, default=False)
+
+    #Network params
+    parser.add_argument('--num_input_channels', type=int, default=3)
+    parser.add_argument('--use_same_subject', type=bool, default=True) #OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
+    parser.add_argument('--centering', type=bool, default=True) #OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
+
+    #Dataset params
+    parser.add_argument('--amass_train_size', type=int, default=10)
+    parser.add_argument('--amass_validation_size', type=int, default=10000)
+    parser.add_argument('--amass_test_size', type=int, default=200)
+    parser.add_argument('--faust_train_size', type=int, default=10)
+    parser.add_argument('--filtering', type=float, default=0, help='amount of filtering to apply on l2 distances')
+
+    #Loss params
+    parser.add_argument('--penalty_loss', type=int, default=1, help='penalty applied to points belonging to the mask')
+
+
 
     opt = parser.parse_args()
-    print(opt)
 
-    # =============DEFINE stuff for logs ======================================== #
-    # Launch visdom for visualization
-    vis = visdom.Visdom(port=8888, env=opt.env)
-    save_path = opt.save_path
+    opt.manualSeed = 1  # random.randint(1, 10000)  # fix seed
+    print("Random Seed: ", opt.manualSeed)
+    random.seed(opt.manualSeed)
+    torch.manual_seed(opt.manualSeed)
+    np.random.seed(opt.manualSeed)
 
-    blue = lambda x: '\033[94m' + x + '\033[0m'
+
 
     # ===================CREATE DATASET================================= #
-    # OH: pin_memory=True used to increase the performance when transferring the fetched data from CPU to GPU
-    dataset_test = SHREC16CutsDavidDataset()
-    dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=False, num_workers=int(opt.workers), pin_memory=True)
-    len_dataset_test = len(dataset_test)
+
+    dataset_test = AmassProjectionsDataset(type = 'test', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
+                                      mask_penalty=opt.penalty_loss, use_same_subject=opt.use_same_subject,
+                                      train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
+    dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True,
+                                                  num_workers=int(opt.workers), pin_memory=True)
 
     # ===================CREATE network================================= #
-    network = CompletionNet()
+    network = CompletionNet(num_input_channels = opt.num_input_channels)
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
-    if opt.model != '':
-        network.load_state_dict(torch.load(opt.model))
+    if opt.model_dir != '':
+        model_path = os.path.join(os.getcwd(), "log", opt.model_dir, opt.model_file)
+        print(model_path)
+        network.load_state_dict(torch.load(model_path))
         print(" Previous weight loaded ")
+
     # ========================================================== #
 
-
-    # Test
+    dir_name = os.path.join(os.getcwd(), "log", opt.model_dir, opt.save_path)
+    print(dir_name)
+    os.mkdir(dir_name)
     with torch.no_grad():
         network.eval()
-
         for i, data in enumerate(dataloader_test, 0):
-            part, template, name_part, name_full, _ = data
+            template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, _ = data
             # OH: place on GPU
-            part = part.transpose(2, 1).contiguous().cuda(non_blocking=True).float()
-            template = template.transpose(2, 1).contiguous().cuda(non_blocking=True).float()
+            part = part.transpose(2, 1).contiguous().cuda().float()
+            template = template.transpose(2, 1).contiguous().cuda().float()
+            gt = gt.transpose(2, 1).contiguous().cuda().float()
 
             # Forward pass
-            pointsReconstructed = network(part, template).double()
-            sio.savemat(save_path + "part_" + name_part[0] + "_full_" + name_full[0]+ '.mat', {'pointsReconstructed': pointsReconstructed.cpu().numpy()})
-            # VIZUALIZE
-            vis.scatter(X=part[0,:3,:].transpose(1, 0).contiguous().data.cpu(), win='Test_Part',
-                        opts=dict(title="Test_Part", markersize=2, ), )
-            vis.scatter(X=template[0,:3,:].transpose(1, 0).contiguous().data.cpu(), win='Test_Template',
-                        opts=dict(title="Test_Template", markersize=2, ), )
-            vis.scatter(X=pointsReconstructed[0].transpose(1, 0).contiguous().data.cpu(), win='Test_output',
-                        opts=dict(title="Test_output",markersize=2, ), )
-
-
+            pointsReconstructed, shift_template, shift_part = network(part, template)
+            file_name = "subjectIDfull_{}_subjectIDpart_{}_poseIDfull_{}_poseIDpart_{}_projectionID_{}.mat".format(subject_id_full.data[0], subject_id_part.data[0], pose_id_full.data[0], pose_id_part.data[0], mask_id.data[0])
+            file_name = os.path.join(os.getcwd(), "log", opt.model_dir, opt.save_path, file_name)
+            sio.savemat(file_name, {'pointsReconstructed' : pointsReconstructed.cpu().data.numpy(), 'shift_template' : shift_template.cpu().data.numpy(), 'shift_part' : shift_part.cpu().data.numpy()})

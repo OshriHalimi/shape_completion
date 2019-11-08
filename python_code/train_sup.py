@@ -26,9 +26,11 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     # of the multi-process data loader (see pytorch documentation)
     # =============PARAMETERS======================================== #
     parser = argparse.ArgumentParser()
+    # Learning params
     parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
+
     parser.add_argument('--model_dir', type=str, default='experiment with AMASS data (incomplete)',
                         help='optional reload model directory')
     parser.add_argument('--model_file', type=str, default='network_last.pth',
@@ -42,9 +44,13 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--centering', type=bool,
                         default=True)  # OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
     parser.add_argument('--amass_train_size', type=int, default=100000)
+
     parser.add_argument('--amass_validation_size', type=int, default=10000)
-    parser.add_argument('--faust_train_size', type=int, default=10000)
+    parser.add_argument('--amass_test_size', type=int, default=200)
+    parser.add_argument('--faust_train_size', type=int, default=10)
     parser.add_argument('--filtering', type=float, default=0, help='amount of filtering to apply on l2 distances')
+
+    #Loss params
     parser.add_argument('--penalty_loss', type=int, default=1, help='penalty applied to points belonging to the mask')
 
     opt = parser.parse_args()
@@ -79,7 +85,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # ===================CREATE DATASET================================= #
 
-    dataset = AmassProjectionsDataset(train=True, num_input_channels=opt.num_input_channels, filtering=opt.filtering,
+    dataset = AmassProjectionsDataset(type = 'train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
                                       mask_penalty=opt.penalty_loss, use_same_subject=opt.use_same_subject,
                                       train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
@@ -131,7 +137,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
         network.train()
         for i, data in enumerate(dataloader, 0):
             optimizer.zero_grad()
-            part, template, gt, mask, _ = data
+            template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, _ = data
 
             # OH: place on GPU
             part = part.transpose(2, 1).contiguous().cuda().float()

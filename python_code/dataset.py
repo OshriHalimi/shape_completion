@@ -130,7 +130,6 @@ class FaustProjectionsDataset(data.Dataset):
 
 
 class AmassProjectionsDataset(data.Dataset):
-
     def __init__(self, train, num_input_channels, filtering, mask_penalty,
                  use_same_subject=True, train_size=100000, validation_size=10000):
         self.train = train
@@ -138,19 +137,25 @@ class AmassProjectionsDataset(data.Dataset):
         self.use_same_subject = use_same_subject
         self.train_size = train_size
         self.validation_size = validation_size
+        self.test_size = test_size
         self.filtering = filtering
         self.mask_penalty = mask_penalty
 
-        if train:
+        if type == 'train':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
             print("Train set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
-        else:
+        if type == 'validation':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "vald")
             print("Validation set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "vald_dict.json")))
+        if type == 'test':
+            self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "test")
+            print("Test set path:")
+            print(self.path)
+            self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
 
         if num_input_channels == 6:  # Add normals
             # Presuming all meshes hold the same connectivity
@@ -197,7 +202,6 @@ class AmassProjectionsDataset(data.Dataset):
             template = np.concatenate((template, template_n), axis=1)
             gt = np.concatenate((gt, gt_n), axis=1)
 
-
         mask = self.read_npz(subject_id_part, pose_id_part, mask_id)
         mask_loss_mat = np.ones((template.shape[0], template.shape[1]), dtype=int)
         mask_loss = np.ones(template.shape[0], dtype=int)
@@ -213,7 +217,7 @@ class AmassProjectionsDataset(data.Dataset):
         if len(mask) == 1:
             raise Exception("MASK IS CORRUPTED")
 
-        return part, template, gt, mask_loss_mat
+        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat
 
     def compute_vertex_normals(self, v):
         a = v[self.ref_tri[:, 0], :]
@@ -277,15 +281,17 @@ class AmassProjectionsDataset(data.Dataset):
 
     def __getitem__(self, index):
 
-        part, template, gt, mask_loss = self.get_shapes()
+        template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat = self.get_shapes()
 
-        return part, template, gt, mask_loss, index
+        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, index
 
     def __len__(self):
-        if self.train:
+        if self.type == 'train':
             return self.train_size
-        else:
+        if self.type == 'validation':
             return self.validation_size
+        if self.type == 'test':
+            return self.test_size
 
 
 def test_normals(v, f, n):
@@ -309,7 +315,7 @@ if __name__ == '__main__':
     vis = visdom.Visdom(port=8888, env="test-amass-dataset")
     n_input_ch = 6
 
-    d = FaustProjectionsDataset(train = True, num_input_channels=6,train_size=100)
+    d = FaustProjectionsDataset(train=True, num_input_channels=6, train_size=100)
     for i in range(10):
         part, template, gt, index = d[i]
 

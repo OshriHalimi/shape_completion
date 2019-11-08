@@ -1,3 +1,4 @@
+<<<<<<< HEAD:python_code/log/experiment with AMASS data (incomplete)/log.txt
 json_stats: {"val_loss": 0.1311094062274524, "train_loss": 0.11359470710158348, "epoch": 1, "lr": 0.001, "env": "shape_completion"}
 CompletionNet(
   (encoder): Sequential(
@@ -2292,6 +2293,8 @@ CompletionNet(
     (bn8): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
   )
 )
+=======
+>>>>>>> efc779da4d2a7c55f0883bc0bae509f4602d7919:python code/log/experiment with AMASS data (incomplete)/log.txt
 CompletionNet(
   (encoder): Sequential(
     (0): PointNetfeat(
@@ -2536,6 +2539,8 @@ CompletionNet(
     (bn8): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
   )
 )
+json_stats: {"val_loss": 0.11030816286802292, "train_loss": 0.31501829624176025, "epoch": 0, "lr": 0.001, "env": "shape_completion"}
+json_stats: {"val_loss": 0.10827378928661346, "train_loss": 0.2923206686973572, "epoch": 1, "lr": 0.001, "env": "shape_completion"}
 CompletionNet(
   (encoder): Sequential(
     (0): PointNetfeat(
@@ -2597,3 +2602,6 @@ CompletionNet(
     (bn8): BatchNorm1d(128, eps=1e-05, momentum=0.1, affine=True, track_running_stats=True)
   )
 )
+json_stats: {"val_loss": 0.10685402154922485, "train_loss": 0.26968738436698914, "epoch": 0, "lr": 0.001, "env": "shape_completion"}
+json_stats: {"val_loss": 0.10535027831792831, "train_loss": 0.1653677523136139, "epoch": 1, "lr": 0.001, "env": "shape_completion"}
+json_stats: {"val_loss": 0.10391116142272949, "train_loss": 0.12339504063129425, "epoch": 2, "lr": 0.001, "env": "shape_completion"}
