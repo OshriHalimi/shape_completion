@@ -130,28 +130,29 @@ class FaustProjectionsDataset(data.Dataset):
 
 
 class AmassProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, filtering, mask_penalty,
-                 use_same_subject=True, train_size=100000, validation_size=10000):
-        self.train = train
+    def __init__(self, split, num_input_channels, filtering, mask_penalty,
+                 use_same_subject=True, train_size=100000, validation_size=10000, test_size = 300):
+        self.split = split
         self.num_input_channels = num_input_channels
         self.use_same_subject = use_same_subject
         self.train_size = train_size
         self.validation_size = validation_size
-        # self.test_size = test_size
+        self.test_size = test_size
         self.filtering = filtering
         self.mask_penalty = mask_penalty
 
-        if self.train == 'train':
+
+        if self.split == 'train':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
             print("Train set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
-        if self.train == 'validation':
+        if self.split == 'validation':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "vald")
             print("Validation set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "vald_dict.json")))
-        if self.train == 'test':
+        if self.split == 'test':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "test")
             print("Test set path:")
             print(self.path)
@@ -203,12 +204,12 @@ class AmassProjectionsDataset(data.Dataset):
             gt = np.concatenate((gt, gt_n), axis=1)
 
         mask = self.read_npz(subject_id_part, pose_id_part, mask_id)
-        mask_loss_mat = np.ones((template.shape[0], template.shape[1]), dtype=int)
-        mask_loss = np.ones(template.shape[0], dtype=int)
+        # mask_loss_mat = np.ones((template.shape[0], template.shape[1]), dtype=int)
+        mask_loss = np.ones(template.shape[0])
         mask_loss[mask] = self.mask_penalty
-        mask_loss_mat[:, 0] = mask_loss
-        mask_loss_mat[:, 1] = mask_loss
-        mask_loss_mat[:, 2] = mask_loss
+        # mask_loss_mat[:, 0] = mask_loss
+        # mask_loss_mat[:, 1] = mask_loss
+        # mask_loss_mat[:, 2] = mask_loss
         mask_full = np.zeros(template.shape[0], dtype=int)
         mask_full[:len(mask)] = mask
         mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
@@ -217,7 +218,7 @@ class AmassProjectionsDataset(data.Dataset):
         if len(mask) == 1:
             raise Exception("MASK IS CORRUPTED")
 
-        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat
+        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss
 
     def compute_vertex_normals(self, v):
         a = v[self.ref_tri[:, 0], :]
@@ -286,11 +287,11 @@ class AmassProjectionsDataset(data.Dataset):
         return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, index
 
     def __len__(self):
-        if self.train == 'train':
+        if self.split == 'train':
             return self.train_size
-        if self.train == 'validation':
+        if self.split == 'validation':
             return self.validation_size
-        if self.train == 'test':
+        if self.split == 'test':
             return self.test_size
 
 

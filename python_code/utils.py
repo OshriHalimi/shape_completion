@@ -44,6 +44,25 @@ def weights_init(m):
         m.weight.data.normal_(1.0, 0.02)
         m.bias.data.fill_(0)
 
+def read_lr(path_to_log):
+
+    epoch_list =  []
+    epoch = 0
+    with open(path_to_log, "r") as f:
+
+        for line in f:
+
+            if line.startswith("EPOCH NUMBER"):
+                line = line.strip("\n")
+                line = line.split(":")
+                epoch_list.append(int(line[-1]))
+    if len(epoch_list) > 0:
+        epoch = max(epoch_list)
+    return epoch
+
+
+
+
 class AverageValueMeter(object):
     """Computes and stores the average and current value"""
     def __init__(self):
