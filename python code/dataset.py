@@ -125,26 +125,32 @@ class FaustProjectionsDataset(data.Dataset):
 
 
 class AmassProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, filtering, mask_penalty,
-                 use_same_subject=True, train_size=100000, validation_size=10000):
-        self.train = train
+    def __init__(self, type, num_input_channels, filtering, mask_penalty,
+                 use_same_subject=True, train_size=100000, validation_size=10000, test_size = 200):
+        self.type = type
         self.num_input_channels = num_input_channels
         self.use_same_subject = use_same_subject
         self.train_size = train_size
         self.validation_size = validation_size
+        self.test_size = test_size
         self.filtering = filtering
         self.mask_penalty = mask_penalty
 
-        if train:
+        if type == 'train':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
             print("Train set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
-        else:
+        if type == 'validation':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "vald")
             print("Validation set path:")
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "vald_dict.json")))
+        if type == 'test':
+            self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "test")
+            print("Test set path:")
+            print(self.path)
+            self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
 
 
     def translate_index(self):
@@ -196,7 +202,7 @@ class AmassProjectionsDataset(data.Dataset):
         if len(mask) == 1:
             raise Exception("MASK IS CORRUPTED")
 
-        return part, template, gt, mask_loss_mat
+        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat
 
     def read_npz(self, s_id, p_id, m_id):
 
@@ -222,15 +228,17 @@ class AmassProjectionsDataset(data.Dataset):
 
     def __getitem__(self, index):
 
-        part, template, gt, mask_loss = self.get_shapes()
+        template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat = self.get_shapes()
 
-        return part, template, gt, mask_loss, index
+        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, index
 
     def __len__(self):
-        if self.train:
+        if self.type == 'train':
             return self.train_size
-        else:
+        if self.type == 'validation':
             return self.validation_size
+        if self.type == 'test':
+            return self.test_size
 
 
 if __name__ == '__main__':
