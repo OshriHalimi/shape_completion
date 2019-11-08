@@ -302,7 +302,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
         print(log_table)
         with open(logname, 'a') as f:  # open and append
             f.write('json_stats: ' + json.dumps(log_table) + '\n')
-            f.write("EPOCH NUMBER: ", str(epoch + old_epoch) + "\n")
+            f.write("EPOCH NUMBER: " + str(epoch + old_epoch) + "\n")
 
         # save latest network
         torch.save(network.state_dict(), '%s/network_last.pth' % (dir_name))
