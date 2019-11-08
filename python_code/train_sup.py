@@ -51,7 +51,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--amass_train_size', type=int, default=10000)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
-    parser.add_argument('--faust_train_size', type=int, default=10)
+    parser.add_argument('--faust_train_size', type=int, default=10000)
     parser.add_argument('--filtering', type=float, default=0, help='amount of filtering to apply on l2 distances')
 
     # Loss params
