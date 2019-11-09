@@ -25,7 +25,7 @@ def main():
     # Learning params
     parser.add_argument('--batchSize', type=int, default=3, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
-    parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
+    parser.add_argument('--nepoch', type=int, default=1, help='number of epochs to train for')
 
     # folder where to take pre-trained parameters
     parser.add_argument('--model_dir', type=str, default='',
@@ -45,18 +45,19 @@ def main():
     parser.add_argument('--centering', type=bool, default=True)
     # OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
 
-    # Dataset params
+    # Dataset params - Ido - Don't think these work
     parser.add_argument('--amass_train_size', type=int, default=5)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
     parser.add_argument('--faust_train_size', type=int, default=10000)
     parser.add_argument('--filtering', type=float, default=0.09, help='amount of filtering to apply on l2 distances')
 
-    # Loss params
-    parser.add_argument('--normal_loss_slope', type=int, default=1)
-    parser.add_argument('--euclid_dist_loss_slope', type=int, default=1)  # Warning - Requires a lot of memory!
-    parser.add_argument('--distant_vertex_loss_slope', type=int, default=1)
+    # Losses: Use 0 to ignore the specific loss, and val > 0 to compute it. The higher the value, the more weight the loss is
+    parser.add_argument('--normal_loss_slope', type=int, default=0)
+    parser.add_argument('--euclid_dist_loss_slope', type=int, default=0)  # Warning - Requires a lot of memory!
+    parser.add_argument('--distant_vertex_loss_slope', type=int, default=0)
 
+    # Adjustments to the XYZ  and Normal losses
     parser.add_argument('--mask_xyz_penalty', type=int, default=1, help='Penalize only the mask values on xyz loss')
     parser.add_argument('--use_mask_normal_penalty', type=bool, default=False,
                         help='Penalize only the mask values on normal loss')
@@ -325,13 +326,21 @@ def compute_loss(gt, gt_rec, template, mask_loss, f, opt):
     gt_xyz = gt[:, :3, :]
     template_xyz = template[:, :3, :]
 
+    # Compute XYZ Loss
+    multiplying_factor = 1
     if opt.mask_xyz_penalty and mask_loss is not None:
-        loss = torch.mean(mask_loss * ((gt_rec_xyz - gt_xyz) ** 2))  # xyz loss
-    else:
-        loss = torch.mean((gt_rec_xyz - gt_xyz) ** 2)
-    print(f'XYZ Loss {loss:4f}')
+        multiplying_factor *= mask_loss
+    if opt.distant_vertex_loss_slope > 0:
+        distant_vertex_penalty = torch.norm(gt_xyz - template_xyz, dim=1, keepdim=True)  # Vector
+        distant_vertex_penalty /= torch.mean(distant_vertex_penalty, dim=2, keepdim=True)
+        distant_vertex_penalty = torch.max(distant_vertex_penalty, torch.ones((1, 1, 1), device='cuda'))
+        distant_vertex_penalty[distant_vertex_penalty > 1] *= opt.distant_vertex_loss_slope
+        # distant_vertex_loss = torch.mean(distant_vertex_penalty * ((gt_rec_xyz - gt_xyz) ** 2))
+        # print(f'Distant Vertex Loss {distant_vertex_loss:4f}')
+        multiplying_factor *= distant_vertex_penalty
+    loss = torch.mean(multiplying_factor * (gt_rec_xyz - gt_xyz) ** 2)
 
-    # Compute Normal Penalty
+    # Compute Normal Loss
     if opt.normal_loss_slope > 0:
         gt_rec_n = calc_vnrmls_batch(gt_rec_xyz, f)
         if gt.shape[1] > 3:  # Has normals
@@ -344,23 +353,15 @@ def compute_loss(gt, gt_rec, template, mask_loss, f, opt):
         else:
             normal_loss = torch.mean(((gt_rec_n - gt_n) ** 2))
         normal_loss *= opt.normal_loss_slope
-        print(f'Vertex Normal Loss {normal_loss:4f}')
+        # print(f'Vertex Normal Loss {normal_loss:4f}')
         loss += normal_loss
 
+    # Compute Euclidean Distance Loss
     if opt.euclid_dist_loss_slope > 0:
         euclid_dist_loss = opt.euclid_dist_loss_slope * torch.mean(
             (calc_euclidean_dist_matrix(gt_rec_xyz) - calc_euclidean_dist_matrix(gt_xyz)) ** 2)
-        print(f'Euclid Distances Loss {euclid_dist_loss:4f}')
+        # print(f'Euclid Distances Loss {euclid_dist_loss:4f}')
         loss += euclid_dist_loss
-
-    if opt.distant_vertex_loss_slope > 0:
-        distant_vertex_penalty = torch.norm(gt_xyz - template_xyz, dim=1,keepdim=True)  # Vector
-        distant_vertex_penalty /= torch.mean(distant_vertex_penalty, dim=2, keepdim=True)
-        distant_vertex_penalty = torch.max(distant_vertex_penalty, torch.ones((1,1,1),device='cuda'))
-        distant_vertex_penalty[distant_vertex_penalty > 1] *= opt.distant_vertex_loss_slope
-        distant_vertex_loss = torch.mean(distant_vertex_penalty * ((gt_rec_xyz - gt_xyz) ** 2))
-        print(f'Distant Vertex Loss {distant_vertex_loss:4f}')
-        loss += distant_vertex_loss
 
     return loss
 
