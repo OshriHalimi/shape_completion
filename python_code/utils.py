@@ -57,7 +57,7 @@ def read_lr(path_to_log):
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                              Mesh Utils
 # ----------------------------------------------------------------------------------------------------------------------#
-def compute_vertex_normals(v, f):
+def calc_vnrmls(v, f):
     # NOTE - Vertices unreferenced by faces will be zero
     # Compute Face Normals
     a = v[f[:, 0], :]
@@ -82,13 +82,13 @@ def compute_vertex_normals(v, f):
     return vn
 
 
-def compute_vertex_normals_batch(v, f):
+def calc_vnrmls_batch(v, f):
     # v dimensions: [batch_size x 3 x n_vertices]
     # f dimensions: [n_faces x 3]
     v_np = v.cpu().data.numpy().swapaxes(2,1)
     vn = np.zeros_like(v_np)
     for i in range(v.shape[0]):
-        vn[i, :, :] = compute_vertex_normals(v_np[i, :, :], f)
+        vn[i, :, :] = calc_vnrmls(v_np[i, :, :], f)
 
 
     v = v.cuda()
@@ -148,7 +148,6 @@ def calc_euclidean_dist_matrix(x):
     inner = torch.bmm(x, x.transpose(2, 1))
     D = F.relu(r - 2 * inner + r_t) ** 0.5  # OH: the residual numerical error can be negative ~1e-16
     return D
-
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                              Mesh File Utils

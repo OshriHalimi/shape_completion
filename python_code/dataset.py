@@ -8,7 +8,7 @@ import os
 import time
 import scipy
 from numpy.matlib import repmat
-from utils import compute_vertex_normals, test_normals,normr
+from utils import calc_vnrmls, test_normals,normr
 
 
 class IndexExceedDataset(Exception):
@@ -205,9 +205,9 @@ class AmassProjectionsDataset(data.Dataset):
                     euc_dist = np.mean((template - gt) ** 2)
 
         if self.num_input_channels == 6:
-            template_n = compute_vertex_normals(template, self.triangulation())
+            template_n = calc_vnrmls(template, self.triangulation())
             # test_normals(template, self.triangulation(), template_n)
-            gt_n = compute_vertex_normals(gt, self.triangulation())
+            gt_n = calc_vnrmls(gt, self.triangulation())
             template = np.concatenate((template, template_n), axis=1)
             gt = np.concatenate((gt, gt_n), axis=1)
 
