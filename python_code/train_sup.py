@@ -14,13 +14,7 @@ import scipy
 from dataset import *
 from model import *
 from utils import *
-
-try:
-    import visdom
-except:
-    print("Please install the module 'visdom' for visualization, e.g.")
-    print("pip install visdom")
-    sys.exit(-1)
+import visdom
 
 if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is necessary for Windows compatibility
     # of the multi-process data loader (see pytorch documentation)
@@ -37,31 +31,37 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--model_file', type=str, default='',
                         help='optional reload model file in model directory')
     # folder that stores the log for the run
-    parser.add_argument('--save_path', type=str, default='ID007_normal_loss_01', help='save path') 
+    parser.add_argument('--save_path', type=str, default='ID007_normal_loss_01', help='save path')
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
 
     parser.add_argument('--saveOffline', type=bool, default=False)
 
     # Network params
-
-    parser.add_argument('--num_output_channels', type=int, default=3) #We assume the network return predicted xyz as 3 channels
+    parser.add_argument('--num_input_channels', type=int, default=6)
+    parser.add_argument('--num_output_channels', type=int,
+                        default=3)  # We assume the network return predicted xyz as 3 channels
     parser.add_argument('--use_same_subject', type=bool, default=True)
     # OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
     parser.add_argument('--centering', type=bool, default=True)
     # OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
 
     # Dataset params
-    parser.add_argument('--amass_train_size', type=int, default=10000)
+    parser.add_argument('--amass_train_size', type=int, default=5)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
     parser.add_argument('--faust_train_size', type=int, default=10000)
     parser.add_argument('--filtering', type=float, default=0.09, help='amount of filtering to apply on l2 distances')
 
     # Loss params
-    parser.add_argument('--loss_use_normals', type=bool, default=False, help='flag: L2 loss is calculated with normals of the reconstructed shapes: [Yes/Ne]') #Warning: don't use this feature yet
-    parser.add_argument('--loss_normals_weight', type=float, default=0.01, help='considered only if loss_use_normals == True. weight of normals in L2 loss') #Warning: don't use this feature yet
+    parser.add_argument('--loss_use_normals', type=bool, default=True,
+                        help='flag: L2 loss is calculated with normals of the reconstructed shapes: [Yes/Ne]')  # Warning: don't use this feature yet
+    parser.add_argument('--loss_normals_weight', type=float, default=0.01,
+                        help='considered only if loss_use_normals == True. weight of normals in L2 loss')  # Warning: don't use this feature yet
     parser.add_argument('--penalty_loss', type=float, default=1, help='penalty applied to points belonging to the mask')
-    parser.add_argument('--apply_penalty_on_normals', type=bool, default=False, help='flag: considered only if loss_use_normals == True. Do we apply mask penalty also on normals: [Yes/No]') #Warning: don't use this feature yet
+    parser.add_argument('--apply_penalty_on_normals', type=bool, default=False,
+                        help='flag: considered only if loss_use_normals == True. Do we apply mask penalty also on normals: [Yes/No]')  # Warning: don't use this feature yet
+
+    parser.add_argument('--use_visdom', type=bool, default=False)
 
     opt = parser.parse_args()
     print(opt)
@@ -73,7 +73,8 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     # =============DEFINE stuff for logs ======================================== #
     # Launch visdom for visualization
-    vis = visdom.Visdom(port=8888, env=opt.env)
+    if opt.use_visdom:
+        vis = visdom.Visdom(port=8888, env=opt.env)
     save_path = opt.save_path
     if not os.path.exists("log"):
         os.mkdir("log")
@@ -117,19 +118,21 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                                  mask_penalty=opt.penalty_loss, use_same_subject=opt.use_same_subject,
                                                  train_size=opt.amass_train_size,
                                                  validation_size=opt.amass_validation_size)
-    dataloader_test_amass = torch.utils.data.DataLoader(dataset_test_amass, batch_size=opt.batchSize, shuffle=True,num_workers=int(opt.workers), pin_memory=True)
+    dataloader_test_amass = torch.utils.data.DataLoader(dataset_test_amass, batch_size=opt.batchSize, shuffle=True,
+                                                        num_workers=int(opt.workers), pin_memory=True)
 
     len_dataset = len(dataset)
     len_dataset_test = len(dataset_test)
     len_dataset_test_amass = len(dataset_test_amass)
 
-    #get dataset triangulations
+    # get dataset triangulations
     if opt.loss_use_normals:
-        dataset_triv = dataset.get_triangulation()
-        dataset_test_amass = dataset_test_amass.get_triangulation()
+        dataset_triv = dataset.triangulation()
+        dataset_test_amass = dataset_test_amass.triangulation()
 
     # ===================CREATE network================================= #
-    network = CompletionNet(num_input_channels=opt.num_input_channels, num_output_channels=opt.num_output_channels,  centering=opt.centering)
+    network = CompletionNet(num_input_channels=opt.num_input_channels, num_output_channels=opt.num_output_channels,
+                            centering=opt.centering)
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
     old_epoch = 0
@@ -182,13 +185,12 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
             pointsReconstructed, shift_template, shift_part = network(part, template)
             gt[:, :3, :] = gt[:, :3, :] - shift_part
 
-
-            mask = torch.unsqueeze(mask_loss, 2).transpose(2, 1).contiguous().cuda().float() #[B x 1 x N]
+            mask = torch.unsqueeze(mask_loss, 2).transpose(2, 1).contiguous().cuda().float()  # [B x 1 x N]
             loss_points = torch.mean(mask * ((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2))
 
             if opt.loss_use_normals:
-                pointsReconstructed_n = calc_batch_normals(pointsReconstructed[:, :3, :], dataset_triv)
-                gt_n = calc_batch_normals(gt[:, :3, :], dataset_triv)
+                pointsReconstructed_n = compute_vertex_normals_batch(pointsReconstructed[:, :3, :], dataset_triv)
+                gt_n = compute_vertex_normals_batch(gt[:, :3, :], dataset_triv)
                 if opt.apply_penalty_on_normals:
                     loss_normals = torch.mean(mask * ((pointsReconstructed_n - gt_n) ** 2))
                 else:
@@ -196,14 +198,13 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
             else:
                 loss_normals = 0
 
-
-            loss_net = loss_points + self.loss_normals_weight * loss_normals
+            loss_net = loss_points + opt.loss_normals_weight * loss_normals
             train_loss.update(loss_net.item())
             loss_net.backward()
             optimizer.step()  # gradient update
 
             # VIZUALIZE
-            if i % 100 == 0:
+            if opt.use_visdom and i % 100 == 0:
                 vis.scatter(X=part[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Part',
                             opts=dict(title="Train_Part", markersize=2, ), )
                 vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Template',
@@ -230,21 +231,22 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 pointsReconstructed, shift_template, shift_part = network(part, template)
                 gt[:, :3, :] = gt[:, :3, :] - shift_part
 
-                #In Faust validation we don't use the mask right now (Faust dataloader doesn't return the mask yet)
-                #TODO: return the indices of the part of the part within Faust dataloader
+                # In Faust validation we don't use the mask right now (Faust dataloader doesn't return the mask yet)
+                # TODO: return the indices of the part of the part within Faust dataloader
                 loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
                 if opt.loss_use_normals:
-                    pointsReconstructed_n = calc_batch_normals(pointsReconstructed[:, :3, :], dataset_test_amass)
-                    gt_n = calc_batch_normals(gt[:, :3, :], dataset_test_amass)
+                    pointsReconstructed_n = compute_vertex_normals_batch(pointsReconstructed[:, :3, :],
+                                                                         dataset_test_amass)
+                    gt_n = compute_vertex_normals_batch(gt[:, :3, :], dataset_test_amass)
                     loss_normals = torch.mean((pointsReconstructed_n - gt_n) ** 2)
                 else:
                     loss_normals = 0
 
-                loss_net = loss_points + self.loss_normals_weight * loss_normals
+                loss_net = loss_points + opt.loss_normals_weight * loss_normals
                 val_loss.update(loss_net.item())
 
                 # VIZUALIZE
-                if i % 100 == 0:
+                if opt.use_visdom and i % 100 == 0:
                     vis.scatter(X=part[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Part',
                                 opts=dict(title="Test_Part", markersize=2, ), )
                     vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Template',
@@ -271,13 +273,12 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 pointsReconstructed, shift_template, shift_part = network(part, template)
                 gt[:, :3, :] = gt[:, :3, :] - shift_part
 
-
                 mask = torch.unsqueeze(mask_loss, 2).transpose(2, 1).contiguous().cuda().float()  # [B x 1 x N]
                 loss_points = torch.mean(mask * ((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2))
 
                 if opt.loss_use_normals:
-                    pointsReconstructed_n = calc_batch_normals(pointsReconstructed[:, :3, :], dataset_triv)
-                    gt_n = calc_batch_normals(gt[:, :3, :], dataset_triv)
+                    pointsReconstructed_n = compute_vertex_normals_batch(pointsReconstructed[:, :3, :], dataset_triv)
+                    gt_n = compute_vertex_normals_batch(gt[:, :3, :], dataset_triv)
                     if opt.apply_penalty_on_normals:
                         loss_normals = torch.mean(mask * ((pointsReconstructed_n - gt_n) ** 2))
                     else:
@@ -285,17 +286,18 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 else:
                     loss_normals = 0
 
-                loss_net = loss_points + self.loss_normals_weight * loss_normals
+                loss_net = loss_points + opt.loss_normals_weight * loss_normals
 
                 val_loss_amass.update(loss_net.item())
 
                 # VIZUALIZE
-                if i % 100 == 0:
+                if opt.use_visdom and i % 100 == 0:
                     vis.scatter(X=part[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_Part',
                                 opts=dict(title="Test_Amass_Part", markersize=2, ), )
                     vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_Template',
                                 opts=dict(title="Test_Amass_Template", markersize=2, ), )
-                    vis.scatter(X=pointsReconstructed[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_output',
+                    vis.scatter(X=pointsReconstructed[0, :3, :].transpose(1, 0).contiguous().data.cpu(),
+                                win='Test_Amass_output',
 
                                 opts=dict(title="Test_Amass_output", markersize=2, ), )
                     vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_Ground_Truth',
@@ -309,23 +311,24 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
         Loss_curve_val.append(val_loss.avg)
         Loss_curve_val_amass.append(val_loss_amass.avg)
 
-        vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
-                 Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val))),
-                 win='Faust loss',
-                 opts=dict(title="Faust loss", legend=["Train loss", "Faust Validation loss", ]))
-        vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
-                 Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val)))),
-                 win='"Faust log loss',
-                 opts=dict(title="Faust log loss", legend=["Train loss", "Faust Validation loss", ]))
+        if opt.use_visdom:
+            vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
+                     Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val))),
+                     win='Faust loss',
+                     opts=dict(title="Faust loss", legend=["Train loss", "Faust Validation loss", ]))
+            vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
+                     Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val)))),
+                     win='"Faust log loss',
+                     opts=dict(title="Faust log loss", legend=["Train loss", "Faust Validation loss", ]))
 
-        vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
-                 Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass))),
-                 win='AMASS loss',
-                 opts=dict(title="AMASS loss", legend=["Train loss", "Validation loss", "Validation loss amass"]))
-        vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
-                 Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass)))),
-                 win='AMASS log loss',
-                 opts=dict(title="AMASS log loss", legend=["Train loss", "Faust Validation loss", ]))
+            vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
+                     Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass))),
+                     win='AMASS loss',
+                     opts=dict(title="AMASS loss", legend=["Train loss", "Validation loss", "Validation loss amass"]))
+            vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
+                     Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass)))),
+                     win='AMASS log loss',
+                     opts=dict(title="AMASS log loss", legend=["Train loss", "Faust Validation loss", ]))
 
         # dump stats in log file
         log_table = {
@@ -343,9 +346,3 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
         # save latest network
         torch.save(network.state_dict(), '%s/network_last.pth' % (dir_name))
-
-
-
-
-
-

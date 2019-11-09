@@ -8,6 +8,7 @@ import os
 import time
 import scipy
 from numpy.matlib import repmat
+from utils import compute_vertex_normals, test_normals,normr
 
 
 class IndexExceedDataset(Exception):
@@ -132,7 +133,7 @@ class FaustProjectionsDataset(data.Dataset):
 
 class AmassProjectionsDataset(data.Dataset):
     def __init__(self, split, num_input_channels, filtering, mask_penalty,
-                 use_same_subject=True, train_size=100000, validation_size=10000, test_size = 300):
+                 use_same_subject=True, train_size=100000, validation_size=10000, test_size=300):
         self.split = split
         self.num_input_channels = num_input_channels
         self.use_same_subject = use_same_subject
@@ -141,7 +142,7 @@ class AmassProjectionsDataset(data.Dataset):
         self.test_size = test_size
         self.filtering = filtering
         self.mask_penalty = mask_penalty
-
+        self.ref_tri = None
 
         if self.split == 'train':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
@@ -159,13 +160,15 @@ class AmassProjectionsDataset(data.Dataset):
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
 
-        if num_input_channels == 6:  # Add normals
-            # Presuming all meshes hold the same connectivity
+    def triangulation(self):
+        if self.ref_tri is None:
             ref_fp = os.path.join(self.path, "original", "subjectID_1_poseID_0.OFF")
             _, self.ref_tri = self.read_off_full(ref_fp)
+        # if use_torch:
+        #     return torch.LongTensor(self.ref_tri).cuda()
+        # else:
+        return self.ref_tri
 
-    def get_triangulation(self):
-        return  self.ref_tri
 
     def translate_index(self):
 
@@ -202,9 +205,9 @@ class AmassProjectionsDataset(data.Dataset):
                     euc_dist = np.mean((template - gt) ** 2)
 
         if self.num_input_channels == 6:
-            template_n = self.compute_vertex_normals(template)
-            # test_normals(template, self.ref_tri, template_n)
-            gt_n = self.compute_vertex_normals(gt)
+            template_n = compute_vertex_normals(template, self.triangulation())
+            # test_normals(template, self.triangulation(), template_n)
+            gt_n = compute_vertex_normals(gt, self.triangulation())
             template = np.concatenate((template, template_n), axis=1)
             gt = np.concatenate((gt, gt_n), axis=1)
 
@@ -224,29 +227,6 @@ class AmassProjectionsDataset(data.Dataset):
             raise Exception("MASK IS CORRUPTED")
 
         return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss
-
-    def compute_vertex_normals(self, v):
-        # NOTE - Vertices unreferenced by faces will be zero
-        # Compute Face Normals
-        a = v[self.ref_tri[:, 0], :]
-        b = v[self.ref_tri[:, 1], :]
-        c = v[self.ref_tri[:, 2], :]
-        fn = np.cross(b - a, c - a)
-
-        # Compute Vertex Normals
-        matrix = index_sparse(v.shape[0], self.ref_tri)
-        vn = matrix.dot(fn)
-        # Normalize them
-
-        vn = vn / np.sqrt(np.sum(vn ** 2, -1, keepdims=True))
-
-        # Old Vertex Normals
-        # vn = np.zeros_like(v)
-        # vn[self.ref_tri[:, 0], :] = vn[self.ref_tri[:, 0], :] + fn
-        # vn[self.ref_tri[:, 1], :] = vn[self.ref_tri[:, 1], :] + fn
-        # vn[self.ref_tri[:, 2], :] = vn[self.ref_tri[:, 2], :] + fn
-
-        return vn
 
     def read_npz(self, s_id, p_id, m_id):
 
@@ -308,19 +288,6 @@ class AmassProjectionsDataset(data.Dataset):
             return self.test_size
 
 
-def test_normals(v, f, n):
-    # test_normals(template, self.ref_tri, template_n)
-    from mpl_toolkits.mplot3d import Axes3D
-    import matplotlib.pyplot as plt
-
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=0.2, antialiased=True)
-    vnn = v + n
-    ax.quiver(v[:, 0], v[:, 1], v[:, 2], vnn[:, 0], vnn[:, 1], vnn[:, 2], length=0.03, normalize=True)
-    plt.show()
-
-
 if __name__ == '__main__':
     print('AMASS Projections Dataset')
 
@@ -352,23 +319,3 @@ if __name__ == '__main__':
         # if d.num_input_channels == 6:
         #     vis.quiver(template[:, :3], template[:, :3] + template[:, 3:6], win=f"template train sample #{i}",
         #                opts=dict(title=f'template train sample #{i}', markersize=2))
-
-
-
-def index_sparse(columns, indices, data=None):
-    """
-    Return a sparse matrix for which vertices are contained in which faces.
-    A data vector can be passed which is then used instead of booleans
-    """
-    indices = np.asanyarray(indices)
-    columns = int(columns)
-    row = indices.reshape(-1)
-    col = np.tile(np.arange(len(indices)).reshape((-1, 1)), (1, indices.shape[1])).reshape(-1)
-
-    shape = (columns, len(indices))
-    if data is None:
-        data = np.ones(len(col), dtype=np.bool)
-    # assemble into sparse matrix
-    matrix = scipy.sparse.coo_matrix((data, (row, col)),shape=shape,dtype=data.dtype)
-
-    return matrix
