@@ -163,6 +163,9 @@ class AmassProjectionsDataset(data.Dataset):
             ref_fp = os.path.join(self.path, "original", "subjectID_1_poseID_0.OFF")
             _, self.ref_tri = self.read_off_full(ref_fp)
 
+    def get_triangulation(self):
+        return  self.ref_tri
+
     def translate_index(self):
 
         subject_id_full = np.random.choice(list(map(int, self.dict_counts.keys())))
@@ -224,15 +227,13 @@ class AmassProjectionsDataset(data.Dataset):
         a = v[self.ref_tri[:, 0], :]
         b = v[self.ref_tri[:, 1], :]
         c = v[self.ref_tri[:, 2], :]
-        # Na = torch.cross(XF[1] - XF[0], XF[2] - XF[1])  # OH: normal field T x 3, directed outwards
         fn = np.cross(b - a, c - a)
         vn = np.zeros_like(v)
         vn[self.ref_tri[:, 0], :] = vn[self.ref_tri[:, 0], :] + fn
         vn[self.ref_tri[:, 1], :] = vn[self.ref_tri[:, 1], :] + fn
         vn[self.ref_tri[:, 2], :] = vn[self.ref_tri[:, 2], :] + fn
         vn = vn / np.sqrt(np.sum(vn ** 2, -1, keepdims=True))
-        # A = 0.5 * np.sqrt(np.sum(Na ** 2, -1, keepdims=True))
-        # N = Na / (2 * A)
+
         return vn
 
     def read_npz(self, s_id, p_id, m_id):

@@ -27,7 +27,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     # =============PARAMETERS======================================== #
     parser = argparse.ArgumentParser()
     # Learning params
-    parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
+    parser.add_argument('--batchSize', type=int, default=10, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
 
@@ -44,7 +44,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     # Network params
 
     parser.add_argument('--num_input_channels', type=int, default=6) # If 6, normals are used as input as well
-    parser.add_argument('--num_output_channels', type=int, default=6)
+    parser.add_argument('--num_output_channels', type=int, default=3) #We assume the network return predicted xyz as 3 channels
     parser.add_argument('--use_same_subject', type=bool, default=True)
     # OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
     parser.add_argument('--centering', type=bool, default=True)
@@ -58,7 +58,10 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--filtering', type=float, default=0.09, help='amount of filtering to apply on l2 distances')
 
     # Loss params
+    parser.add_argument('--loss_use_normals', type=bool, default=False, help='flag: L2 loss is calculated with normals of the reconstructed shapes: [Yes/Ne]') #Warning: don't use this feature yet
+    parser.add_argument('--loss_normals_weight', type=float, default=0.01, help='considered only if loss_use_normals == True. weight of normals in L2 loss') #Warning: don't use this feature yet
     parser.add_argument('--penalty_loss', type=float, default=1, help='penalty applied to points belonging to the mask')
+    parser.add_argument('--apply_penalty_on_normals', type=bool, default=False, help='flag: considered only if loss_use_normals == True. Do we apply mask penalty also on normals: [Yes/No]') #Warning: don't use this feature yet
 
     opt = parser.parse_args()
     print(opt)
@@ -114,9 +117,15 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                       train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
     dataloader_test_amass = torch.utils.data.DataLoader(dataset_test_amass, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
+
     len_dataset = len(dataset)
     len_dataset_test = len(dataset_test)
     len_dataset_test_amass = len(dataset_test_amass)
+
+    #get dataset triangulations
+    if opt.loss_use_normals:
+        dataset_triv = dataset.get_triangulation()
+        dataset_test_amass = dataset_test_amass.get_triangulation()
 
     # ===================CREATE network================================= #
     network = CompletionNet(num_input_channels=opt.num_input_channels, num_output_channels=opt.num_output_channels,  centering=opt.centering)
@@ -172,17 +181,24 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
             pointsReconstructed, shift_template, shift_part = network(part, template)
             gt[:, :3, :] = gt[:, :3, :] - shift_part
 
-            if opt.penalty_loss != 1:
-                mask = torch.unsqueeze(mask_loss, 2).transpose(2, 1).contiguous().cuda().float()
-                loss_vec = (pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2
-                loss_points = torch.mean(loss_vec * mask)
-            else:
-                loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
-                loss_normals = torch.mean((pointsReconstructed[:, 3:6, :] - gt[:, 3:6, :]) ** 2)
 
-            loss_net = loss_points + 0.01*loss_normals
-            loss_net.backward()
+            mask = torch.unsqueeze(mask_loss, 2).transpose(2, 1).contiguous().cuda().float() #[B x 1 x N]
+            loss_points = torch.mean(mask * ((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2))
+
+            if opt.loss_use_normals:
+                pointsReconstructed_n = calc_batch_normals(pointsReconstructed[:, :3, :], dataset_triv)
+                gt_n = calc_batch_normals(gt[:, :3, :], dataset_triv)
+                if opt.apply_penalty_on_normals:
+                    loss_normals = torch.mean(mask * ((pointsReconstructed_n - gt_n) ** 2))
+                else:
+                    loss_normals = torch.mean((pointsReconstructed_n - gt_n) ** 2)
+            else:
+                loss_normals = 0
+
+
+            loss_net = loss_points + self.loss_normals_weight * loss_normals
             train_loss.update(loss_net.item())
+            loss_net.backward()
             optimizer.step()  # gradient update
 
             # VIZUALIZE
@@ -213,8 +229,17 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 pointsReconstructed, shift_template, shift_part = network(part, template)
                 gt[:, :3, :] = gt[:, :3, :] - shift_part
 
-                loss_points = torch.mean((pointsReconstructed - gt[:, :3, :]) ** 2)
-                loss_net = loss_points
+                #In Faust validation we don't use the mask right now (Faust dataloader doesn't return the mask yet)
+                #TODO: return the indices of the part of the part within Faust dataloader
+                loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
+                if opt.loss_use_normals:
+                    pointsReconstructed_n = calc_batch_normals(pointsReconstructed[:, :3, :], dataset_test_amass)
+                    gt_n = calc_batch_normals(gt[:, :3, :], dataset_test_amass)
+                    loss_normals = torch.mean((pointsReconstructed_n - gt_n) ** 2)
+                else:
+                    loss_normals = 0
+
+                loss_net = loss_points + self.loss_normals_weight * loss_normals
                 val_loss.update(loss_net.item())
 
                 # VIZUALIZE
@@ -245,15 +270,20 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 pointsReconstructed, shift_template, shift_part = network(part, template)
                 gt[:, :3, :] = gt[:, :3, :] - shift_part
 
-                if opt.penalty_loss != 1:
-                    mask = torch.unsqueeze(mask_loss, 2).transpose(2, 1).contiguous().cuda().float()
-                    loss_vec = (pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2
-                    loss_points = torch.mean(loss_vec * mask)
-                else:
-                    loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
+                mask = torch.unsqueeze(mask_loss, 2).transpose(2, 1).contiguous().cuda().float()  # [B x 1 x N]
+                loss_points = torch.mean(mask * ((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2))
 
-                loss_points = torch.mean((pointsReconstructed - gt[:, :3, :]) ** 2)
-                loss_net = loss_points
+                if opt.loss_use_normals:
+                    pointsReconstructed_n = calc_batch_normals(pointsReconstructed[:, :3, :], dataset_triv)
+                    gt_n = calc_batch_normals(gt[:, :3, :], dataset_triv)
+                    if opt.apply_penalty_on_normals:
+                        loss_normals = torch.mean(mask * ((pointsReconstructed_n - gt_n) ** 2))
+                    else:
+                        loss_normals = torch.mean((pointsReconstructed_n - gt_n) ** 2)
+                else:
+                    loss_normals = 0
+
+                loss_net = loss_points + self.loss_normals_weight * loss_normals
                 val_loss_amass.update(loss_net.item())
 
                 # VIZUALIZE

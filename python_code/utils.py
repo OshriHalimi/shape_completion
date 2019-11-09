@@ -19,6 +19,16 @@ def write_ply(points, filename, text=True):
     el = PlyElement.describe(vertex, 'vertex', comments=['vertices'])
     PlyData([el], text=text).write(filename)
 
+def calc_batch_normals(V,triv):
+    #OH: V contains the coordinates of the mesh,
+    #x dimensions are [batch_size x 3 x num_nodes]
+
+    XF = V[:, :, triv].transpose(2,1) #first dimension runs on the vertices in the triangle, second on the triangles and third on x,y,z coordinates
+    N = torch.cross(XF[:, :, :, 1] - XF[:, :, :, 0], XF[:, :, :, 2] - XF[:, :, :, 0])  # OH: normal field T x 3, directed outwards
+    N = N / torch.sqrt(torch.sum(N ** 2, dim=-1, keepdim=True))
+    #TODO: interpolate
+    return N
+
 def calc_euclidean_dist_matrix(x):
     #OH: x contains the coordinates of the mesh,
     #x dimensions are [batch_size x num_nodes x 3]
