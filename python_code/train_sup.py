@@ -32,18 +32,19 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
 
     # folder where to take pre-trained parameters
-    parser.add_argument('--model_dir', type=str, default='experiment_with_filtering_012',
+    parser.add_argument('--model_dir', type=str, default='',
                         help='optional reload model directory')
     parser.add_argument('--model_file', type=str, default='network_last.pth',
                         help='optional reload model file in model directory')
     # folder that stores the log for the run
-    parser.add_argument('--save_path', type=str, default='experiment_with_filtering_012', help='save path') 
+    parser.add_argument('--save_path', type=str, default='ID007_normal_loss_01', help='save path') 
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
     parser.add_argument('--saveOffline', type=bool, default=False)
 
     # Network params
 
-    parser.add_argument('--num_input_channels', type=int, default=3) # If 6, normals are used as input as well
+    parser.add_argument('--num_input_channels', type=int, default=6) # If 6, normals are used as input as well
+    parser.add_argument('--num_output_channels', type=int, default=6)
     parser.add_argument('--use_same_subject', type=bool, default=True)
     # OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
     parser.add_argument('--centering', type=bool, default=True)
@@ -54,7 +55,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
     parser.add_argument('--faust_train_size', type=int, default=10000)
-    parser.add_argument('--filtering', type=float, default=0.12, help='amount of filtering to apply on l2 distances')
+    parser.add_argument('--filtering', type=float, default=0.09, help='amount of filtering to apply on l2 distances')
 
     # Loss params
     parser.add_argument('--penalty_loss', type=float, default=1, help='penalty applied to points belonging to the mask')
@@ -118,7 +119,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     len_dataset_test_amass = len(dataset_test_amass)
 
     # ===================CREATE network================================= #
-    network = CompletionNet(num_input_channels=opt.num_input_channels, centering=opt.centering)
+    network = CompletionNet(num_input_channels=opt.num_input_channels, num_output_channels=opt.num_output_channels,  centering=opt.centering)
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
     old_epoch = 0 
@@ -177,8 +178,9 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 loss_points = torch.mean(loss_vec * mask)
             else:
                 loss_points = torch.mean((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2)
+                loss_normals = torch.mean((pointsReconstructed[:, 3:6, :] - gt[:, 3:6, :]) ** 2)
 
-            loss_net = loss_points
+            loss_net = loss_points + 0.01*loss_normals
             loss_net.backward()
             train_loss.update(loss_net.item())
             optimizer.step()  # gradient update
@@ -189,7 +191,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                             opts=dict(title="Train_Part", markersize=2, ), )
                 vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Template',
                             opts=dict(title="Train_Template", markersize=2, ), )
-                vis.scatter(X=pointsReconstructed[0].transpose(1, 0).contiguous().data.cpu(), win='Train_output',
+                vis.scatter(X=pointsReconstructed[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_output',
                             opts=dict(title="Train_output", markersize=2, ), )
                 vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Ground_Truth',
                             opts=dict(title="Train_Ground_Truth", markersize=2, ), )
@@ -260,7 +262,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                                 opts=dict(title="Test_Amass_Part", markersize=2, ), )
                     vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_Template',
                                 opts=dict(title="Test_Amass_Template", markersize=2, ), )
-                    vis.scatter(X=pointsReconstructed[0].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_output',
+                    vis.scatter(X=pointsReconstructed[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_output',
                                 opts=dict(title="Test_Amass_output", markersize=2, ), )
                     vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_Ground_Truth',
                                 opts=dict(title="Test_Amass_Ground_Truth", markersize=2, ), )

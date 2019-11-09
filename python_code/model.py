@@ -101,8 +101,9 @@ class PointGenCon(nn.Module):
     # (output dimensions: [B x 3 x num_points_to_decoder] )
     # point_code_size = 3 + global_code_size, is a code for each point
 
-    def __init__(self, point_code_size=2500):
+    def __init__(self, point_code_size=2500, num_output_channels=3):
         self.point_code_size = point_code_size
+        self.num_output_channels = num_output_channels
         super(PointGenCon, self).__init__()
         self.conv1 = torch.nn.Conv1d(self.point_code_size, self.point_code_size, 1)
         self.conv2 = torch.nn.Conv1d(self.point_code_size, self.point_code_size // 2, 1)
@@ -112,7 +113,7 @@ class PointGenCon(nn.Module):
         self.conv6 = torch.nn.Conv1d(self.point_code_size // 16, self.point_code_size // 16, 1)
         self.conv7 = torch.nn.Conv1d(self.point_code_size // 16, self.point_code_size // 16, 1)
         self.conv8 = torch.nn.Conv1d(self.point_code_size // 16, self.point_code_size // 16, 1)
-        self.conv9 = torch.nn.Conv1d(self.point_code_size // 16, 3, 1)  # OH: decoder output layer
+        self.conv9 = torch.nn.Conv1d(self.point_code_size // 16, self.num_output_channels, 1)  # OH: decoder output layer
 
         self.th = nn.Tanh()
         self.bn1 = torch.nn.BatchNorm1d(self.point_code_size)
@@ -150,10 +151,11 @@ def center_shape(shape):
 
 class CompletionNet(nn.Module):  # OH: inherits from the base class - torch.nn.Module
     # OH: V
-    def __init__(self, bottleneck_size=1024, num_input_channels = 3, centering = False):
+    def __init__(self, bottleneck_size=1024, num_input_channels = 3, num_output_channels=3, centering = False):
         super(CompletionNet, self).__init__()
         self.bottleneck_size = bottleneck_size
         self.num_input_channels = num_input_channels
+        self.num_output_channels = num_output_channels
         self.centering = centering
 
         # OH: The encoder takes a 3D point cloud as an input. Note that a linear layer is applied to the global
@@ -166,7 +168,7 @@ class CompletionNet(nn.Module):  # OH: inherits from the base class - torch.nn.M
         )
 
         # OH: The decoder takes as an input the template coordinates with the global feature vector of the input shape
-        self.decoder = PointGenCon(point_code_size = num_input_channels + self.bottleneck_size + self.bottleneck_size)
+        self.decoder = PointGenCon(point_code_size = num_input_channels + self.bottleneck_size + self.bottleneck_size, num_output_channels=self.num_output_channels)
 
     # OH: Takes as an input the partial point cloud and the template point cloud, encoding them, and decoding
     # the template deformation
