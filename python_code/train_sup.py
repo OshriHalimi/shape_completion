@@ -10,7 +10,7 @@ import visdom
 import time
 import matplotlib.pyplot as plt
 import scipy.io as sio
-
+import scipy
 from dataset import *
 from model import *
 from utils import *
@@ -34,16 +34,16 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     # folder where to take pre-trained parameters
     parser.add_argument('--model_dir', type=str, default='',
                         help='optional reload model directory')
-    parser.add_argument('--model_file', type=str, default='network_last.pth',
+    parser.add_argument('--model_file', type=str, default='',
                         help='optional reload model file in model directory')
     # folder that stores the log for the run
     parser.add_argument('--save_path', type=str, default='ID007_normal_loss_01', help='save path') 
     parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
+
     parser.add_argument('--saveOffline', type=bool, default=False)
 
     # Network params
 
-    parser.add_argument('--num_input_channels', type=int, default=6) # If 6, normals are used as input as well
     parser.add_argument('--num_output_channels', type=int, default=3) #We assume the network return predicted xyz as 3 channels
     parser.add_argument('--use_same_subject', type=bool, default=True)
     # OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
@@ -112,11 +112,12 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
     dataloader_test = torch.utils.data.DataLoader(dataset_test, batch_size=opt.batchSize, shuffle=True,
                                                   num_workers=int(opt.workers), pin_memory=True)
-    dataset_test_amass = AmassProjectionsDataset(split='validation', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
-                                      mask_penalty=opt.penalty_loss, use_same_subject=opt.use_same_subject,
-                                      train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
-    dataloader_test_amass = torch.utils.data.DataLoader(dataset_test_amass, batch_size=opt.batchSize, shuffle=True,
-                                             num_workers=int(opt.workers), pin_memory=True)
+    dataset_test_amass = AmassProjectionsDataset(split='validation', num_input_channels=opt.num_input_channels,
+                                                 filtering=opt.filtering,
+                                                 mask_penalty=opt.penalty_loss, use_same_subject=opt.use_same_subject,
+                                                 train_size=opt.amass_train_size,
+                                                 validation_size=opt.amass_validation_size)
+    dataloader_test_amass = torch.utils.data.DataLoader(dataset_test_amass, batch_size=opt.batchSize, shuffle=True,num_workers=int(opt.workers), pin_memory=True)
 
     len_dataset = len(dataset)
     len_dataset_test = len(dataset_test)
@@ -131,7 +132,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     network = CompletionNet(num_input_channels=opt.num_input_channels, num_output_channels=opt.num_output_channels,  centering=opt.centering)
     network.cuda()  # put network on GPU
     network.apply(weights_init)  # initialization of the weight
-    old_epoch = 0 
+    old_epoch = 0
     try:
         if opt.model_dir != '':
             model_path = os.path.join(os.getcwd(), "log", opt.model_dir, opt.model_file)
@@ -146,7 +147,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
     # ========================================================== #
 
     # ===================CREATE optimizer================================= #
-    lrate = 0.001 / max(1, (old_epoch // 100) * 2) # learning rate
+    lrate = 0.001 / max(1, (old_epoch // 100) * 2)  # learning rate
     optimizer = optim.Adam(network.parameters(), lr=lrate)
 
     with open(logname, 'a') as f:  # open and append
@@ -270,6 +271,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                 pointsReconstructed, shift_template, shift_part = network(part, template)
                 gt[:, :3, :] = gt[:, :3, :] - shift_part
 
+
                 mask = torch.unsqueeze(mask_loss, 2).transpose(2, 1).contiguous().cuda().float()  # [B x 1 x N]
                 loss_points = torch.mean(mask * ((pointsReconstructed[:, :3, :] - gt[:, :3, :]) ** 2))
 
@@ -284,6 +286,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                     loss_normals = 0
 
                 loss_net = loss_points + self.loss_normals_weight * loss_normals
+
                 val_loss_amass.update(loss_net.item())
 
                 # VIZUALIZE
@@ -293,11 +296,13 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
                     vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_Template',
                                 opts=dict(title="Test_Amass_Template", markersize=2, ), )
                     vis.scatter(X=pointsReconstructed[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_output',
+
                                 opts=dict(title="Test_Amass_output", markersize=2, ), )
                     vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Test_Amass_Ground_Truth',
                                 opts=dict(title="Test_Amass_Ground_Truth", markersize=2, ), )
 
-                print('[%d: %d/%d] test loss:  %f' % (epoch, i, len_dataset_test_amass / opt.batchSize, loss_net.item()))
+                print(
+                    '[%d: %d/%d] test loss:  %f' % (epoch, i, len_dataset_test_amass / opt.batchSize, loss_net.item()))
 
         # UPDATE CURVES
         Loss_curve_train.append(train_loss.avg)
@@ -326,7 +331,7 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
         log_table = {
             "val_loss": val_loss.avg,
             "train_loss": train_loss.avg,
-            "val_loss_amass" : val_loss_amass.avg,
+            "val_loss_amass": val_loss_amass.avg,
             "epoch": epoch,
             "lr": lrate,
             "env": opt.env,
@@ -338,3 +343,9 @@ if __name__ == '__main__':  # OH: Wrapping the main code with __main__ check is 
 
         # save latest network
         torch.save(network.state_dict(), '%s/network_last.pth' % (dir_name))
+
+
+
+
+
+

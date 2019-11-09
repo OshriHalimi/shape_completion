@@ -2,6 +2,7 @@ data/
 data_old/
 log/
 .idea/
+test_list_000_003.mat
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

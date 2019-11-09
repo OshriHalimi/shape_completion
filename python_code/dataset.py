@@ -6,6 +6,7 @@ import scipy.io as sio
 import json
 import os
 import time
+import scipy
 from numpy.matlib import repmat
 
 
@@ -202,6 +203,7 @@ class AmassProjectionsDataset(data.Dataset):
 
         if self.num_input_channels == 6:
             template_n = self.compute_vertex_normals(template)
+            # test_normals(template, self.ref_tri, template_n)
             gt_n = self.compute_vertex_normals(gt)
             template = np.concatenate((template, template_n), axis=1)
             gt = np.concatenate((gt, gt_n), axis=1)
@@ -224,15 +226,25 @@ class AmassProjectionsDataset(data.Dataset):
         return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss
 
     def compute_vertex_normals(self, v):
+        # NOTE - Vertices unreferenced by faces will be zero
+        # Compute Face Normals
         a = v[self.ref_tri[:, 0], :]
         b = v[self.ref_tri[:, 1], :]
         c = v[self.ref_tri[:, 2], :]
         fn = np.cross(b - a, c - a)
-        vn = np.zeros_like(v)
-        vn[self.ref_tri[:, 0], :] = vn[self.ref_tri[:, 0], :] + fn
-        vn[self.ref_tri[:, 1], :] = vn[self.ref_tri[:, 1], :] + fn
-        vn[self.ref_tri[:, 2], :] = vn[self.ref_tri[:, 2], :] + fn
+
+        # Compute Vertex Normals
+        matrix = index_sparse(v.shape[0], self.ref_tri)
+        vn = matrix.dot(fn)
+        # Normalize them
+
         vn = vn / np.sqrt(np.sum(vn ** 2, -1, keepdims=True))
+
+        # Old Vertex Normals
+        # vn = np.zeros_like(v)
+        # vn[self.ref_tri[:, 0], :] = vn[self.ref_tri[:, 0], :] + fn
+        # vn[self.ref_tri[:, 1], :] = vn[self.ref_tri[:, 1], :] + fn
+        # vn[self.ref_tri[:, 2], :] = vn[self.ref_tri[:, 2], :] + fn
 
         return vn
 
@@ -340,3 +352,23 @@ if __name__ == '__main__':
         # if d.num_input_channels == 6:
         #     vis.quiver(template[:, :3], template[:, :3] + template[:, 3:6], win=f"template train sample #{i}",
         #                opts=dict(title=f'template train sample #{i}', markersize=2))
+
+
+
+def index_sparse(columns, indices, data=None):
+    """
+    Return a sparse matrix for which vertices are contained in which faces.
+    A data vector can be passed which is then used instead of booleans
+    """
+    indices = np.asanyarray(indices)
+    columns = int(columns)
+    row = indices.reshape(-1)
+    col = np.tile(np.arange(len(indices)).reshape((-1, 1)), (1, indices.shape[1])).reshape(-1)
+
+    shape = (columns, len(indices))
+    if data is None:
+        data = np.ones(len(col), dtype=np.bool)
+    # assemble into sparse matrix
+    matrix = scipy.sparse.coo_matrix((data, (row, col)),shape=shape,dtype=data.dtype)
+
+    return matrix
