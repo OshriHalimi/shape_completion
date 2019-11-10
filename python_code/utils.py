@@ -6,7 +6,6 @@ import sys
 from plyfile import PlyData, PlyElement
 import scipy
 from sklearn.preprocessing import normalize
-
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                               Neural Network Utis
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -81,29 +80,49 @@ def calc_vnrmls(v, f):
 
     return vn
 
+def calc_vnrmls_torch(v, f_tup):
+    f,f_torch = f_tup
 
-def calc_vnrmls_batch(v, f):
-    # v dimensions: [batch_size x 3 x n_vertices]
-    # f dimensions: [n_faces x 3]
-    v_np = v.cpu().data.numpy().swapaxes(2,1)
-    vn = np.zeros_like(v_np)
-    for i in range(v.shape[0]):
-        vn[i, :, :] = calc_vnrmls(v_np[i, :, :], f)
+    a = v[f_torch[:, 0], :]
+    b = v[f_torch[:, 1], :]
+    c = v[f_torch[:, 2], :]
+    fn = torch.cross(b - a, c - a)
 
+    matrix = index_sparse(v.shape[0], f)
+    matrix  = torch.from_numpy(matrix.todense()).float().cuda()
+    vn = torch.mm(matrix,fn)
+    # Normalize them
+    # Note - in some runs I've made, vectors computed are degenrate and cause errors in the computation.
+    # The normr function masks these - I.I.
+    # vn = vn / np.sqrt(np.sum(vn ** 2, -1, keepdims=True)) # Does not handle 0 vectors
+    vn = F.normalize(vn, p=2, dim=1)
+    # vn = normr(vn)
+    # Old Vertex Normals
+    # vn = np.zeros_like(v)
+    # vn[self.ref_tri[:, 0], :] = vn[self.ref_tri[:, 0], :] + fn
+    # vn[self.ref_tri[:, 1], :] = vn[self.ref_tri[:, 1], :] + fn
+    # vn[self.ref_tri[:, 2], :] = vn[self.ref_tri[:, 2], :] + fn
 
-    v = v.cuda()
-    vn = torch.from_numpy(vn.swapaxes(2,1)).cuda()
     return vn
 
 
+def calc_vnrmls_batch(v, f_tup):
+    # v dimensions: [batch_size x 3 x n_vertices]
+    # f dimensions: ( [n_faces x 3] , [n_faces x 3] )
+    v = v.transpose(2,1)
+    vn = torch.zeros_like(v)
+    for i in range(v.shape[0]):
+        vn[i, :, :] = calc_vnrmls_torch(v[i, :, :], f_tup)
+
+    v = v.transpose(2, 1)
+    vn = vn.transpose(2,1)
+    return vn
 
     # XF = V[:, :, triv].transpose(2,
     #                              1)  # first dimension runs on the vertices in the triangle, second on the triangles and third on x,y,z coordinates
     # N = torch.cross(XF[:, :, :, 1] - XF[:, :, :, 0],
     #                 XF[:, :, :, 2] - XF[:, :, :, 0])  # OH: normal field T x 3, directed outwards
     # N = N / torch.sqrt(torch.sum(N ** 2, dim=-1, keepdim=True))
-
-    return vn
 
 
 def test_normals(v, f, n):

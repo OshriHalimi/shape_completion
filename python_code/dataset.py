@@ -10,7 +10,9 @@ import scipy
 from numpy.matlib import repmat
 from utils import calc_vnrmls, test_normals,normr
 
-
+# ----------------------------------------------------------------------------------------------------------------------#
+#
+# ----------------------------------------------------------------------------------------------------------------------#
 class IndexExceedDataset(Exception):
     def __init__(self, index, dataset_size):
         self.index = index
@@ -59,7 +61,9 @@ class SHREC16CutsDavidDataset(data.Dataset):
     def __len__(self):
         return 1
 
-
+# ----------------------------------------------------------------------------------------------------------------------#
+#
+# ----------------------------------------------------------------------------------------------------------------------#
 class FaustProjectionsDataset(data.Dataset):
     def __init__(self, train, num_input_channels, train_size):
         self.train = train
@@ -67,6 +71,7 @@ class FaustProjectionsDataset(data.Dataset):
         self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
         self.train_size = train_size  # was 9000 when we train on FaustProjectionsDataset, but we set it to 10000 (full size: train and test) when we use it for evaluation
         self.test_size = 1000
+        self.ref_tri = None
 
     def translate_index(self, index):
         subject_id = np.floor(index / 1000).astype(int)
@@ -77,6 +82,17 @@ class FaustProjectionsDataset(data.Dataset):
         index = index % 10
         mask_id = index + 1
         return subject_id, pose_id_full, pose_id_part, mask_id
+
+    def triangulation(self):
+        raise NotImplementedError
+        # if self.ref_tri is None:
+        #     x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(template_id) + ".mat"))
+        #     ref_fp = os.path.join(self.path, "original", "subjectID_1_poseID_0.OFF")
+        #     _, self.ref_tri = self.read_off_full(ref_fp)
+        # if use_torch:
+        #     return torch.LongTensor(self.ref_tri).cuda()
+        # else:
+        # return self.ref_tri
 
     def subject_and_pose2shape_ind(self, subject_id, pose_id):
         ind = subject_id * 10 + pose_id
@@ -130,7 +146,9 @@ class FaustProjectionsDataset(data.Dataset):
         else:
             return self.test_size
 
-
+# ----------------------------------------------------------------------------------------------------------------------#
+#
+# ----------------------------------------------------------------------------------------------------------------------#
 class AmassProjectionsDataset(data.Dataset):
     def __init__(self, split, num_input_channels, filtering, mask_penalty,
                  use_same_subject=True, train_size=100000, validation_size=10000, test_size=300):
@@ -160,14 +178,15 @@ class AmassProjectionsDataset(data.Dataset):
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
 
-    def triangulation(self):
+    def triangulation(self,use_torch = False):
         if self.ref_tri is None:
             ref_fp = os.path.join(self.path, "original", "subjectID_1_poseID_0.OFF")
             _, self.ref_tri = self.read_off_full(ref_fp)
-        # if use_torch:
-        #     return torch.LongTensor(self.ref_tri).cuda()
-        # else:
-        return self.ref_tri
+
+        if use_torch:
+            return self.ref_tri,torch.from_numpy(self.ref_tri).long().cuda()
+        else:
+            return self.ref_tri
 
 
     def translate_index(self):
