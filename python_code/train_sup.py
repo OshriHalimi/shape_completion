@@ -23,7 +23,7 @@ def main():
     # =============PARAMETERS======================================== #
     parser = argparse.ArgumentParser()
     # Learning params
-    parser.add_argument('--batchSize', type=int, default=6, help='input batch size')
+    parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
 
@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--model_file', type=str, default='',
                         help='optional reload model file in model directory')
     # folder that stores the log for the run
-    parser.add_argument('--save_path', type=str, default='Exp13_NormalLoss_Distant_Vertex_Loss_on_Faust',
+    parser.add_argument('--save_path', type=str, default='Exp15_TrainingWithDFaust',
                         help='save path')
     # parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
 
@@ -56,10 +56,10 @@ def main():
     # Losses: Use 0 to ignore the specific loss, and val > 0 to compute it. The higher the value, the more weight the loss is
     parser.add_argument('--normal_loss_slope', type=int, default=0)
     parser.add_argument('--euclid_dist_loss_slope', type=int, default=0)  # Warning - Requires a lot of memory!
-    parser.add_argument('--distant_vertex_loss_slope', type=int, default=1)
+    parser.add_argument('--distant_vertex_loss_slope', type=int, default=0)
 
     # Adjustments to the XYZ  and Normal losses
-    parser.add_argument('--mask_xyz_penalty', type=int, default=50, help='Penalize only the mask values on xyz loss')
+    parser.add_argument('--mask_xyz_penalty', type=int, default=1, help='Penalize only the mask values on xyz loss')
     parser.add_argument('--use_mask_normal_penalty', type=bool, default=False,
                         help='Penalize only the mask values on normal loss')
 
@@ -103,8 +103,11 @@ def main():
     #                                   mask_penalty=opt.mask_xyz_penalty, use_same_subject=opt.use_same_subject,
     #                                   train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
 
-    dataset = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
-                                      train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
+    # dataset = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
+    #                                   train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
+    #
+    dataset = DfaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
+                                       train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
@@ -129,17 +132,9 @@ def main():
 
     # get dataset triangulations
     if opt.normal_loss_slope > 0:
-        test_triv_tup = dataset_test.triangulation(use_torch=True)
-        amass_test_triv_tup = dataset_test_amass.triangulation(use_torch=True)
-        if dataset.__class__.__name__ == 'FaustProjectionsDataset':
-            train_triv_tup = test_triv_tup
-        else:  # dataset.__class__.__name__ == 'AmassProjectionsDataset':
-            train_triv_tup = amass_test_triv_tup
-
+        triv_tup = dataset_test.triangulation(use_torch=True)
     else:
-        train_triv_tup = None
-        test_triv_tup = None
-        amass_test_triv_tup = None
+        triv_tup = None
 
     # ===================CREATE network================================= #
     network = CompletionNet(num_input_channels=opt.num_input_channels, num_output_channels=opt.num_output_channels,
@@ -207,7 +202,7 @@ def main():
             # Center gt
             gt[:, :3, :] -= part_centering
 
-            loss = compute_loss(gt, gt_rec, template, mask_loss, train_triv_tup, opt)
+            loss = compute_loss(gt, gt_rec, template, mask_loss, triv_tup, opt)
 
             train_loss.update(loss.item())
             loss.backward()
@@ -243,7 +238,7 @@ def main():
 
                 # In Faust validation we don't use the mask right now (Faust dataloader doesn't return the mask yet)
                 # TODO: return the indices of the part of the part within Faust dataloader
-                loss = compute_loss(gt, gt_rec, template, mask_loss, test_triv_tup, opt)
+                loss = compute_loss(gt, gt_rec, template, mask_loss, triv_tup, opt)
                 val_loss.update(loss.item())
 
                 # VIZUALIZE
@@ -274,7 +269,7 @@ def main():
                 # Forward pass
                 gt_rec, _, part_centering = network(part, template)
                 gt[:, :3, :] -= part_centering
-                loss = compute_loss(gt, gt_rec, template, None, amass_test_triv_tup, opt)
+                loss = compute_loss(gt, gt_rec, template, None, triv_tup, opt)
 
                 val_loss_amass.update(loss.item())
 

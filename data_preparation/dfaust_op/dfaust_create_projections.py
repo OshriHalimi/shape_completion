@@ -1,8 +1,8 @@
 from pathlib import Path
 import numpy as np
 import os, sys, inspect, time
-import pyrender
-import trimesh
+# import pyrender
+# import trimesh
 import h5py
 from tqdm import tqdm
 from dfaust_query import generate_dfaust_map
@@ -12,7 +12,7 @@ from dfaust_utils import write_off, banner, hms_string
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
 parentdir = os.path.dirname(currentdir)
 sys.path.insert(0, os.path.join(parentdir, 'render', 'lib'))
-import render
+# import render
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #
@@ -106,8 +106,8 @@ def unpack_h5py(dfaust_map, h5py_fp, dump_dir):
                 if sidseq in f:
                     used_sub = True
                     seq_cnt += 1
-                    verts = f[sidseq].value.transpose([2, 0, 1])
-                    faces = f['faces'].value
+                    verts = f[(sidseq)][()].transpose([2, 0, 1])
+                    faces = f[('faces')][()]
                     frame_cnt += verts.shape[0]
                     # print(f'{seq} {verts.shape[0]}') # For the creation of the new sub_seq file
                     tdir = os.path.join(seq_dir, seq)  # TODO - Decide on a filename format
@@ -184,4 +184,4 @@ def main_unpack_projections_dataset():
 # ----------------------------------------------------------------------------------------------------------------------#
 
 if __name__ == '__main__':
-    main_unpack_projections_dataset()
+    main_unpack_dataset()

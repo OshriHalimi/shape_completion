@@ -8,7 +8,13 @@ import os
 import time
 import scipy
 from numpy.matlib import repmat
-from utils import calc_vnrmls, test_normals,normr
+from utils import calc_vnrmls, test_normals, normr
+from pathlib import Path
+from support_material.dfaust_query import generate_dfaust_map
+
+DFAUST_SIDS = ['50002', '50004', '50007', '50009', '50020',
+               '50021', '50022', '50025', '50026', '50027']
+
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #
@@ -61,99 +67,82 @@ class SHREC16CutsDavidDataset(data.Dataset):
     def __len__(self):
         return 1
 
+
 # ----------------------------------------------------------------------------------------------------------------------#
 #
 # ----------------------------------------------------------------------------------------------------------------------#
-class FaustProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, train_size,mask_penalty):
+class DfaustProjectionsDataset(data.Dataset):
+    def __init__(self, train, num_input_channels, train_size, mask_penalty):
         self.train = train
         self.num_input_channels = num_input_channels
-        self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
-        self.train_size = train_size  # was 9000 when we train on FaustProjectionsDataset, but we set it to 10000 (full size: train and test) when we use it for evaluation
+        self.path = Path(__file__).parents[0] / '..' / 'data' / 'dfaust'
+        self.train_size = train_size
         self.test_size = 1000
         self.ref_tri = None
         self.mask_penalty = mask_penalty
+        self.map = generate_dfaust_map()
 
-    def translate_index(self, index):
-        subject_id = np.floor(index / 1000).astype(int)
-        index = index % 1000
-        pose_id_full = np.floor(index / 100).astype(int)
-        index = index % 100
-        pose_id_part = np.floor(index / 10).astype(int)
-        index = index % 10
-        mask_id = index + 1
-        return subject_id, pose_id_full, pose_id_part, mask_id
-
-    def triangulation(self,use_torch = False):
+    def triangulation(self, use_torch=False):
         if self.ref_tri is None:
-            ref_fp = os.path.join(self.path , '..' , 'faust_triv.off')
+            ref_fp = self.path / '..' / 'amass' / 'train' / 'original' / 'subjectID_1_poseID_0.OFF'
             _, self.ref_tri = read_off_full(ref_fp)
 
         if use_torch:
-            return self.ref_tri,torch.from_numpy(self.ref_tri).long().cuda()
+            return self.ref_tri, torch.from_numpy(self.ref_tri).long().cuda()
         else:
             return self.ref_tri
 
+    def translate_index(self):
+        sid = np.random.choice(10)  # 10 Subjects
+        sid_name = DFAUST_SIDS[sid]
+        sub_obj = self.map.sub_by_id(sid_name)[0]
+        seq_ids = np.random.choice(len(sub_obj.seq_grp), replace=False, size=(2))
+        frame_gt_name = np.random.choice(sub_obj.frame_cnts[seq_ids[0]])
+        frame_temp_name = np.random.choice(sub_obj.frame_cnts[seq_ids[1]])
+        seq_gt_name = sub_obj.seq_grp[seq_ids[0]]
+        seq_temp_name = sub_obj.seq_grp[seq_ids[1]]
+        ang_name = np.random.choice(10)  # 10 Angles
 
-    def subject_and_pose2shape_ind(self, subject_id, pose_id):
-        ind = subject_id * 10 + pose_id
-        return ind
+        return sid_name, seq_gt_name, seq_temp_name, frame_gt_name, frame_temp_name, ang_name
 
-    def get_shapes(self, index):
-        subject_id, pose_id_full, pose_id_part, mask_id = self.translate_index(index)
-        template_id = self.subject_and_pose2shape_ind(subject_id, pose_id_full)
-        part_id = self.subject_and_pose2shape_ind(subject_id, pose_id_part)
+    def get_shapes(self):
 
-        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(template_id) + ".mat"))
-        template = x['full_shape']  # OH: matrix of vertices
-        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + ".mat"))
-        gt = x['full_shape']  # OH: matrix of vertices
-        x = sio.loadmat(
-            os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + "_" + "{0:0=3d}".format(mask_id) + ".mat"))
-        part = x['partial_shape']  # OH: matrix of vertices
-        mask = x['part_mask']-1 # -1 - Oshri forgot that Matlab indices start with 1 and not 0
+        sid_name, seq_gt_name, seq_temp_name, frame_gt_name, frame_temp_name, ang_name = self.translate_index()
+
+        gt_fp = self.path / 'unpacked' / sid_name / seq_gt_name / f'{frame_gt_name:05}.OFF'
+        template_fp = self.path / 'unpacked' / sid_name / seq_temp_name / f'{frame_temp_name:05}.OFF'
+        mask_fp = self.path / 'projections' / f'{sid_name}{seq_gt_name}{frame_gt_name:05}_{ang_name}.npz'
+
+        template = read_off_2(template_fp)
+        gt = read_off_2(gt_fp)
+        mask = read_npz_2(mask_fp)
+
+        if self.num_input_channels == 6:
+            template_n = calc_vnrmls(template, self.triangulation())
+            # test_normals(template, self.triangulation(), template_n)
+            gt_n = calc_vnrmls(gt, self.triangulation())
+            template = np.concatenate((template, template_n), axis=1)
+            gt = np.concatenate((gt, gt_n), axis=1)
+
         mask_loss = np.ones(template.shape[0])
         mask_loss[mask] = self.mask_penalty
-        # mask_loss_mat[:, 0] = mask_loss
-        # mask_loss_mat[:, 1] = mask_loss
-        # mask_loss_mat[:, 2] = mask_loss
+        mask_full = np.zeros(template.shape[0], dtype=int)
+        mask_full[:len(mask)] = mask
+        mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
         if len(mask) == 1:
             raise Exception("MASK IS CORRUPTED")
 
-        return part, template, gt,mask_loss
+        part = gt[mask_full]
+
+        return template, part, gt, sid_name, sid_name, seq_temp_name, seq_gt_name, ang_name, mask_loss
 
     def __getitem__(self, index):
-        # OH: TODO Consider augmentations such as rotation, translation and downsampling, scale, noise
-        if self.train:
-            if index < self.train_size:
-                part, template, gt,mask_loss= self.get_shapes(index)
-            else:
-                raise IndexExceedDataset(index, self.__len__())
-        else:
-            if index < self.test_size:
-                index = index + self.train_size
-                part, template, gt,mask_loss = self.get_shapes(index)
-            else:
-                raise IndexExceedDataset(index, self.__len__())
-
-        # Apply random translation to part and to full template
-        # part_trans = np.random.rand(1,3) - 0.5
-        # template_trans = np.random.rand(1, 3) - 0.5
-        # part[:,:3] = part[:,:3]  + part_trans
-        # gt[:,:3]  = gt[:,:3] + part_trans
-        # template[:,:3]  = template[:,:3]  + template_trans
-
-        template = template[:, :self.num_input_channels]
-        part = part[:, :self.num_input_channels]
-        gt = gt[:, :self.num_input_channels]
-
-        return part, template, gt, index,mask_loss
+        template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat = self.get_shapes()
+        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, index
 
     def __len__(self):
-        if self.train:
-            return self.train_size
-        else:
-            return self.test_size
+        return self.train_size
+
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #
@@ -187,16 +176,15 @@ class AmassProjectionsDataset(data.Dataset):
             print(self.path)
             self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
 
-    def triangulation(self,use_torch = False):
+    def triangulation(self, use_torch=False):
         if self.ref_tri is None:
             ref_fp = os.path.join(self.path, "original", "subjectID_1_poseID_0.OFF")
             _, self.ref_tri = read_off_full(ref_fp)
 
         if use_torch:
-            return self.ref_tri,torch.from_numpy(self.ref_tri).long().cuda()
+            return self.ref_tri, torch.from_numpy(self.ref_tri).long().cuda()
         else:
             return self.ref_tri
-
 
     def translate_index(self):
 
@@ -254,8 +242,6 @@ class AmassProjectionsDataset(data.Dataset):
 
         part = gt[mask_full]
 
-
-
         return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss
 
     def read_npz(self, s_id, p_id, m_id):
@@ -266,8 +252,6 @@ class AmassProjectionsDataset(data.Dataset):
         mask = mask["mask"]
 
         return mask
-
-
 
     def read_off(self, s_id, p_id):
 
@@ -294,6 +278,101 @@ class AmassProjectionsDataset(data.Dataset):
         if self.split == 'validation':
             return self.validation_size
         if self.split == 'test':
+            return self.test_size
+
+
+# ----------------------------------------------------------------------------------------------------------------------#
+#
+# ----------------------------------------------------------------------------------------------------------------------#
+
+class FaustProjectionsDataset(data.Dataset):
+    def __init__(self, train, num_input_channels, train_size, mask_penalty):
+        self.train = train
+        self.num_input_channels = num_input_channels
+        self.path = os.path.join(os.getcwd(), os.pardir, "data", "dfaust")
+        self.train_size = train_size
+        self.test_size = 1000
+        self.ref_tri = None
+        self.mask_penalty = mask_penalty
+
+    def translate_index(self, index):
+        subject_id = np.floor(index / 1000).astype(int)
+        index = index % 1000
+        pose_id_full = np.floor(index / 100).astype(int)
+        index = index % 100
+        pose_id_part = np.floor(index / 10).astype(int)
+        index = index % 10
+        mask_id = index + 1
+        return subject_id, pose_id_full, pose_id_part, mask_id
+
+    def triangulation(self, use_torch=False):
+        if self.ref_tri is None:
+            ref_fp = os.path.join(self.path, '..', 'faust_triv.off')
+            _, self.ref_tri = read_off_full(ref_fp)
+
+        if use_torch:
+            return self.ref_tri, torch.from_numpy(self.ref_tri).long().cuda()
+        else:
+            return self.ref_tri
+
+    def subject_and_pose2shape_ind(self, subject_id, pose_id):
+        ind = subject_id * 10 + pose_id
+        return ind
+
+    def get_shapes(self, index):
+        subject_id, pose_id_full, pose_id_part, mask_id = self.translate_index(index)
+        template_id = self.subject_and_pose2shape_ind(subject_id, pose_id_full)
+        part_id = self.subject_and_pose2shape_ind(subject_id, pose_id_part)
+
+        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(template_id) + ".mat"))
+        template = x['full_shape']  # OH: matrix of vertices
+        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + ".mat"))
+        gt = x['full_shape']  # OH: matrix of vertices
+        x = sio.loadmat(
+            os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + "_" + "{0:0=3d}".format(mask_id) + ".mat"))
+        part = x['partial_shape']  # OH: matrix of vertices
+        mask = x['part_mask'] - 1  # -1 - Oshri forgot that Matlab indices start with 1 and not 0
+        mask_loss = np.ones(template.shape[0])
+        mask_loss[mask] = self.mask_penalty
+        # mask_loss_mat[:, 0] = mask_loss
+        # mask_loss_mat[:, 1] = mask_loss
+        # mask_loss_mat[:, 2] = mask_loss
+        if len(mask) == 1:
+            raise Exception("MASK IS CORRUPTED")
+
+        return part, template, gt, mask_loss
+
+    def __getitem__(self, index):
+        # OH: TODO Consider augmentations such as rotation, translation and downsampling, scale, noise
+        if self.train:
+            if index < self.train_size:
+                part, template, gt, mask_loss = self.get_shapes(index)
+            else:
+                raise IndexExceedDataset(index, self.__len__())
+        else:
+            if index < self.test_size:
+                index = index + self.train_size
+                part, template, gt, mask_loss = self.get_shapes(index)
+            else:
+                raise IndexExceedDataset(index, self.__len__())
+
+        # Apply random translation to part and to full template
+        # part_trans = np.random.rand(1,3) - 0.5
+        # template_trans = np.random.rand(1, 3) - 0.5
+        # part[:,:3] = part[:,:3]  + part_trans
+        # gt[:,:3]  = gt[:,:3] + part_trans
+        # template[:,:3]  = template[:,:3]  + template_trans
+
+        template = template[:, :self.num_input_channels]
+        part = part[:, :self.num_input_channels]
+        gt = gt[:, :self.num_input_channels]
+
+        return part, template, gt, index, mask_loss
+
+    def __len__(self):
+        if self.train:
+            return self.train_size
+        else:
             return self.test_size
 
 
@@ -330,8 +409,9 @@ if __name__ == '__main__':
         #                opts=dict(title=f'template train sample #{i}', markersize=2))
 
 
-
-
+# ----------------------------------------------------------------------------------------------------------------------#
+#
+# ----------------------------------------------------------------------------------------------------------------------#
 def read_off_full(off_file):
     vertexBuffer = []
     indexBuffer = []
@@ -354,3 +434,18 @@ def read_off_full(off_file):
             indexBuffer.append([int(indices[1]), int(indices[2]), int(indices[3])])
 
     return np.array(vertexBuffer), np.array(indexBuffer)
+
+
+def read_off_2(fp):
+    lines = [l.strip() for l in open(fp, "r")]
+    words = [int(i) for i in lines[1].split(' ')]
+    vn = words[0]
+    vertices = np.zeros((vn, 3), dtype='float32')
+    for i in range(2, 2 + vn):
+        vertices[i - 2] = [float(w) for w in lines[i].split(' ')]
+
+    return vertices
+
+
+def read_npz_2(fp):
+    return np.load(fp)['mask']
