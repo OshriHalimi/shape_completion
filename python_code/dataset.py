@@ -12,11 +12,38 @@ from utils import calc_vnrmls, test_normals, normr
 from pathlib import Path
 from support_material.dfaust_query import generate_dfaust_map
 
+
+def read_off_full(off_file):
+    vertexBuffer = []
+    indexBuffer = []
+    with open(off_file, "r") as modelfile:
+        first = modelfile.readline().strip()
+        if first != "OFF":
+            raise (Exception("not a valid OFF file ({})".format(first)))
+
+        parameters = modelfile.readline().strip().split()
+
+        if len(parameters) < 2:
+            raise (Exception("OFF file has invalid number of parameters"))
+
+        for i in range(int(parameters[0])):
+            coordinates = modelfile.readline().split()
+            vertexBuffer.append([float(coordinates[0]), float(coordinates[1]), float(coordinates[2])])
+
+        for i in range(int(parameters[1])):
+            indices = modelfile.readline().split()
+            indexBuffer.append([int(indices[1]), int(indices[2]), int(indices[3])])
+
+    return np.array(vertexBuffer), np.array(indexBuffer)
+
+
 DFAUST_SIDS = ['50002', '50004', '50007', '50009', '50020',
                '50021', '50022', '50025', '50026', '50027']
 
+_, REF_TRI = read_off_full(Path(__file__).parents[0] / '..' / 'data' / 'amass' / 'train' / 'original' / 'subjectID_1_poseID_0.OFF')
 
-# ----------------------------------------------------------------------------------------------------------------------#
+
+#-----------------------------------------------------------------------------------------#
 #
 # ----------------------------------------------------------------------------------------------------------------------#
 class IndexExceedDataset(Exception):
@@ -78,19 +105,18 @@ class DfaustProjectionsDataset(data.Dataset):
         self.path = Path(__file__).parents[0] / '..' / 'data' / 'dfaust'
         self.train_size = train_size
         self.test_size = 1000
-        self.ref_tri = None
+        # self.ref_tri = None
         self.mask_penalty = mask_penalty
         self.map = generate_dfaust_map()
 
     def triangulation(self, use_torch=False):
-        if self.ref_tri is None:
-            ref_fp = self.path / '..' / 'amass' / 'train' / 'original' / 'subjectID_1_poseID_0.OFF'
-            _, self.ref_tri = read_off_full(ref_fp)
+        # if self.ref_tri is None:
+        #     self.ref_tri = REF_TRI
 
         if use_torch:
-            return self.ref_tri, torch.from_numpy(self.ref_tri).long().cuda()
+            return REF_TRI, torch.from_numpy(REF_TRI).long().cuda()
         else:
-            return self.ref_tri
+            return REF_TRI
 
     def translate_index(self):
         sid = np.random.choice(10)  # 10 Subjects
@@ -158,7 +184,7 @@ class AmassProjectionsDataset(data.Dataset):
         self.test_size = test_size
         self.filtering = filtering
         self.mask_penalty = mask_penalty
-        self.ref_tri = None
+        # self.ref_tri = None
 
         if self.split == 'train':
             self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
@@ -177,14 +203,13 @@ class AmassProjectionsDataset(data.Dataset):
             self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
 
     def triangulation(self, use_torch=False):
-        if self.ref_tri is None:
-            ref_fp = os.path.join(self.path, "original", "subjectID_1_poseID_0.OFF")
-            _, self.ref_tri = read_off_full(ref_fp)
+        # if self.ref_tri is None:
+        #     self.ref_tri = REF_TRI
 
         if use_torch:
-            return self.ref_tri, torch.from_numpy(self.ref_tri).long().cuda()
+            return REF_TRI, torch.from_numpy(REF_TRI).long().cuda()
         else:
-            return self.ref_tri
+            return REF_TRI
 
     def translate_index(self):
 
@@ -289,10 +314,10 @@ class FaustProjectionsDataset(data.Dataset):
     def __init__(self, train, num_input_channels, train_size, mask_penalty):
         self.train = train
         self.num_input_channels = num_input_channels
-        self.path = os.path.join(os.getcwd(), os.pardir, "data", "dfaust")
+        self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections","dataset")
         self.train_size = train_size
         self.test_size = 1000
-        self.ref_tri = None
+        # self.ref_tri = None
         self.mask_penalty = mask_penalty
 
     def translate_index(self, index):
@@ -306,14 +331,13 @@ class FaustProjectionsDataset(data.Dataset):
         return subject_id, pose_id_full, pose_id_part, mask_id
 
     def triangulation(self, use_torch=False):
-        if self.ref_tri is None:
-            ref_fp = os.path.join(self.path, '..', 'faust_triv.off')
-            _, self.ref_tri = read_off_full(ref_fp)
+        # if self.ref_tri is None:
+        #     self.ref_tri = REF_TRI
 
         if use_torch:
-            return self.ref_tri, torch.from_numpy(self.ref_tri).long().cuda()
+            return REF_TRI, torch.from_numpy(REF_TRI).long().cuda()
         else:
-            return self.ref_tri
+            return REF_TRI
 
     def subject_and_pose2shape_ind(self, subject_id, pose_id):
         ind = subject_id * 10 + pose_id
@@ -412,28 +436,6 @@ if __name__ == '__main__':
 # ----------------------------------------------------------------------------------------------------------------------#
 #
 # ----------------------------------------------------------------------------------------------------------------------#
-def read_off_full(off_file):
-    vertexBuffer = []
-    indexBuffer = []
-    with open(off_file, "r") as modelfile:
-        first = modelfile.readline().strip()
-        if first != "OFF":
-            raise (Exception("not a valid OFF file ({})".format(first)))
-
-        parameters = modelfile.readline().strip().split()
-
-        if len(parameters) < 2:
-            raise (Exception("OFF file has invalid number of parameters"))
-
-        for i in range(int(parameters[0])):
-            coordinates = modelfile.readline().split()
-            vertexBuffer.append([float(coordinates[0]), float(coordinates[1]), float(coordinates[2])])
-
-        for i in range(int(parameters[1])):
-            indices = modelfile.readline().split()
-            indexBuffer.append([int(indices[1]), int(indices[2]), int(indices[3])])
-
-    return np.array(vertexBuffer), np.array(indexBuffer)
 
 
 def read_off_2(fp):

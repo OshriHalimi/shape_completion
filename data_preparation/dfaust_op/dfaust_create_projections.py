@@ -165,8 +165,8 @@ def write_projection_pyrender(pfp, v, f, map):  # TODO - Uncompleted
 
 
 def main_unpack_dataset():
-    h5py_dir = Path() / '..' / '..' / 'data' / 'dfaust' / 'dfaust_packed'
-    dump_dir = Path() / '..' / '..' / 'data' / 'dfaust' / 'dfaust_unpacked'
+    h5py_dir = Path() / '..' / '..' / 'data' / 'dfaust' / 'packed'
+    dump_dir = Path() / '..' / '..' / 'data' / 'dfaust' / 'unpacked'
     fullmap = generate_dfaust_map()
     unpack_dataset(fullmap, h5py_dir, dump_dir)
 

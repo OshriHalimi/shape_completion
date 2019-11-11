@@ -23,7 +23,7 @@ def main():
     # =============PARAMETERS======================================== #
     parser = argparse.ArgumentParser()
     # Learning params
-    parser.add_argument('--batchSize', type=int, default=15, help='input batch size')
+    parser.add_argument('--batchSize', type=int, default=8, help='input batch size')
     parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
     parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
 
@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--model_file', type=str, default='',
                         help='optional reload model file in model directory')
     # folder that stores the log for the run
-    parser.add_argument('--save_path', type=str, default='Exp15_TrainingWithDFaust',
+    parser.add_argument('--save_path', type=str, default='Exp18_TrainingWithDFaust_LossWithNormals',
                         help='save path')
     # parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
 
@@ -50,11 +50,11 @@ def main():
     parser.add_argument('--amass_train_size', type=int, default=10000)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
-    parser.add_argument('--faust_train_size', type=int, default=8000)
+    parser.add_argument('--faust_train_size', type=int, default=2)
     parser.add_argument('--filtering', type=float, default=0.09, help='amount of filtering to apply on l2 distances')
 
     # Losses: Use 0 to ignore the specific loss, and val > 0 to compute it. The higher the value, the more weight the loss is
-    parser.add_argument('--normal_loss_slope', type=int, default=0)
+    parser.add_argument('--normal_loss_slope', type=int, default=0.1)
     parser.add_argument('--euclid_dist_loss_slope', type=int, default=0)  # Warning - Requires a lot of memory!
     parser.add_argument('--distant_vertex_loss_slope', type=int, default=0)
 
