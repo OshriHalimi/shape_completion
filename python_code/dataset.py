@@ -65,13 +65,14 @@ class SHREC16CutsDavidDataset(data.Dataset):
 #
 # ----------------------------------------------------------------------------------------------------------------------#
 class FaustProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, train_size):
+    def __init__(self, train, num_input_channels, train_size,mask_penalty):
         self.train = train
         self.num_input_channels = num_input_channels
         self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
         self.train_size = train_size  # was 9000 when we train on FaustProjectionsDataset, but we set it to 10000 (full size: train and test) when we use it for evaluation
         self.test_size = 1000
         self.ref_tri = None
+        self.mask_penalty = mask_penalty
 
     def translate_index(self, index):
         subject_id = np.floor(index / 1000).astype(int)
@@ -83,16 +84,16 @@ class FaustProjectionsDataset(data.Dataset):
         mask_id = index + 1
         return subject_id, pose_id_full, pose_id_part, mask_id
 
-    def triangulation(self):
-        raise NotImplementedError
-        # if self.ref_tri is None:
-        #     x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(template_id) + ".mat"))
-        #     ref_fp = os.path.join(self.path, "original", "subjectID_1_poseID_0.OFF")
-        #     _, self.ref_tri = self.read_off_full(ref_fp)
-        # if use_torch:
-        #     return torch.LongTensor(self.ref_tri).cuda()
-        # else:
-        # return self.ref_tri
+    def triangulation(self,use_torch = False):
+        if self.ref_tri is None:
+            ref_fp = os.path.join(self.path , '..' , 'faust_triv.off')
+            _, self.ref_tri = read_off_full(ref_fp)
+
+        if use_torch:
+            return self.ref_tri,torch.from_numpy(self.ref_tri).long().cuda()
+        else:
+            return self.ref_tri
+
 
     def subject_and_pose2shape_ind(self, subject_id, pose_id):
         ind = subject_id * 10 + pose_id
@@ -110,20 +111,28 @@ class FaustProjectionsDataset(data.Dataset):
         x = sio.loadmat(
             os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + "_" + "{0:0=3d}".format(mask_id) + ".mat"))
         part = x['partial_shape']  # OH: matrix of vertices
+        mask = x['part_mask']-1 # -1 - Oshri forgot that Matlab indices start with 1 and not 0
+        mask_loss = np.ones(template.shape[0])
+        mask_loss[mask] = self.mask_penalty
+        # mask_loss_mat[:, 0] = mask_loss
+        # mask_loss_mat[:, 1] = mask_loss
+        # mask_loss_mat[:, 2] = mask_loss
+        if len(mask) == 1:
+            raise Exception("MASK IS CORRUPTED")
 
-        return part, template, gt
+        return part, template, gt,mask_loss
 
     def __getitem__(self, index):
         # OH: TODO Consider augmentations such as rotation, translation and downsampling, scale, noise
         if self.train:
             if index < self.train_size:
-                part, template, gt = self.get_shapes(index)
+                part, template, gt,mask_loss= self.get_shapes(index)
             else:
                 raise IndexExceedDataset(index, self.__len__())
         else:
             if index < self.test_size:
                 index = index + self.train_size
-                part, template, gt = self.get_shapes(index)
+                part, template, gt,mask_loss = self.get_shapes(index)
             else:
                 raise IndexExceedDataset(index, self.__len__())
 
@@ -138,7 +147,7 @@ class FaustProjectionsDataset(data.Dataset):
         part = part[:, :self.num_input_channels]
         gt = gt[:, :self.num_input_channels]
 
-        return part, template, gt, index
+        return part, template, gt, index,mask_loss
 
     def __len__(self):
         if self.train:
@@ -181,7 +190,7 @@ class AmassProjectionsDataset(data.Dataset):
     def triangulation(self,use_torch = False):
         if self.ref_tri is None:
             ref_fp = os.path.join(self.path, "original", "subjectID_1_poseID_0.OFF")
-            _, self.ref_tri = self.read_off_full(ref_fp)
+            _, self.ref_tri = read_off_full(ref_fp)
 
         if use_torch:
             return self.ref_tri,torch.from_numpy(self.ref_tri).long().cuda()
@@ -240,10 +249,12 @@ class AmassProjectionsDataset(data.Dataset):
         mask_full = np.zeros(template.shape[0], dtype=int)
         mask_full[:len(mask)] = mask
         mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
-        part = gt[mask_full]
-
         if len(mask) == 1:
             raise Exception("MASK IS CORRUPTED")
+
+        part = gt[mask_full]
+
+
 
         return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss
 
@@ -256,28 +267,7 @@ class AmassProjectionsDataset(data.Dataset):
 
         return mask
 
-    def read_off_full(self, off_file):
-        vertexBuffer = []
-        indexBuffer = []
-        with open(off_file, "r") as modelfile:
-            first = modelfile.readline().strip()
-            if first != "OFF":
-                raise (Exception("not a valid OFF file ({})".format(first)))
 
-            parameters = modelfile.readline().strip().split()
-
-            if len(parameters) < 2:
-                raise (Exception("OFF file has invalid number of parameters"))
-
-            for i in range(int(parameters[0])):
-                coordinates = modelfile.readline().split()
-                vertexBuffer.append([float(coordinates[0]), float(coordinates[1]), float(coordinates[2])])
-
-            for i in range(int(parameters[1])):
-                indices = modelfile.readline().split()
-                indexBuffer.append([int(indices[1]), int(indices[2]), int(indices[3])])
-
-        return np.array(vertexBuffer), np.array(indexBuffer)
 
     def read_off(self, s_id, p_id):
 
@@ -338,3 +328,29 @@ if __name__ == '__main__':
         # if d.num_input_channels == 6:
         #     vis.quiver(template[:, :3], template[:, :3] + template[:, 3:6], win=f"template train sample #{i}",
         #                opts=dict(title=f'template train sample #{i}', markersize=2))
+
+
+
+
+def read_off_full(off_file):
+    vertexBuffer = []
+    indexBuffer = []
+    with open(off_file, "r") as modelfile:
+        first = modelfile.readline().strip()
+        if first != "OFF":
+            raise (Exception("not a valid OFF file ({})".format(first)))
+
+        parameters = modelfile.readline().strip().split()
+
+        if len(parameters) < 2:
+            raise (Exception("OFF file has invalid number of parameters"))
+
+        for i in range(int(parameters[0])):
+            coordinates = modelfile.readline().split()
+            vertexBuffer.append([float(coordinates[0]), float(coordinates[1]), float(coordinates[2])])
+
+        for i in range(int(parameters[1])):
+            indices = modelfile.readline().split()
+            indexBuffer.append([int(indices[1]), int(indices[2]), int(indices[3])])
+
+    return np.array(vertexBuffer), np.array(indexBuffer)
