@@ -122,7 +122,7 @@ class DfaustProjectionsDataset(data.Dataset):
         sid = np.random.choice(10)  # 10 Subjects
         sid_name = DFAUST_SIDS[sid]
         sub_obj = self.map.sub_by_id(sid_name)[0]
-        seq_ids = np.random.choice(len(sub_obj.seq_grp), replace=False, size=(2))
+        seq_ids = np.random.choice(len(sub_obj.seq_grp), replace=False, size=(2)) # Don't allow the trivial reconstruction
         frame_gt_name = np.random.choice(sub_obj.frame_cnts[seq_ids[0]])
         frame_temp_name = np.random.choice(sub_obj.frame_cnts[seq_ids[1]])
         seq_gt_name = sub_obj.seq_grp[seq_ids[0]]

@@ -59,11 +59,16 @@ def unpack_dataset(dfaust_map, h5py_dir, dump_dir):
     start_t = time.time()
     males = dfaust_map.filter_by_gender('male')
     females = dfaust_map.filter_by_gender('female')
+    male_hdf5_fp = Path(h5py_dir) / 'registrations_m.hdf5'
+    female_hdf5_fp = Path(h5py_dir) / 'registrations_f.hdf5'
 
     if males.num_subjects() > 0 and females.num_subjects() > 0:
-        os.makedirs(dump_dir, exist_ok=True)
+        if male_hdf5_fp.is_file() and female_hdf5_fp.is_file():
+            os.makedirs(dump_dir, exist_ok=True)
+        else:
+            raise AssertionError(f"Could not find hdf5 files in {Path(h5py_dir).absolute()}")
     else:
-        assert False, "DFaust map is empty"
+        raise AssertionError("Dfaust map is empty")
 
     # TODO - Add correction to insert size with projections
     print(
@@ -78,9 +83,9 @@ def unpack_dataset(dfaust_map, h5py_dir, dump_dir):
         females.world2cam_mats = dfaust_map.num_angs
 
     if males.num_subjects() > 0:
-        unpack_h5py(males, Path(h5py_dir) / 'registrations_m.hdf5', dump_dir)
+        unpack_h5py(males, male_hdf5_fp, dump_dir)
     if females.num_subjects() > 0:
-        unpack_h5py(females, Path(h5py_dir) / 'registrations_f.hdf5', dump_dir)
+        unpack_h5py(females, female_hdf5_fp, dump_dir)
 
     print(f"Running time: {hms_string(time.time() - start_t)}")
 
@@ -165,15 +170,15 @@ def write_projection_pyrender(pfp, v, f, map):  # TODO - Uncompleted
 
 
 def main_unpack_dataset():
-    h5py_dir = Path() / '..' / '..' / 'data' / 'dfaust' / 'packed'
-    dump_dir = Path() / '..' / '..' / 'data' / 'dfaust' / 'unpacked'
+    h5py_dir = Path(__file__).parents[0] / '..' / '..' / '..' / 'shape_completion_WIP' / 'data' / 'dfaust' / 'packed'
+    dump_dir = Path(__file__).parents[0] / '..' / '..' / '..' / 'shape_completion_WIP' / 'data' / 'dfaust' / 'unpacked'
     fullmap = generate_dfaust_map()
     unpack_dataset(fullmap, h5py_dir, dump_dir)
 
 
 def main_unpack_projections_dataset():
-    h5py_dir = Path() / '..' / '..' / 'data' / 'dfaust' / 'dfaust_packed'
-    dump_dir = Path() / '..' / '..' / 'data' / 'dfaust' / 'dfaust_projections'
+    h5py_dir = Path(__file__).parents[0] / '..' / '..' / '..' / '..' / 'shape_completion_WIP' / 'data' / 'dfaust' / 'packed'
+    dump_dir = Path(__file__).parents[0] / '..' / '..' / '..' / '..' / 'shape_completion_WIP' / 'data' / 'dfaust' / 'unpacked'
     fullmap = generate_dfaust_map()
 
     unpack_projected_dataset(fullmap, h5py_dir, dump_dir, num_angs=10)

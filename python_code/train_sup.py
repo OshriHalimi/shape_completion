@@ -50,24 +50,26 @@ def main():
     parser.add_argument('--amass_train_size', type=int, default=10000)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
-    parser.add_argument('--faust_train_size', type=int, default=2)
+    parser.add_argument('--faust_train_size', type=int, default=8000)
     parser.add_argument('--filtering', type=float, default=0.09, help='amount of filtering to apply on l2 distances')
 
     # Losses: Use 0 to ignore the specific loss, and val > 0 to compute it. The higher the value, the more weight the loss is
     parser.add_argument('--normal_loss_slope', type=int, default=0.1)
     parser.add_argument('--euclid_dist_loss_slope', type=int, default=0)  # Warning - Requires a lot of memory!
-    parser.add_argument('--distant_vertex_loss_slope', type=int, default=0)
+    parser.add_argument('--distant_vertex_loss_slope', type=int, default=1)
 
     # Adjustments to the XYZ  and Normal losses
     parser.add_argument('--mask_xyz_penalty', type=int, default=1, help='Penalize only the mask values on xyz loss')
-    parser.add_argument('--use_mask_normal_penalty', type=bool, default=False,
+    parser.add_argument('--use_mask_normal_penalty', type=bool, default=True,
                         help='Penalize only the mask values on normal loss')
+    parser.add_argument('--use_mask_normal_distant_vertex_penalty', type=bool, default=True)
 
     parser.add_argument('--use_visdom', type=bool, default=True)
 
     opt = parser.parse_args()
     print(opt)
 
+    assert opt.faust_train_size <= 8000
     # =============DEFINE stuff for logs ======================================== #
     # Launch visdom for visualization
     if opt.use_visdom:
@@ -103,11 +105,11 @@ def main():
     #                                   mask_penalty=opt.mask_xyz_penalty, use_same_subject=opt.use_same_subject,
     #                                   train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
 
-    # dataset = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
-    #                                   train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
-    #
-    dataset = DfaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
-                                       train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
+    dataset = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
+                                      train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
+
+    # dataset = DfaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
+    #                                    train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
@@ -348,8 +350,9 @@ def compute_loss(gt, gt_rec, template, mask_loss, f_tup, opt):
         # distant_vertex_loss = torch.mean(distant_vertex_penalty * ((gt_rec_xyz - gt_xyz) ** 2))
         # print(f'Distant Vertex Loss {distant_vertex_loss:4f}')
         multiplying_factor *= distant_vertex_penalty
-    loss = torch.mean(multiplying_factor * (gt_rec_xyz - gt_xyz) ** 2)
+    loss = torch.mean(multiplying_factor * ((gt_rec_xyz - gt_xyz) ** 2))
     # loss = torch.tensor(0).float().cuda()
+
     # Compute Normal Loss
     if opt.normal_loss_slope > 0:
         gt_rec_n = calc_vnrmls_batch(gt_rec_xyz, f_tup)
@@ -358,11 +361,13 @@ def compute_loss(gt, gt_rec, template, mask_loss, f_tup, opt):
         else:
             gt_n = calc_vnrmls_batch(gt_xyz, f_tup)
 
+        multiplying_factor = 1
         if opt.use_mask_normal_penalty and mask_loss is not None:
-            normal_loss = torch.mean(mask_loss * ((gt_rec_n - gt_n) ** 2))
-        else:
-            normal_loss = torch.mean(((gt_rec_n - gt_n) ** 2))
-        normal_loss *= opt.normal_loss_slope
+            multiplying_factor *= mask_loss
+        if opt.use_mask_normal_distant_vertex_penalty:
+            multiplying_factor *= distant_vertex_penalty
+
+        normal_loss = opt.normal_loss_slope * torch.mean(multiplying_factor * ((gt_rec_n - gt_n) ** 2))
         # print(f'Vertex Normal Loss {normal_loss:4f}')
         loss += normal_loss
 
