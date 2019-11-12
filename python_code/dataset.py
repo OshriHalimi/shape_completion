@@ -40,10 +40,11 @@ def read_off_full(off_file):
 DFAUST_SIDS = ['50002', '50004', '50007', '50009', '50020',
                '50021', '50022', '50025', '50026', '50027']
 
-_, REF_TRI = read_off_full(Path(__file__).parents[0] / '..' / 'data' / 'amass' / 'train' / 'original' / 'subjectID_1_poseID_0.OFF')
+_, REF_TRI = read_off_full(
+    Path(__file__).parents[0] / '..' / 'data' / 'amass' / 'train' / 'original' / 'subjectID_1_poseID_0.OFF')
 
 
-#-----------------------------------------------------------------------------------------#
+# -----------------------------------------------------------------------------------------#
 #
 # ----------------------------------------------------------------------------------------------------------------------#
 class IndexExceedDataset(Exception):
@@ -122,7 +123,8 @@ class DfaustProjectionsDataset(data.Dataset):
         sid = np.random.choice(10)  # 10 Subjects
         sid_name = DFAUST_SIDS[sid]
         sub_obj = self.map.sub_by_id(sid_name)[0]
-        seq_ids = np.random.choice(len(sub_obj.seq_grp), replace=False, size=(2)) # Don't allow the trivial reconstruction
+        seq_ids = np.random.choice(len(sub_obj.seq_grp), replace=False,
+                                   size=(2))  # Don't allow the trivial reconstruction
         frame_gt_name = np.random.choice(sub_obj.frame_cnts[seq_ids[0]])
         frame_temp_name = np.random.choice(sub_obj.frame_cnts[seq_ids[1]])
         seq_gt_name = sub_obj.seq_grp[seq_ids[0]]
@@ -143,12 +145,17 @@ class DfaustProjectionsDataset(data.Dataset):
         gt = read_off_2(gt_fp)
         mask = read_npz_2(mask_fp)
 
-        if self.num_input_channels == 6:
+        if self.num_input_channels == 6 or self.num_input_channels == 12:
             template_n = calc_vnrmls(template, self.triangulation())
             # test_normals(template, self.triangulation(), template_n)
             gt_n = calc_vnrmls(gt, self.triangulation())
             template = np.concatenate((template, template_n), axis=1)
             gt = np.concatenate((gt, gt_n), axis=1)
+            if self.num_input_channels == 12:
+                x, y, z = template[:, 0, :], template[:, 1, :], template[:, 2, :]
+                template = np.concatenate((template, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
+                x, y, z = gt[:, 0, :], gt[:, 1, :], gt[:, 2, :]
+                gt = np.concatenate((gt, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
 
         mask_loss = np.ones(template.shape[0])
         mask_loss[mask] = self.mask_penalty
@@ -245,26 +252,26 @@ class AmassProjectionsDataset(data.Dataset):
                     gt = self.read_off(subject_id_part, pose_id_part)
                     euc_dist = np.mean((template - gt) ** 2)
 
-        if self.num_input_channels == 6:
+        if self.num_input_channels == 6 or self.num_input_channels == 12:
             template_n = calc_vnrmls(template, self.triangulation())
             # test_normals(template, self.triangulation(), template_n)
             gt_n = calc_vnrmls(gt, self.triangulation())
             template = np.concatenate((template, template_n), axis=1)
             gt = np.concatenate((gt, gt_n), axis=1)
+            if self.num_input_channels == 12:
+                x, y, z = template[:, 0, np.newaxis], template[:, 1, np.newaxis], template[:, 2, np.newaxis]
+                template = np.concatenate((template, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
+                x, y, z = gt[:, 0, np.newaxis], gt[:, 1, np.newaxis], gt[:, 2, np.newaxis]
+                gt = np.concatenate((gt, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
 
         mask = self.read_npz(subject_id_part, pose_id_part, mask_id)
-        # mask_loss_mat = np.ones((template.shape[0], template.shape[1]), dtype=int)
+
         mask_loss = np.ones(template.shape[0])
         mask_loss[mask] = self.mask_penalty
-        # mask_loss_mat[:, 0] = mask_loss
-        # mask_loss_mat[:, 1] = mask_loss
-        # mask_loss_mat[:, 2] = mask_loss
         mask_full = np.zeros(template.shape[0], dtype=int)
         mask_full[:len(mask)] = mask
         mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
-        if len(mask) == 1:
-            raise Exception("MASK IS CORRUPTED")
-
+        assert len(mask) > 1, "Mask is Corrupted"
         part = gt[mask_full]
 
         return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss
@@ -294,7 +301,6 @@ class AmassProjectionsDataset(data.Dataset):
     def __getitem__(self, index):
 
         template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat = self.get_shapes()
-
         return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, index
 
     def __len__(self):
@@ -314,7 +320,7 @@ class FaustProjectionsDataset(data.Dataset):
     def __init__(self, train, num_input_channels, train_size, mask_penalty):
         self.train = train
         self.num_input_channels = num_input_channels
-        self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections","dataset")
+        self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
         self.train_size = train_size
         self.test_size = 1000
         # self.ref_tri = None
@@ -349,20 +355,29 @@ class FaustProjectionsDataset(data.Dataset):
         part_id = self.subject_and_pose2shape_ind(subject_id, pose_id_part)
 
         x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(template_id) + ".mat"))
-        template = x['full_shape']  # OH: matrix of vertices
+        template = x['full_shape']
         x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + ".mat"))
-        gt = x['full_shape']  # OH: matrix of vertices
+        gt = x['full_shape']
         x = sio.loadmat(
             os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + "_" + "{0:0=3d}".format(mask_id) + ".mat"))
-        part = x['partial_shape']  # OH: matrix of vertices
-        mask = x['part_mask'] - 1  # -1 - Oshri forgot that Matlab indices start with 1 and not 0
+
+        mask = np.squeeze(x['part_mask'] - 1)  # -1 - Oshri forgot that Matlab indices start with 1 and not 0
         mask_loss = np.ones(template.shape[0])
         mask_loss[mask] = self.mask_penalty
-        # mask_loss_mat[:, 0] = mask_loss
-        # mask_loss_mat[:, 1] = mask_loss
-        # mask_loss_mat[:, 2] = mask_loss
-        if len(mask) == 1:
-            raise Exception("MASK IS CORRUPTED")
+
+        if self.num_input_channels == 12:
+            x, y, z = template[:,0,np.newaxis], template[:,1,np.newaxis], template[:,2,np.newaxis]
+            template = np.concatenate((template, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
+            x, y, z = gt[:,0,np.newaxis], gt[:,1,np.newaxis], gt[:,2,np.newaxis]
+            gt = np.concatenate((gt, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
+            mask_full = np.zeros(template.shape[0], dtype=int)
+            mask_full[:len(mask)] = mask
+            mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
+            part = gt[mask_full]
+        else:
+            part = x['partial_shape']  # OH: matrix of vertices
+
+        assert len(mask) > 1, "Mask is Corrupted"
 
         return part, template, gt, mask_loss
 
@@ -386,10 +401,10 @@ class FaustProjectionsDataset(data.Dataset):
         # part[:,:3] = part[:,:3]  + part_trans
         # gt[:,:3]  = gt[:,:3] + part_trans
         # template[:,:3]  = template[:,:3]  + template_trans
-
-        template = template[:, :self.num_input_channels]
-        part = part[:, :self.num_input_channels]
-        gt = gt[:, :self.num_input_channels]
+        if self.num_input_channels == 3:
+            template = template[:, :self.num_input_channels]
+            part = part[:, :self.num_input_channels]
+            gt = gt[:, :self.num_input_channels]
 
         return part, template, gt, index, mask_loss
 

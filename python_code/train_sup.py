@@ -38,7 +38,7 @@ def main():
     # parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
 
     # Network params
-    parser.add_argument('--num_input_channels', type=int, default=6)
+    parser.add_argument('--num_input_channels', type=int, default=12)
     parser.add_argument('--num_output_channels', type=int,
                         default=3)  # We assume the network return predicted xyz as 3 channels
     parser.add_argument('--use_same_subject', type=bool, default=True)
@@ -101,12 +101,12 @@ def main():
 
     # ===================CREATE DATASET================================= #
 
-    # dataset = AmassProjectionsDataset(split='train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
-    #                                   mask_penalty=opt.mask_xyz_penalty, use_same_subject=opt.use_same_subject,
-    #                                   train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
+    dataset = AmassProjectionsDataset(split='train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
+                                      mask_penalty=opt.mask_xyz_penalty, use_same_subject=opt.use_same_subject,
+                                      train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
 
-    dataset = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
-                                      train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
+    # dataset = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
+    #                                   train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
 
     # dataset = DfaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
     #                                    train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
