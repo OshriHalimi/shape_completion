@@ -61,12 +61,12 @@ classdef Mesh
             M.Nf = size(f,1);
             
             % Compute adjacency matrix
-%             fv = M.vertex_face_map(); B = logical(fv*fv.');
-%             M.A = logical(B-diag(diag(B)));
-%             % assert(logical(issymmetric(M.A)));
-%             % Compute number of edges
-%             M.Ne = nnz(M.A)/2;
-%             % Plotting Options
+            fv = M.vertex_face_map(); B = logical(fv*fv.');
+            M.A = logical(B-diag(diag(B)));
+            % assert(logical(issymmetric(M.A)));
+            % Compute number of edges
+            M.Ne = nnz(M.A)/2;
+            % Plotting Options
             M = Mesh_plot_params(M);
         end
 %-------------------------------------------------------------------------%

@@ -1,4 +1,5 @@
-clearvars; close all; clc; addpath(genpath(fileparts(fileparts(mfilename('fullpath')))));opengl software
+clearvars; close all; clc; addpath(genpath(fileparts(fileparts(mfilename('fullpath')))));
+warning('off', 'manopt:getHessian:approx'); opengl software;
 %-------------------------------------------------------------------------%
 %                              Control Panel
 %-------------------------------------------------------------------------%
@@ -18,27 +19,31 @@ c.exp_targets = {'EXP16_FaustTrained'};
 % Exp 10 - Not too good
 % experiment_names = list_file_names(c.exp_dir);
 
-% Visualization
-DISP_METH_CHOICES = {'seq','random','highestL2','lowestL2'};
+% Statistics
+c.no_self_match = 0;
+c.shuffle = 1; 
+c.n_stat_collect = 1;
+c.n_hist_bins = 20;
+c.run_correspondence = 1;
+c.geodesic_err_xlim = [0,0.25];
 
-c.no_self_match = 1;
+% Visualization
+DISP_METH_CHOICES = {'seq','highestL2','lowestL2'};
+c.disp_meth = DISP_METH_CHOICES{1};
 c.n_renders = 10;
-c.frame_rate = 0.3;
 c.write_gif = 0;
-c.disp_meth = DISP_METH_CHOICES{3};
+c.frame_rate = 0.3;
 
 %-------------------------------------------------------------------------%
 %
 %-------------------------------------------------------------------------%
 
+stats = [];
 for i=1:length(c.exp_targets)
     c.exp_name = c.exp_targets{i}; c.curr_exp_dir = fullfile(c.exp_dir,c.exp_name);
     [c,paths] = parse_paths(c);
     [stats] = collect_statistics(c,paths);
-    fprintf('The L2 MSE mean is %g\n',mean(stats.MSE_err));
-    fprintf('The max L2 MSE mean is %g\n',max(stats.MSE_err));
-    fprintf('The min L2 MSE mean is %g\n',min(stats.MSE_err));
-    %     load('matlab.mat','stats');
+    visualize_statistics(c,stats);
     visualize_results(c,paths,stats);
 end
 %-------------------------------------------------------------------------%
@@ -57,8 +62,6 @@ end
 
 switch c.disp_meth
     case 'seq' % Do nothing
-    case 'random'
-        paths = paths(randperm(size(paths,1)),:);
     case 'highestL2'
         [~,idx] = sort(stats.MSE_err,'descend');
         paths = paths(idx,:);
@@ -67,11 +70,8 @@ switch c.disp_meth
         paths = paths(idx,:);
 end
 
+% n_disconnected = 0; 
 for i=1:min(size(paths,1),c.n_renders)
-    
-    if c.no_self_match && strcmp(paths{i,3},paths{i,4})
-        continue; % When the template is exactly the ground truth
-    end
     
     [resM,gtM,partM,tpM] = load_path_tup(c,paths(i,:),1);
     if ~c.write_gif
@@ -81,6 +81,12 @@ for i=1:min(size(paths,1),c.n_renders)
     end
     
     visualize_meshes(c,gtM,tpM,partM,resM,paths{i,1});
+%     Nsegs = conn_comp(partM.A); 
+%     if Nsegs > 1
+%         n_disconnected = n_disconnected +1; 
+%         fprintf('%d : Num disconnected comp %d\n',n_disconnected,Nsegs); 
+%         visualize_conncomp(partM)
+%     end
     if c.write_gif
         writeVideo(v,getframe(gcf));
     end
@@ -92,43 +98,66 @@ end
 function [stats] = collect_statistics(c,paths)
 
 % N = size(paths,1);
-N=3;
+N = min(size(paths,1),c.n_stat_collect);
 MSE_err = zeros(N,1);
-geoerr_curves = zeros(N,1001);
-geoerr_refined_curves = zeros(N,1001);
-% Collect L2 Error
-% progressbar;
-ppm = ParforProgressbar(N);
-for i=1:N
-    [resv,gtv,partv,tempv,mask] = load_path_tup(c,paths(i,:),0);
-    diff = abs(resv - gtv).^2;
-    MSE_err(i) = sum(diff(:))/numel(resv); % MSE
-    
-    % Compute Geodesic Error: 
-    D = calc_dist_matrix(tempv,c.f);
-    matches_reg = knnsearch(resv,partv); 
-    matches_refined = refine_correspondence(partv,resv,matches_reg); 
-%     
-%     
-%     errs = calc_geo_err(matches_reg,mask, D);
-%     curve = calc_err_curve(errs, 0:0.001:1.0)/100;
-%     geoerr_curves(i,:) = curve;
-    
-    errs = calc_geo_err(matches_refined,mask, D);
-    curve = calc_err_curve(errs, 0:0.001:1.0)/100;
-    geoerr_refined_curves(i,:) = curve;
-    
-    ppm.increment();
-    %     progressbar(i/N);
+if c.run_correspondence
+    geoerr_curves = zeros(N,1001); geoerr_refined_curves = zeros(N,1001);
 end
-delete(ppm);
+% ppm = ParforProgressbar(N);
+for i=1:N
+    [resM,gtM,partM,tempM,mask] = load_path_tup(c,paths(i,:),1);
+    
+    % COMPUTE MSE 
+    diff = abs(resM.v - gtM.v).^2;
+    MSE_err(i) = sum(diff(:))/numel(resM.v); 
+    
+    if c.run_correspondence
+        % Compute Geodesic Error:
 
+        matches_reg = knnsearch(resM.v,partM.v);
+        D = calc_dist_matrix(tempM.v,tempM.f);
+        
+%         errs = calc_geo_err(matches_reg,mask, D);
+%         curve = calc_err_curve(errs, 0:0.001:1.0)/100;
+%         geoerr_curves(i,:) = curve;
+        tic;
+        matches_refined = refine_correspondence(partM.v,partM.f,tempM.v,tempM.f,matches_reg);
+        toc;
+        errs = calc_geo_err(matches_refined,mask, D);
+        curve = calc_err_curve(errs, 0:0.001:1.0)/100;
+        geoerr_refined_curves(i,:) = curve;
+    end
+%     ppm.increment();
+end
+% delete(ppm);
+
+% Experiment - Run Geodesic Error over 10 best examples
+% N = 10; ppm = ParforProgressbar(N);
+% if c.run_correspondence
+%     [~,idx] = sort(MSE_err,'ascend');
+%     paths = paths(idx,:);
+%     geoerr_curves = zeros(N,1001); geoerr_refined_curves = zeros(N,1001);
+%     parfor i=1:N
+%         [resv,~,partv,tempv,mask] = load_path_tup(c,paths(i,:),0);
+%         D = calc_dist_matrix(tempv,c.f);
+%         matches_reg = knnsearch(resv,partv);
+%         errs = calc_geo_err(matches_reg,mask, D);
+%         curve = calc_err_curve(errs, 0:0.001:1.0)/100;
+%         geoerr_curves(i,:) = curve;
+%         ppm.increment();
+%     end
+% end
+% delete(ppm);
+
+% Place the results in the struct
 stats.MSE_err = MSE_err;
-stats.geoerr_curves = geoerr_curves;
-stats.geoerr_refined_curves = geoerr_refined_curves; 
-plot_geodesic_error(geoerr_curves);
-plot_geodesic_error(geoerr_refined_curves);
-
+if c.run_correspondence
+    stats.geoerr_curves = geoerr_curves;
+    stats.geoerr_refined_curves = geoerr_refined_curves;
+end
+fprintf('The L2 MSE mean is %g\n',mean(stats.MSE_err));
+fprintf('The max L2 MSE mean is %g\n',max(stats.MSE_err));
+fprintf('The min L2 MSE mean is %g\n',min(stats.MSE_err));
 end
 
 %-------------------------------------------------------------------------%
@@ -137,19 +166,18 @@ end
 
 % TODO - Insert AMASS/DFAUST case
 
-function [tups] = load_faust_paths(ds_dir, outputs)
+function [paths] = load_faust_paths(ds_dir, outputs)
 % {'faust_completion_subjectIDfull_8_poseIDfull_0_subjectIDpart_8_poseIDpart_0_mask_1.mat'}
-N = length(outputs); tups = cell(N,4);
+N = length(outputs); paths = cell(N,4);
 for i=1:N
     ids = regexp(outputs{i},'\d*','Match'); % sub,pose,sub,pose,mask
-    tups{i,1} = outputs{i}; % The result
-    tups{i,2} = sprintf('tr_reg_0%s%s_%03s.mat',ids{3},ids{4},ids{5}); % The part
-    tups{i,3} = sprintf('tr_reg_0%s%s.mat',ids{3},ids{4}); % The Ground Truth
-    tups{i,4} = sprintf('tr_reg_0%s%s.mat',ids{1},ids{2}); % The Template
-    
-    assert(isfile(fullfile(ds_dir,tups{i,2})),"Could not find %s",tups{i,2});
-    assert(isfile(fullfile(ds_dir,tups{i,3})),"Could not find %s",tups{i,3});
-    assert(isfile(fullfile(ds_dir,tups{i,4})),"Could not find %s",tups{i,4}); % Not really needed
+    paths{i,1} = outputs{i}; % The result
+    paths{i,2} = sprintf('tr_reg_0%s%s_%03s.mat',ids{3},ids{4},ids{5}); % The part
+    paths{i,3} = sprintf('tr_reg_0%s%s.mat',ids{3},ids{4}); % The Ground Truth
+    paths{i,4} = sprintf('tr_reg_0%s%s.mat',ids{1},ids{2}); % The Template
+    assert(isfile(fullfile(ds_dir,paths{i,2})),"Could not find %s",paths{i,2});
+    assert(isfile(fullfile(ds_dir,paths{i,3})),"Could not find %s",paths{i,3});
+    assert(isfile(fullfile(ds_dir,paths{i,4})),"Could not find %s",paths{i,4}); % Not really needed
 end
 end
 
@@ -157,7 +185,15 @@ end
 %                         Helper Subroutines
 %-------------------------------------------------------------------------%
 
-function [c,tups] = parse_paths(c)
+function visualize_statistics(c,stats)
+
+figure('color','w'); histogram(stats.MSE_err,c.n_hist_bins);
+plot_geodesic_error(c,stats.geoerr_curves);
+plot_geodesic_error(c,stats.geoerr_refined_curves);
+
+end
+
+function [c,paths] = parse_paths(c)
 
 outputs = list_file_names(c.curr_exp_dir);
 assert(~isempty(outputs),"Directory %s does not contain meshes",c.curr_exp_dir);
@@ -165,11 +201,24 @@ assert(~isempty(outputs),"Directory %s does not contain meshes",c.curr_exp_dir);
 [ds_name] = split(outputs{1},'_'); ds_name = ds_name{1};
 switch ds_name
     case 'faust'
-        ds_dir = fullfile(c.data_dir,'faust_projections','dataset');
-        c.ds_dir = ds_dir;
-        tups = load_faust_paths(ds_dir,outputs);
+        c.ds_dir = fullfile(c.data_dir,'faust_projections','dataset');
+%         c.triv_dir = fullfile(c.data_dir,'faust_projections','range_data','res=100x180');
+        paths = load_faust_paths(c.ds_dir,outputs);
     otherwise
         error('Unknown dataset %s',ds_name);
+end
+
+if c.no_self_match
+    goners = false(size(paths,1),1);
+    for i=1:size(paths,1) % When the template is exactly the ground truth
+        if strcmp(paths{i,3},paths{i,4})
+            goners(i) = true;
+        end
+    end
+    paths(goners,:) = [];
+end
+if c.shuffle 
+     paths = paths(randperm(size(paths,1)),:);
 end
 end
 
@@ -203,16 +252,20 @@ function [resv,gtv,partv,tpv,mask] = load_path_tup(c,tup_record,as_mesh)
 % File path creation
 resfp =  fullfile(c.curr_exp_dir,tup_record{1});
 partfp = fullfile(c.ds_dir,tup_record{2});
+% parttrivfp = fullfile(c.triv_dir,tup_record{2}); 
 gtfp = fullfile(c.ds_dir,tup_record{3});
 tpfp = fullfile(c.ds_dir,tup_record{4});
 
 % Loading
 gt = load(gtfp); tp = load(tpfp); res = load(resfp); part = load(partfp);
-tpv = tp.full_shape(:,1:3); gtv = gt.full_shape(:,1:3);
+% parttriv = load(parttrivfp); 
+
+tpv = double(tp.full_shape(:,1:3)); gtv = double(gt.full_shape(:,1:3));
 mask = part.part_mask;
 partv =gtv(mask,:);
-resv = squeeze(res.pointsReconstructed(:,1:3,:)).';
-% partv = part.partial_shape(:,1:3);
+resv = double(squeeze(res.pointsReconstructed(:,1:3,:)).');
+% partv = part.partial_shape(:,1:3); 
+
 % Mean Removal - TODO
 tpv = tpv - mean(tpv);
 gtv = gtv - mean(gtv);
@@ -221,10 +274,13 @@ partv = partv - mean(partv);
 
 
 % Mesh Creation
+dead_verts = 1:size(gtv,1);
+dead_verts(mask) = []; 
 if as_mesh
     tpv = Mesh(tpv,c.f,'Template');
     gtv = Mesh(gtv,c.f,'Ground Truth');
-    partv = Mesh(partv,c.f,'Part');
+    partv = remove_vertices(gtv,dead_verts); 
+%     partv = Mesh(partv,c.f,'Part');
     resv = Mesh(resv,c.f,'Result');
 end
 
@@ -247,91 +303,14 @@ D = 0.5*(D+D');
 end
 
 
-function plot_geodesic_error(curves)
+function plot_geodesic_error(c,curves)
 % curves is [N_pairs,1001]
 avg_curve = sum(curves,1)/ size(curves,1);
 figure('color','w');
 plot(0:0.001:1.0, avg_curve,'LineWidth',2);
-xlim([0,0.1]); ylim([0,1]);
+xlim(c.geodesic_err_xlim); ylim([0,1]);
 xlabel('Geodesic error')
 ylabel('Correspondence Accuracy %')
 title('Geodesic error - all inter pairs')
-end
-
-function [matches_upscaled] = refine_correspondence(srcv,tgtv,matches)
-
-
-src.VERT = srcv; src.n = size(srcv,1);
-tgt.VERT = tgtv; tgt.n = size(tgtv,1);
-
-
-o.k = 100;
-o.icp_iters = 10;     % 0 for nearest neighbors
-o.use_svd   = true;  % false for basic least squares
-o.refine_iters = 25;  % 0 for no refinement
-
-[P,i,j] = create_sparse_matches(src, tgt, src, tgt, matches);
-sparse_matches = [i j];
-n_matches = size(sparse_matches,1);
-
-
-% Compute LBO eigenfunctions
-
-[src.W, ~, src.S] = calc_LB_FEM(src);
-[src.evecs, src.evals] = eigs(src.W, src.S, o.k, -1e-5);
-src.evals = diag(src.evals);
-[src.evals, idx] = sort(src.evals);
-src.evecs = src.evecs(:,idx);
-
-[tgt.W, ~, tgt.S] = calc_LB_FEM(tgt);
-[tgt.evecs, tgt.evals] = eigs(tgt.W, tgt.S, o.k, -1e-5);
-tgt.evals = diag(tgt.evals);
-[tgt.evals, idx] = sort(tgt.evals);
-tgt.evecs = tgt.evecs(:,idx);
-
-% Refine and upscale matches
-
-F = sparse(sparse_matches(:,1), 1:n_matches, 1, src.n, n_matches);
-G = sparse(sparse_matches(:,2), 1:n_matches, 1, tgt.n, n_matches);
-
-if o.refine_iters > 0
-    
-    A_init = src.evecs'*(src.S*F);
-    B_init = tgt.evecs'*(tgt.S*G);
-    [u,~,v] = svd(A_init*B_init');
-    C_init = u*v';
-    C_init = C_init';
-    
-    % fps among the input sparse matches
-    fps = fps_euclidean(src.VERT(sparse_matches(:,1),:), 1e3, 1);
-    
-    matches_upscaled = refine_matches(...
-        src, tgt, F(:,fps), G(:,fps), C_init, o);
-    
-    % do a final svd step
-    G_svd = sparse(matches_upscaled, 1:src.n, 1, tgt.n, src.n);
-    B_svd = src.evecs'*src.S;
-    A_svd = tgt.evecs'*(tgt.S*G_svd);
-    [u,~,v] = svd(A_svd*B_svd');
-    [~, matches_upscaled] = run_icp_fixed(tgt, src, v*u', o.icp_iters);
-    
-else
-    
-    B = src.evecs'*(src.S*F);
-    A = tgt.evecs'*(tgt.S*G);
-    
-    if ~o.use_svd
-        C_upscaled = A'\B';
-        C_upscaled = C_upscaled';
-    else
-        [u,~,v] = svd(A*B');
-        C_upscaled = u*v';
-        C_upscaled = C_upscaled';
-    end
-    
-    [~, matches_upscaled] = run_icp_fixed(tgt, src, C_upscaled, o.icp_iters);
-    
-end
-
 end
 
