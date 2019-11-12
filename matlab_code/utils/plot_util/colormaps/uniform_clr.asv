@@ -1,0 +1,63 @@
+function [clrmap] = uniform_clr(clr,N,clr2,ids)
+clr = lower(clr);
+
+switch clr
+    case 'tot_rand'
+        clrmap = rand(N,3);
+    case 'tot_rand_purple'
+        clrmap = hsv2rgb([randi([200,250],N,1) randi([200,255],N,2)]./255); 
+    case 'tot_rand_blue'
+        clrmap = hsv2rgb([randi([120,180],N,1) randi([200,255],N,2)]./255); 
+    case 'tot_rand_green'
+        clrmap = hsv2rgb([randi([60,120],N,1) randi([200,255],N,2)]./255); 
+    case 'tot_rand_red'
+        clrmap = hsv2rgb([randi([0,20],N,1) randi([200,255],N,2)]./255); 
+    otherwise
+        clrval = pick_clrval(clr);
+        clrmap = repmat(clrval,N,1);
+        if exist('clr2','var') && exist('ids','var') && ~isempty(ids)
+            clr2 = lower(clr2);
+            clrval2 = pick_clrval(clr2);
+            clrmap2 = repmat(clrval2,numel(ids),1);
+            clrmap(ids,:) = clrmap2;
+        end
+end
+end
+
+function [clrval] = pick_clrval(clr)
+switch clr
+    case {'o','orange'}
+        clrval = [253,106,2]./255; 
+    case {'b','blue'}
+        clrval = [0,0,1];
+    case {'k','black'}
+        clrval = [0,0,0];
+    case {'r','red'}
+        clrval = [1,0,0];
+    case {'t','turquoise'}
+        clrval = [64,224,208]./255;
+    case {'w','white'}
+        clrval = [1,1,1];
+    case {'c', 'cyan'}
+        clrval = [0,1,1];
+    case {'m','magenta'}
+        clrval = [1,0,1];
+    case {'g','green'}
+        clrval = [0,1,0];
+    case {'banana'}
+        clrval = [254,240,152]./255; 
+    case {'y','yellow'}
+        clrval = [1,1,0];
+    case {'pink'}
+        clrval = [254,127,156]./255;
+    case {'rand'}
+        clrval = rand(1,3);
+    case {'p','purple'}
+        clrval = [135,31,120]./255; 
+    case {'grey'}
+        clrval = [202,204,206]./255;
+        cas
+    otherwise
+        error('Unimplemented color');
+end
+end

@@ -5,7 +5,7 @@ function [fn,fp] = list_file_names(dir_name)
     fn = fn(~endsWith(fn,'.asv')); 
     fn = fn(~strcmp(fn,'desktop.ini')); 
     
-    assert(~isempty(fn),sprintf('Empty directory : \n%s',dir_name)); 
+    assert(~isempty(fn),sprintf('Empty/non-existant directory : \n%s',dir_name)); 
     fn = natsortfiles(fn).'; 
     fp = fullfile(dir_name,fn); 
 end
