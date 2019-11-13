@@ -100,12 +100,12 @@ class SHREC16CutsDavidDataset(data.Dataset):
 #
 # ----------------------------------------------------------------------------------------------------------------------#
 class DfaustProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, train_size, mask_penalty):
+    def __init__(self, train, num_input_channels, train_size, test_size, mask_penalty):
         self.train = train
         self.num_input_channels = num_input_channels
         self.path = Path(__file__).parents[0] / '..' / 'data' / 'dfaust'
         self.train_size = train_size
-        self.test_size = 1000
+        self.test_size = test_size
         # self.ref_tri = None
         self.mask_penalty = mask_penalty
         self.map = generate_dfaust_map()
@@ -427,12 +427,12 @@ class FaustProjectionsPart2PartDataset(data.Dataset):
 
 
 class FaustProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, train_size, mask_penalty):
+    def __init__(self, train, num_input_channels, train_size, test_size, mask_penalty):
         self.train = train
         self.num_input_channels = num_input_channels
         self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
         self.train_size = train_size
-        self.test_size = 1000
+        self.test_size = test_size
         # self.ref_tri = None
         self.mask_penalty = mask_penalty
 
