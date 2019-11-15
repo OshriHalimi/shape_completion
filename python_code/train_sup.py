@@ -50,7 +50,12 @@ def main():
     parser.add_argument('--amass_train_size', type=int, default=10000)
     parser.add_argument('--amass_validation_size', type=int, default=10000)
     parser.add_argument('--amass_test_size', type=int, default=200)
+    parser.add_argument('--dynamic_faust_train_size', type=int, default=10000)
+    parser.add_argument('--dynamic_faust_test_size', type=int, default=10000)
     parser.add_argument('--faust_train_size', type=int, default=8000)
+    parser.add_argument('--faust_test_size', type=int, default=2000)
+    parser.add_argument('--p2p_faust_train_size', type=int, default=80000) #part 2 part dataloader
+    parser.add_argument('--p2p_faust_test_size', type=int, default=20000)
     parser.add_argument('--filtering', type=float, default=0.09, help='amount of filtering to apply on l2 distances')
 
     # Losses: Use 0 to ignore the specific loss, and val > 0 to compute it. The higher the value, the more weight the loss is
@@ -100,16 +105,18 @@ def main():
     tmp_val_loss = AverageValueMeter()
 
     # ===================CREATE DATASET================================= #
+    dataset = FaustProjectionsPart2PartDataset(train=True, num_input_channels=opt.num_input_channels,
+                                      train_size=opt.p2p_faust_train_size, test_size = opt.p2p_faust_test_size)
 
-    dataset = AmassProjectionsDataset(split='train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
-                                      mask_penalty=opt.mask_xyz_penalty, use_same_subject=opt.use_same_subject,
-                                      train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
+    #dataset = AmassProjectionsDataset(split='train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
+    #                                  mask_penalty=opt.mask_xyz_penalty, use_same_subject=opt.use_same_subject,
+    #                                  train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
 
     # dataset = FaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
-    #                                   train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
+    #                                   train_size=opt.faust_train_size, test_size = opt.faust_test_size, mask_penalty=opt.mask_xyz_penalty)
 
     # dataset = DfaustProjectionsDataset(train=True, num_input_channels=opt.num_input_channels,
-    #                                    train_size=opt.faust_train_size, mask_penalty=opt.mask_xyz_penalty)
+    #                                    train_size=opt.dynamic_faust_train_size, test_size =opt.dynamic_faust_test_size, mask_penalty=opt.mask_xyz_penalty)
 
     dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True,
                                              num_workers=int(opt.workers), pin_memory=True)
