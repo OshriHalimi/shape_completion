@@ -7,10 +7,10 @@ tgt.VERT = tgt_v; tgt.n = size(tgt_v,1);
 tgt.TRIV = tgt_f; tgt.m = size(tgt_f,1);
 
 
-o.k = 100;
-o.icp_iters = 10;     % 0 for nearest neighbors
+o.k = 50;
+o.icp_iters = 15;     % 0 for nearest neighbors
 o.use_svd   = true;  % false for basic least squares
-o.refine_iters = 25;  % 0 for no refinement
+o.refine_iters = 0;  % 0 for no refinement
 
 [~,i,j] = create_sparse_matches(src, tgt, src, tgt, matches);
 sparse_matches = [i j];

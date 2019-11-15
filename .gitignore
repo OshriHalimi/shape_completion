@@ -3,7 +3,7 @@ data_old/
 log/
 .idea/
 test_list_000_003.mat
-
+stats.mat
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

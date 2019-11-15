@@ -1,4 +1,4 @@
-function errs = calc_geo_err(matches, gt_matches, D)
+function [curve,errs] = calc_geo_err(matches, gt_matches, D)
 
 nm = length(matches);
 errs = zeros(nm,1);
@@ -9,4 +9,5 @@ end
 
 errs = errs ./ max(max(D));
 
+curve = calc_err_curve(errs, 0:0.001:1.0)/100;
 end

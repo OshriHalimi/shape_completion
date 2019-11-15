@@ -17,8 +17,8 @@ options.refine_iters = 25;  % 0 for no refinement
 
 
 %% Load High Resolution Scans
-M = loadoff_colorFix(fullfile(up_script_dir(0),'shrec_holes','all_shapes','test','holes_dog_shape_4.off')); %M is the source model
-N = loadoff_colorFix(fullfile(up_script_dir(0),'shrec_holes','all_shapes','null','dog.off')); %N is the target model
+M = loadoff_colorFix(fullfile(up_script_dir(3),'data','shrec16_evaluation','shrec_holes','all_shapes','test','holes_dog_shape_4.off')); %M is the source model
+N = loadoff_colorFix(fullfile(up_script_dir(3),'data','shrec16_evaluation','shrec_holes','all_shapes','null','dog.off')); %N is the target model
 
 M.n = size(M.X,1); M.m = size(M.TRIV,1); M.VERT = [M.X, M.Y, M.Z];
 N.n = size(N.X,1); N.m = size(N.TRIV,1); N.VERT = [N.X, N.Y, N.Z];
@@ -31,7 +31,7 @@ N_dsmpl = N;
 % Warning! sparse_matches matrix dimensions is like the cleaned models and not the
 % raw scans!!!
 
-result = load(fullfile(up_script_dir(0),'SHREC16_dog_holse_unsupervised_network_results','test_list_000_004.mat')); softCorr = squeeze(result.softCorr);
+result = load(fullfile(up_script_dir(3),'data','refinement_demo','test_list_000_004.mat')); softCorr = squeeze(result.softCorr);
 [~, matches_dsmpl] = max(softCorr,[],1);
 
 [P,i,j] = create_sparse_matches(M_dsmpl, N_dsmpl, M, N, matches_dsmpl);

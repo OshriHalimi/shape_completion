@@ -44,7 +44,7 @@ function [ h ] = fullfig(varargin)
 % SANITY:
 h =  findobj('type','figure');
 n = length(h);
-if n> 20
+if n> 30
     error('Cannot open more figures');
 end
 bufx = 0;
