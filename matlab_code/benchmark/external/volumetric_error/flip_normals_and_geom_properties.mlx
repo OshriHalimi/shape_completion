@@ -1,0 +1,8 @@
+<!DOCTYPE FilterScript>
+<FilterScript>
+ <filter name="Invert Faces Orientation">
+  <Param name="forceFlip" tooltip="If selected, the normals will always be flipped; otherwise, the filter tries to set them outside" value="true" description="Force Flip" type="RichBool"/>
+  <Param name="onlySelected" tooltip="If selected, only selected faces will be affected" value="false" description="Flip only selected faces" type="RichBool"/>
+ </filter>
+ <xmlfilter name="Compute Geometric Measures"/>
+</FilterScript>
