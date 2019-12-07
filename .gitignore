@@ -1,10 +1,10 @@
 data/
 data_old/
-stats_cache.mat
-noise_cache.mat
+*/stats_cache.mat
+*/noise_cache.mat
 *cache.mat
 article_stats.mat
-/tmp
+tmp/
 log/
 .idea/
 test_list_000_003.mat
