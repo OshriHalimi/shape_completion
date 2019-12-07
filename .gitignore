@@ -1,5 +1,6 @@
 data/
 data_old/
+results/
 */stats_cache.mat
 */noise_cache.mat
 *cache.mat
