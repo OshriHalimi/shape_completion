@@ -1,590 +1,473 @@
-from __future__ import print_function
-import torch.utils.data as data
-import torch
-import numpy as np
-import scipy.io as sio
-import json
 import os
-import time
-import scipy
-from numpy.matlib import repmat
-from utils import calc_vnrmls, test_normals, normr
-from pathlib import Path
-from support_material.dfaust_query import generate_dfaust_map
+import torch
+from torchvision import datasets
+from torchvision import transforms
+from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
+import matplotlib.pyplot as plt
+import numpy as np
+from gen_utils import banner
 
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                Base Class
+# ----------------------------------------------------------------------------------------------------------------------
+class ClassificationDataset:
+    def __init__(self, data_dir, class_labels, shape, testset_size, trainset_size, dataset_space, expected_files):
+        # Basic Dataset Info
+        self._class_labels = tuple(class_labels)
+        self._shape = tuple(shape)
+        self._testset_size = testset_size
+        self._trainset_size = trainset_size
+        self._dataset_space = dataset_space
+        self._data_dir = data_dir
 
-def read_off_full(off_file):
-    vertexBuffer = []
-    indexBuffer = []
-    with open(off_file, "r") as modelfile:
-        first = modelfile.readline().strip()
-        if first != "OFF":
-            raise (Exception("not a valid OFF file ({})".format(first)))
-
-        parameters = modelfile.readline().strip().split()
-
-        if len(parameters) < 2:
-            raise (Exception("OFF file has invalid number of parameters"))
-
-        for i in range(int(parameters[0])):
-            coordinates = modelfile.readline().split()
-            vertexBuffer.append([float(coordinates[0]), float(coordinates[1]), float(coordinates[2])])
-
-        for i in range(int(parameters[1])):
-            indices = modelfile.readline().split()
-            indexBuffer.append([int(indices[1]), int(indices[2]), int(indices[3])])
-
-    return np.array(vertexBuffer), np.array(indexBuffer)
-
-
-DFAUST_SIDS = ['50002', '50004', '50007', '50009', '50020',
-               '50021', '50022', '50025', '50026', '50027']
-
-_, REF_TRI = read_off_full(
-    Path(__file__).parents[0] / '..' / 'data' / 'amass' / 'train' / 'original' / 'subjectID_1_poseID_0.OFF')
-
-
-# -----------------------------------------------------------------------------------------#
-#
-# ----------------------------------------------------------------------------------------------------------------------#
-class IndexExceedDataset(Exception):
-    def __init__(self, index, dataset_size):
-        self.index = index
-        self.dataset_size = dataset_size
-
-    def __str__(self):
-        message = "Index exceeds dataset size! index is:{}, size is:{}".format(self.index, self.dataset_size)
-        return repr(message)
-
-
-class SHREC16CutsDavidDataset(data.Dataset):
-    def __init__(self):
-        # self.path = "D:/oshri.halimi/shape_completion/data/shrec16_evaluation/train_cuts_david/"
-        # self.path = "D:/oshri.halimi/shape_completion/data/tosca_plane_cut/david/"
-        self.path = "D:/oshri.halimi/shape_completion/data/faust_projections/dataset/"
-
-    def get_shapes(self, index):
-        part_id = index + 1
-        # name_part = "cuts_david_shape_" + "{}".format(part_id)
-        # name_part = "david13_part"
-        name_part = "tr_reg_097_001"
-        x = sio.loadmat(self.path + name_part + ".mat")
-        part = x['partial_shape']  # OH: matrix of vertices
-
-        # name_full = "david"
-        # name_full = "david13"
-        name_full = "tr_reg_092"
-        x = sio.loadmat(self.path + name_full + ".mat")
-        template = x['full_shape']  # OH: matrix of vertices
-
-        # part_trans = 0.3*np.random.rand(1,3) - 0.15
-        # template_trans = 0.3*np.random.rand(1, 3) - 0.15
-        # part[:,:3] = part[:,:3]  + part_trans
-        # template[:,:3]  = template[:,:3]  + template_trans
-
-        return part, template, name_part, name_full
-
-    def __getitem__(self, index):
-        if index < 1:
-            part, template, name_part, name_full = self.get_shapes(index)
+        if not isinstance(expected_files, list):
+            self._expected_files = [expected_files]
         else:
-            raise IndexExceedDataset(index, self.__len__())
+            self._expected_files = expected_files
 
-        return part, template, name_part, name_full, index
+        self._download = True if any(
+            not os.path.isfile(os.path.join(self._data_dir, file)) for file in self._expected_files) else False
 
-    def __len__(self):
-        return 1
+    def data_summary(self, show_sample=False):
+        img_type = 'Grayscale' if self._shape[0] == 1 else 'Color'
+        banner('Dataset Summary')
+        print(f'\n* Dataset Name: {self.name()} , {img_type} images')
+        print(f'* Data shape: {self._shape}')
+        print(f'* Training Set Size: {self._trainset_size} samples')
+        print(f'* Test Set Size: {self._testset_size} samples')
+        print(f'* Estimated Hard-disk space required: ~{convert_bytes(self._dataset_space)}')
+        print(f'* Number of classes: {self.num_classes()}')
+        print(f'* Class Labels:\n{self._class_labels}')
+        banner()
+        if show_sample:
+            self.trainset(show_sample=True)
 
+    def name(self):
+        assert self.__class__.__name__ != 'ClassificationDataset'
+        return self.__class__.__name__
 
-# ----------------------------------------------------------------------------------------------------------------------#
-#
-# ----------------------------------------------------------------------------------------------------------------------#
-class DfaustProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, train_size, test_size, mask_penalty):
-        self.train = train
-        self.num_input_channels = num_input_channels
-        self.path = Path(__file__).parents[0] / '..' / 'data' / 'dfaust'
-        self.train_size = train_size
-        self.test_size = test_size
-        # self.ref_tri = None
-        self.mask_penalty = mask_penalty
-        self.map = generate_dfaust_map()
+    def dataset_space(self):
+        return self._dataset_space
 
-    def triangulation(self, use_torch=False):
-        # if self.ref_tri is None:
-        #     self.ref_tri = REF_TRI
+    def num_classes(self):
+        return len(self._class_labels)
 
-        if use_torch:
-            return REF_TRI, torch.from_numpy(REF_TRI).long().cuda()
+    def class_labels(self):
+        return self._class_labels
+
+    def input_channels(self):
+        return self._shape[0]
+
+    def shape(self):
+        return self._shape
+
+    def max_test_size(self):
+        return self._testset_size
+
+    def max_train_size(self):
+        return self._trainset_size
+
+    def testset(self, batch_size, max_samples=None, device='cuda'):
+
+        if device.lower() == 'cuda' and torch.cuda.is_available():
+            num_workers, pin_memory = 1, True
         else:
-            return REF_TRI
+            print('Warning: Did not find working GPU - Loading dataset on CPU')
+            num_workers, pin_memory = 4, False
 
-    def translate_index(self):
-        sid = np.random.choice(10)  # 10 Subjects
-        sid_name = DFAUST_SIDS[sid]
-        sub_obj = self.map.sub_by_id(sid_name)[0]
-        seq_ids = np.random.choice(len(sub_obj.seq_grp), replace=False,
-                                   size=(2))  # Don't allow the trivial reconstruction
-        frame_gt_name = np.random.choice(sub_obj.frame_cnts[seq_ids[0]])
-        frame_temp_name = np.random.choice(sub_obj.frame_cnts[seq_ids[1]])
-        seq_gt_name = sub_obj.seq_grp[seq_ids[0]]
-        seq_temp_name = sub_obj.seq_grp[seq_ids[1]]
-        ang_name = np.random.choice(10)  # 10 Angles
+        test_dataset = self._test_importer()
+        # print(sum(1 for _ in test_dataset))
 
-        return sid_name, seq_gt_name, seq_temp_name, frame_gt_name, frame_temp_name, ang_name
-
-    def get_shapes(self):
-
-        sid_name, seq_gt_name, seq_temp_name, frame_gt_name, frame_temp_name, ang_name = self.translate_index()
-
-        gt_fp = self.path / 'unpacked' / sid_name / seq_gt_name / f'{frame_gt_name:05}.OFF'
-        template_fp = self.path / 'unpacked' / sid_name / seq_temp_name / f'{frame_temp_name:05}.OFF'
-        mask_fp = self.path / 'projections' / f'{sid_name}{seq_gt_name}{frame_gt_name:05}_{ang_name}.npz'
-
-        template = read_off_2(template_fp)
-        gt = read_off_2(gt_fp)
-        mask = read_npz_2(mask_fp)
-
-        if self.num_input_channels == 6 or self.num_input_channels == 12:
-            template_n = calc_vnrmls(template, self.triangulation())
-            # test_normals(template, self.triangulation(), template_n)
-            gt_n = calc_vnrmls(gt, self.triangulation())
-            template = np.concatenate((template, template_n), axis=1)
-            gt = np.concatenate((gt, gt_n), axis=1)
-            if self.num_input_channels == 12:
-                x, y, z = template[:, 0, :], template[:, 1, :], template[:, 2, :]
-                template = np.concatenate((template, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
-                x, y, z = gt[:, 0, :], gt[:, 1, :], gt[:, 2, :]
-                gt = np.concatenate((gt, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
-
-        mask_loss = np.ones(template.shape[0])
-        mask_loss[mask] = self.mask_penalty
-        mask_full = np.zeros(template.shape[0], dtype=int)
-        mask_full[:len(mask)] = mask
-        mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
-        if len(mask) == 1:
-            raise Exception("MASK IS CORRUPTED")
-
-        part = gt[mask_full]
-
-        return template, part, gt, sid_name, sid_name, seq_temp_name, seq_gt_name, ang_name, mask_loss
-
-    def __getitem__(self, index):
-        template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat = self.get_shapes()
-        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, index
-
-    def __len__(self):
-        return self.train_size
-
-
-# ----------------------------------------------------------------------------------------------------------------------#
-#
-# ----------------------------------------------------------------------------------------------------------------------#
-class AmassProjectionsDataset(data.Dataset):
-    def __init__(self, split, num_input_channels, filtering, mask_penalty,
-                 use_same_subject=True, train_size=100000, validation_size=10000, test_size=300):
-        self.split = split
-        self.num_input_channels = num_input_channels
-        self.use_same_subject = use_same_subject
-        self.train_size = train_size
-        self.validation_size = validation_size
-        self.test_size = test_size
-        self.filtering = filtering
-        self.mask_penalty = mask_penalty
-        # self.ref_tri = None
-
-        if self.split == 'train':
-            self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "train")
-            print("Train set path:")
-            print(self.path)
-            self.dict_counts = json.load(open(os.path.join("support_material", "train_dict.json")))
-        if self.split == 'validation':
-            self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "vald")
-            print("Validation set path:")
-            print(self.path)
-            self.dict_counts = json.load(open(os.path.join("support_material", "vald_dict.json")))
-        if self.split == 'test':
-            self.path = os.path.join(os.getcwd(), os.pardir, "data", "amass", "test")
-            print("Test set path:")
-            print(self.path)
-            self.dict_counts = json.load(open(os.path.join("support_material", "test_dict.json")))
-
-    def triangulation(self, use_torch=False):
-        # if self.ref_tri is None:
-        #     self.ref_tri = REF_TRI
-
-        if use_torch:
-            return REF_TRI, torch.from_numpy(REF_TRI).long().cuda()
+        if max_samples < self._testset_size:
+            testset_siz = max_samples
+            test_sampler = SequentialSampler(list(range(max_samples)))
         else:
-            return REF_TRI
+            test_sampler = None
+            testset_siz = self._testset_size
 
-    def translate_index(self):
+        test_gen = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler,
+                                               num_workers=num_workers, pin_memory=pin_memory)
 
-        subject_id_full = np.random.choice(list(map(int, self.dict_counts.keys())))
-        while subject_id_full == 288:  # this needs to be fixed/removed (has only one pose???)
-            subject_id_full = np.random.choice(list(map(int, self.dict_counts.keys())))
+        return test_gen, testset_siz
 
-        if self.use_same_subject == True:
-            subject_id_part = subject_id_full
+    def trainset(self, batch_size=128, valid_size=0.1, max_samples=None, augment=True, shuffle=True, random_seed=None,
+                 show_sample=False, device='cuda'):
+
+        if device.lower() == 'cuda' and torch.cuda.is_available():
+            num_workers, pin_memory = 1, True
         else:
-            subject_id_part = np.random.choice(list(map(int, self.dict_counts.keys())))
-            while subject_id_part == 288:  # this needs to be fixed/removed (has only one pose???)
-                subject_id_part = np.random.choice(list(map(int, self.dict_counts.keys())))
+            print('Warning: Did not find working GPU - Loading dataset on CPU')
+            num_workers, pin_memory = 4, False
 
-        pose_id_full = np.random.choice(self.dict_counts[str(subject_id_full)])
-        pose_id_part = np.random.choice(self.dict_counts[str(subject_id_part)])
-        mask_id = np.random.choice(10)
+        max_samples = self._trainset_size if max_samples is None else min(self._trainset_size, max_samples)
+        assert ((valid_size >= 0) and (valid_size <= 1)), "[!] Valid_size should be in the range [0, 1]."
 
-        return subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id
+        train_dataset = self._train_importer(augment)
+        # print(sum(1 for _ in train_dataset)) #Can be used to discover the trainset size if needed
 
-    def get_shapes(self):
+        val_dataset = self._train_importer(False)  # Don't augment validation
 
-        subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id = self.translate_index()
-        template = self.read_off(subject_id_full, pose_id_full)
-        gt = self.read_off(subject_id_part, pose_id_part)
-        euc_dist = np.mean((template - gt) ** 2)
+        indices = list(range(self._trainset_size))
+        if shuffle:
+            if random_seed is not None:
+                np.random.seed(random_seed)
+            np.random.shuffle(indices)
 
-        if self.filtering > 0:
-            if self.use_same_subject == True:
-                while np.random.rand() > (euc_dist / self.filtering):
-                    subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id = self.translate_index()
-                    template = self.read_off(subject_id_full, pose_id_full)
-                    gt = self.read_off(subject_id_part, pose_id_part)
-                    euc_dist = np.mean((template - gt) ** 2)
+        indices = indices[:max_samples]  # Truncate to desired size
+        # Split validation
+        split = int(np.floor(valid_size * max_samples))
+        train_ids, valid_ids = indices[split:], indices[:split]
 
-        if self.num_input_channels == 6 or self.num_input_channels == 12:
-            template_n = calc_vnrmls(template, self.triangulation())
-            # test_normals(template, self.triangulation(), template_n)
-            gt_n = calc_vnrmls(gt, self.triangulation())
-            template = np.concatenate((template, template_n), axis=1)
-            gt = np.concatenate((gt, gt_n), axis=1)
-            if self.num_input_channels == 12:
-                x, y, z = template[:, 0, np.newaxis], template[:, 1, np.newaxis], template[:, 2, np.newaxis]
-                template = np.concatenate((template, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
-                x, y, z = gt[:, 0, np.newaxis], gt[:, 1, np.newaxis], gt[:, 2, np.newaxis]
-                gt = np.concatenate((gt, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
+        num_train = len(train_ids)
+        num_valid = len(valid_ids)
 
-        mask = self.read_npz(subject_id_part, pose_id_part, mask_id)
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size,
+                                                   sampler=SubsetRandomSampler(train_ids), num_workers=num_workers,
+                                                   pin_memory=pin_memory)
+        valid_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size,
+                                                   sampler=SubsetRandomSampler(valid_ids), num_workers=num_workers,
+                                                   pin_memory=pin_memory)
 
-        mask_loss = np.ones(template.shape[0])
-        mask_loss[mask] = self.mask_penalty
-        mask_full = np.zeros(template.shape[0], dtype=int)
-        mask_full[:len(mask)] = mask
-        mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
-        assert len(mask) > 1, "Mask is Corrupted"
-        part = gt[mask_full]
+        if show_sample: self._show_sample(train_dataset, 4)
 
-        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss
+        return (train_loader, num_train), (valid_loader, num_valid)
 
-    def read_npz(self, s_id, p_id, m_id):
+    def _show_sample(self, train_dataset, siz):
+        images, labels = iter(torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=siz ** 2)).next()
+        plot_images(images.numpy().transpose([0, 2, 3, 1]), labels, self._class_labels, siz=siz)
 
-        name = os.path.join(self.path, "projection",
-                            "subjectID_{}_poseID_{}_projectionID_{}.npz".format(s_id, p_id, m_id))
-        mask = np.load(name)
-        mask = mask["mask"]
+    def _train_importer(self, augment):
+        raise NotImplementedError
 
-        return mask
-
-    def read_off(self, s_id, p_id):
-
-        name = os.path.join(self.path, "original", "subjectID_{}_poseID_{}.OFF".format(s_id, p_id))
-
-        lines = [l.strip() for l in open(name, "r")]
-        words = [int(i) for i in lines[1].split(' ')]
-        vn = words[0]
-        vertices = np.zeros((vn, 3), dtype='float32')
-        for i in range(2, 2 + vn):
-            vertices[i - 2] = [float(w) for w in lines[i].split(' ')]
-
-        return vertices
-
-    def __getitem__(self, index):
-
-        template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat = self.get_shapes()
-        return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss_mat, index
-
-    def __len__(self):
-        if self.split == 'train':
-            return self.train_size
-        if self.split == 'validation':
-            return self.validation_size
-        if self.split == 'test':
-            return self.test_size
+    def _test_importer(self):
+        raise NotImplementedError
 
 
-# ----------------------------------------------------------------------------------------------------------------------#
-#
-# ----------------------------------------------------------------------------------------------------------------------#
-class FaustProjectionsPart2PartDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, train_size, test_size):
-        self.train = train
-        self.num_input_channels = num_input_channels
-        self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
-        self.train_size = train_size
-        self.test_size = test_size
-        # self.ref_tri = None
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                  Implementations
+# ----------------------------------------------------------------------------------------------------------------------
 
-    def translate_index(self, index):
-        subject_id = np.floor(index / 10000).astype(int)
-        index = index % 10000
-        pose_id_part_1 = np.floor(index / 1000).astype(int)
-        index = index % 1000
-        pose_id_part_2 = np.floor(index / 100).astype(int)
-        index = index % 100
-        mask_id_part_1 = np.floor(index / 10).astype(int) + 1
-        index = index % 10
-        mask_id_part_2 = index + 1
-        return subject_id, pose_id_part_1, pose_id_part_2, mask_id_part_1, mask_id_part_2
+class CIFAR10(ClassificationDataset):
+    def __init__(self, data_dir):
+        super().__init__(
+            data_dir=data_dir,
+            class_labels=['airplane', 'automobile', 'bird', 'cat', 'deer', 'dog', 'frog', 'horse', 'ship',
+                          'truck'],
+            shape=(3, 32, 32),
+            testset_size=10000,
+            trainset_size=50000,
+            dataset_space=170500096,
+            expected_files=os.path.join('CIFAR10', 'cifar-10-python.tar.gz')
+        )
 
-    def triangulation(self, use_torch=False):
-        # if self.ref_tri is None:
-        #     self.ref_tri = REF_TRI
+    def _train_importer(self, augment):
+        ops = [transforms.ToTensor(), transforms.Normalize(mean=(0.4914, 0.4822, 0.4465), std=(0.2023, 0.1994, 0.2010))]
+        if augment:
+            ops.insert(0, transforms.RandomCrop(32, padding=4))
+            ops.insert(0, transforms.RandomHorizontalFlip())
+        return datasets.CIFAR10(root=os.path.join(self._data_dir, 'CIFAR10'), train=True, download=self._download,
+                                transform=transforms.Compose(ops))
 
-        if use_torch:
-            return REF_TRI, torch.from_numpy(REF_TRI).long().cuda()
+    def _test_importer(self):
+        ops = [transforms.ToTensor(), transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))]
+        return datasets.CIFAR10(root=os.path.join(self._data_dir, 'CIFAR10'), train=False, download=self._download,
+                                transform=transforms.Compose(ops))
+
+
+class MNIST(ClassificationDataset):
+    def __init__(self, data_dir):
+        super().__init__(data_dir=data_dir,
+                         class_labels=['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine'],
+                         shape=(1, 28, 28), testset_size=10000, trainset_size=60000, dataset_space=110403584,
+                         expected_files=[os.path.join('MNIST', 'processed', 'training.pt'),
+                                         os.path.join('MNIST', 'processed', 'test.pt')])
+
+    def _train_importer(self, augment):  # Convert 1 channels -> 3 channels #transforms.Grayscale(3),
+        ops = [transforms.ToTensor(),
+               transforms.Normalize(mean=(0.1307,), std=(0.3081,))]
+        return datasets.MNIST(root=os.path.join(self._data_dir, 'MNIST'), train=True, download=self._download,
+                              transform=transforms.Compose(ops))
+
+    def _test_importer(self):  # Convert 1 channels -> 3 channels
+        ops = [transforms.ToTensor(),
+               transforms.Normalize(mean=(0.1307,), std=(0.3081,))]
+        return datasets.MNIST(root=os.path.join(self._data_dir, 'MNIST'), train=False, download=self._download,
+                              transform=transforms.Compose(ops))
+
+
+class FashionMNIST(ClassificationDataset):
+    def __init__(self, data_dir):
+        super().__init__(data_dir=data_dir,
+                         class_labels=['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 'Sandal', 'Shirt',
+                                       'Sneaker', 'Bag', 'Ankle boot'],
+                         shape=(1, 28, 28), testset_size=10000, trainset_size=60000, dataset_space=110403584,
+                         expected_files=[os.path.join('FashionMNIST', 'processed', 'training.pt'),
+                                         os.path.join('FashionMNIST', 'processed', 'test.pt')])
+
+    def _train_importer(self, augment):  # Convert 1 channels -> 3 channels #transforms.Grayscale(3),
+        ops = [transforms.ToTensor()]
+        return datasets.FashionMNIST(root=os.path.join(self._data_dir, 'FashionMNIST'), train=True,
+                                     download=self._download,
+                                     transform=transforms.Compose(ops))
+
+    def _test_importer(self):
+        ops = [transforms.ToTensor()]
+        return datasets.FashionMNIST(root=os.path.join(self._data_dir, 'FashionMNIST'), train=False,
+                                     download=self._download,
+                                     transform=transforms.Compose(ops))
+
+
+class STL10(ClassificationDataset):
+    def __init__(self, data_dir):
+        super().__init__(data_dir=data_dir,
+                         class_labels=['airplane', 'bird', 'car', 'cat', 'deer', 'dog', 'horse', 'monkey', 'ship',
+                                       'truck'],
+                         shape=(3, 96, 96), testset_size=8000, trainset_size=5000, dataset_space=2640400384,
+                         expected_files=os.path.join('STL10', 'stl10_binary.tar.gz'))
+
+    def _train_importer(self, augment):
+        ops = [transforms.ToTensor()]
+        return datasets.STL10(root=os.path.join(self._data_dir, 'STL10'), split='train', download=self._download,
+                              transform=transforms.Compose(ops))
+
+    def _test_importer(self):
+        ops = [transforms.ToTensor()]
+        return datasets.STL10(root=os.path.join(self._data_dir, 'STL10'), split='test', download=self._download,
+                              transform=transforms.Compose(ops))
+
+
+class TinyImageNet(ClassificationDataset):  # TODO - Implement support for Val Directory
+    def __init__(self, data_dir):
+        super().__init__(data_dir=data_dir,
+                         class_labels=TINY_IMAGENET_NAMES,
+                         shape=(3, 64, 64), testset_size=10000, trainset_size=100000, dataset_space=497799168,
+                         expected_files=[os.path.join('TinyImageNet', 'train'), os.path.join('TinyImageNet', 'test')])
+
+    def _train_importer(self, augment):
+        ops = [transforms.ToTensor()]
+        if augment:
+            ops.insert(0, transforms.RandomHorizontalFlip())
+
+        return datasets.ImageFolder(root=os.path.join(self._data_dir, 'TinyImageNet', 'train'),
+                                    transform=transforms.Compose(ops))
+
+    def _test_importer(self):
+        ops = [transforms.ToTensor()]
+        return datasets.ImageFolder(root=os.path.join(self._data_dir, 'TinyImageNet', 'test'),
+                                    transform=transforms.Compose(ops))
+
+
+class ImageNet(ClassificationDataset):
+    # TODO- There might be a mismatch between class labels and the IMAGE_NETLABEL_NAMES - See TinyImageNet_label_names()
+    def __init__(self, data_dir):
+        super().__init__(data_dir=data_dir,
+                         class_labels=IMAGE_NETLABEL_NAMES,
+                         shape=(3, 256, 256), testset_size=10000, trainset_size=100000, dataset_space=497799168,
+                         expected_files=[os.path.join('ImageNet', 'train'), os.path.join('ImageNet', 'test')])
+
+    def _train_importer(self, augment):
+        ops = [transforms.ToTensor(), transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))]
+        if augment:
+            ops.insert(0, transforms.Resize(256))
+            ops.insert(0, transforms.RandomResizedCrop(224))
+            ops.insert(0, transforms.RandomHorizontalFlip())
         else:
-            return REF_TRI
+            ops.insert(0, transforms.Resize(256))
+            ops.insert(0, transforms.CenterCrop(224))
 
-    def subject_and_pose2shape_ind(self, subject_id, pose_id):
-        ind = subject_id * 10 + pose_id
-        return ind
+        return datasets.ImageFolder(root=os.path.join(self._data_dir, 'ImageNet', 'train'),
+                                    transform=transforms.Compose(ops))
 
-    def get_shapes(self, index):
-        subject_id, pose_id_part_1, pose_id_part_2, mask_id_part_1, mask_id_part_2 = self.translate_index(index)
-        part_1_id = self.subject_and_pose2shape_ind(subject_id, pose_id_part_1)
-        part_2_id = self.subject_and_pose2shape_ind(subject_id, pose_id_part_2)
+    def _test_importer(self):
+        ops = [transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor(),
+               transforms.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))]
+        return datasets.ImageFolder(root=os.path.join(self._data_dir, 'ImageNet', 'test'),
+                                    transform=transforms.Compose(ops))
 
-        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_1_id) + ".mat"))
-        full_1 = x['full_shape']
-        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_2_id) + ".mat"))
-        full_2 = x['full_shape']
-        x = sio.loadmat(
-            os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_1_id) + "_" + "{0:0=3d}".format(mask_id_part_1) + ".mat"))
 
-        mask_1 = np.squeeze(x['part_mask'] - 1)  # -1 Matlab indices start with 1 and not 0
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                  Implementations
+# ----------------------------------------------------------------------------------------------------------------------
+class Datasets:
+    _implemented = {
+        'MNIST': MNIST,
+        'CIFAR10': CIFAR10,
+        'ImageNet': ImageNet,
+        'TinyImageNet': TinyImageNet,
+        'STL10': STL10,
+        'FashionMNIST': FashionMNIST
+    }
 
-        x = sio.loadmat(
-            os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_2_id) + "_" + "{0:0=3d}".format(mask_id_part_2) + ".mat"))
+    @staticmethod
+    def which():
+        return tuple(Datasets._implemented.keys())
 
-        mask_2 = np.squeeze(x['part_mask'] - 1)  # -1 Matlab indices start with 1 and not 0
+    @staticmethod
+    def get(dataset_name, data_dir):
+        return Datasets._implemented[dataset_name](data_dir)
 
-        if self.num_input_channels == 12:
-            x, y, z = full_1[:,0,np.newaxis], full_1[:,1,np.newaxis], full_1[:,2,np.newaxis]
-            full_1 = np.concatenate((full_1, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
-            x, y, z = full_2[:,0,np.newaxis], full_2[:,1,np.newaxis], full_2[:,2,np.newaxis]
-            full_2 = np.concatenate((gt, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
 
-        mask_full_1 = np.zeros(full_1.shape[0], dtype=int)
-        mask_full_1[:len(mask_1)] = mask_1
-        mask_full_1[len(mask_1):] = np.random.choice(mask_1, full_1.shape[0] - len(mask_1), replace=True)
-        part_1 = full_1[mask_full_1]
+# ----------------------------------------------------------------------------------------------------------------------
+#                                               	General
+# ----------------------------------------------------------------------------------------------------------------------
+def convert_bytes(num):
+    """
+    this function will convert bytes to MB.... GB... etc
+    """
+    for x in ['bytes', 'KB', 'MB', 'GB', 'TB']:
+        if num < 1024.0:
+            return "%3.1f %s" % (num, x)
+        num /= 1024.0
 
-        mask_full_2 = np.zeros(full_2.shape[0], dtype=int)
-        mask_full_2[:len(mask_2)] = mask_2
-        mask_full_2[len(mask_2):] = np.random.choice(mask_2, full_2.shape[0] - len(mask_2), replace=True)
-        part_2 = full_2[mask_full_2]
 
-        gt = full_2[mask_full_1]
+def plot_images(images, cls_true, label_names, cls_pred=None, siz=3):
+    # Adapted from https://github.com/Hvass-Labs/TensorFlow-Tutorials/
+    fig, axes = plt.subplots(siz, siz)
 
-        assert len(mask_1) > 1, "Mask of Part 1 is Corrupted"
-        assert len(mask_2) > 1, "Mask of Part 2 is Corrupted"
+    for i, ax in enumerate(axes.flat):
+        # plot img
+        ax.imshow(images[i, :, :, :].squeeze(), interpolation='spline16', cmap='gray')
 
-        return part_1, part_2, gt, subject_id, pose_id_part_1, pose_id_part_2, mask_id_part_1, mask_id_part_2
-
-    def __getitem__(self, index):
-        # OH: TODO Consider augmentations such as rotation, translation and downsampling, scale, noise
-        if self.train:
-            if index < self.train_size:
-                part_1, part_2, gt, subject_id, pose_id_part_1, pose_id_part_2, mask_id_part_1, mask_id_part_2 = self.get_shapes(index)
-            else:
-                raise IndexExceedDataset(index, self.__len__())
+        # show true & predicted classes
+        cls_true_name = label_names[cls_true[i]]
+        if cls_pred is None:
+            xlabel = f"{cls_true_name} ({cls_true[i]})"
         else:
-            if index < self.test_size:
-                index = index + self.train_size
-                part_1, part_2, gt, subject_id, pose_id_part_1, pose_id_part_2, mask_id_part_1, mask_id_part_2 = self.get_shapes(index)
-            else:
-                raise IndexExceedDataset(index, self.__len__())
+            cls_pred_name = label_names[cls_pred[i]]
+            xlabel = f"True: {cls_true_name}\nPred: {cls_pred_name}"
+        ax.set_xlabel(xlabel)
+        ax.set_xticks([])
+        ax.set_yticks([])
 
-        # Apply random translation to part and to full template
-        # part_trans = np.random.rand(1,3) - 0.5
-        # template_trans = np.random.rand(1, 3) - 0.5
-        # part[:,:3] = part[:,:3]  + part_trans
-        # gt[:,:3]  = gt[:,:3] + part_trans
-        # template[:,:3]  = template[:,:3]  + template_trans
+    plt.show()
 
-        if self.num_input_channels == 3:
-            part_1 = part_1[:, :self.num_input_channels]
-            part_2 = part_2[:, :self.num_input_channels]
-            gt = gt[:, :self.num_input_channels]
 
-        return part_1, part_2, gt, subject_id, pose_id_part_1, pose_id_part_2, mask_id_part_1, mask_id_part_2, index
 
-    def __len__(self):
-        if self.train:
-            return self.train_size
+class DatasetMenu:
+    _implemented = {
+        # 'MNIST': MNIST,
+        # 'CIFAR10': CIFAR10,
+        # 'ImageNet': ImageNet,
+        # 'TinyImageNet': TinyImageNet,
+        # 'STL10': STL10,
+        # 'FashionMNIST': FashionMNIST
+    }
+
+    @staticmethod
+    def which():
+        return tuple(DatasetMenu._implemented.keys())
+
+    @staticmethod
+    def get(dataset_name, data_dir):
+        return DatasetMenu._implemented[dataset_name](data_dir)
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                Base Class
+# ----------------------------------------------------------------------------------------------------------------------
+class ProjectionDataset:
+    def __init__(self, projection_dir,mesh_dir,subject_ids,num_proj_per_mesh,):
+        # Basic Dataset Info
+        mesh_dir = Path(mesh_dir)
+        projection_dir = Path(projection_dir)
+        assert_is_dir(mesh_dir)
+        assert_is_dir(projection_dir)
+
+        self._mesh_dir =projection_dir
+        self._projection_dir = projection_dir
+        self._num_proj_per_mesh = num_proj_per_mesh
+        self._subject_ids = subject_ids
+
+    def data_summary(self):
+        banner('Dataset Summary')
+        print(f'\n* Dataset Name: {self.name()}')
+        print(f'* Dataset size: {self._num_projections} Projections')
+        print(f'* Test Set Size: {self._testset_size} samples')
+        print(f'* Number of classes: {self.num_classes()}')
+        print(f'* Class Labels:\n{self._class_labels}')
+        banner()
+
+
+    def name(self):
+        assert self.__class__.__name__ != 'PointDataset'
+        return self.__class__.__name__
+
+    def max_test_size(self):
+        return self._testset_size
+
+    def max_train_size(self):
+        return self._trainset_size
+
+    def testset(self, batch_size, max_samples=None, device='cuda'):
+
+        num_workers = 4
+        if device.lower() == 'cuda' and torch.cuda.is_available():
+            pin_memory = True
         else:
-            return self.test_size
+            print('Warning: Did not find working GPU - Loading dataset on CPU')
+            pin_memory = False
 
+        test_dataset = self._test_importer()
+        # print(sum(1 for _ in test_dataset))
 
-class FaustProjectionsDataset(data.Dataset):
-    def __init__(self, train, num_input_channels, train_size, test_size, mask_penalty):
-        self.train = train
-        self.num_input_channels = num_input_channels
-        self.path = os.path.join(os.getcwd(), os.pardir, "data", "faust_projections", "dataset")
-        self.train_size = train_size
-        self.test_size = test_size
-        # self.ref_tri = None
-        self.mask_penalty = mask_penalty
-
-    def translate_index(self, index):
-        subject_id = np.floor(index / 1000).astype(int)
-        index = index % 1000
-        pose_id_full = np.floor(index / 100).astype(int)
-        index = index % 100
-        pose_id_part = np.floor(index / 10).astype(int)
-        index = index % 10
-        mask_id = index + 1
-        return subject_id, pose_id_full, pose_id_part, mask_id
-
-    def triangulation(self, use_torch=False):
-        # if self.ref_tri is None:
-        #     self.ref_tri = REF_TRI
-
-        if use_torch:
-            return REF_TRI, torch.from_numpy(REF_TRI).long().cuda()
+        if max_samples < self._testset_size:
+            testset_siz = max_samples
+            test_sampler = SequentialSampler(list(range(max_samples)))
         else:
-            return REF_TRI
+            test_sampler = None
+            testset_siz = self._testset_size
 
-    def subject_and_pose2shape_ind(self, subject_id, pose_id):
-        ind = subject_id * 10 + pose_id
-        return ind
+        test_gen = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler,
+                                               num_workers=num_workers, pin_memory=pin_memory)
 
-    def get_shapes(self, index):
-        subject_id, pose_id_full, pose_id_part, mask_id = self.translate_index(index)
-        template_id = self.subject_and_pose2shape_ind(subject_id, pose_id_full)
-        part_id = self.subject_and_pose2shape_ind(subject_id, pose_id_part)
+        return test_gen, testset_siz
 
-        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(template_id) + ".mat"))
-        template = x['full_shape']
-        x = sio.loadmat(os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + ".mat"))
-        gt = x['full_shape']
-        x = sio.loadmat(
-            os.path.join(self.path, "tr_reg_" + "{0:0=3d}".format(part_id) + "_" + "{0:0=3d}".format(mask_id) + ".mat"))
+    def trainset(self, batch_size=128, valid_size=0.1, max_samples=None, augment=True, shuffle=True, random_seed=None,
+                 show_sample=False, device='cuda'):
 
-        mask = np.squeeze(x['part_mask'] - 1)  # -1 - Oshri forgot that Matlab indices start with 1 and not 0
-        mask_loss = np.ones(template.shape[0])
-        mask_loss[mask] = self.mask_penalty
-
-        if self.num_input_channels == 12:
-            x, y, z = template[:,0,np.newaxis], template[:,1,np.newaxis], template[:,2,np.newaxis]
-            template = np.concatenate((template, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
-            x, y, z = gt[:,0,np.newaxis], gt[:,1,np.newaxis], gt[:,2,np.newaxis]
-            gt = np.concatenate((gt, x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
-            mask_full = np.zeros(template.shape[0], dtype=int)
-            mask_full[:len(mask)] = mask
-            mask_full[len(mask):] = np.random.choice(mask, template.shape[0] - len(mask), replace=True)
-            part = gt[mask_full]
+        if device.lower() == 'cuda' and torch.cuda.is_available():
+            num_workers, pin_memory = 1, True
         else:
-            part = x['partial_shape']  # OH: matrix of vertices
+            print('Warning: Did not find working GPU - Loading dataset on CPU')
+            num_workers, pin_memory = 4, False
 
-        assert len(mask) > 1, "Mask is Corrupted"
+        max_samples = self._trainset_size if max_samples is None else min(self._trainset_size, max_samples)
+        assert ((valid_size >= 0) and (valid_size <= 1)), "[!] Valid_size should be in the range [0, 1]."
 
-        return part, template, gt, mask_loss
+        train_dataset = self._train_importer(augment)
+        # print(sum(1 for _ in train_dataset)) #Can be used to discover the trainset size if needed
 
-    def __getitem__(self, index):
-        # OH: TODO Consider augmentations such as rotation, translation and downsampling, scale, noise
-        if self.train:
-            if index < self.train_size:
-                part, template, gt, mask_loss = self.get_shapes(index)
-            else:
-                raise IndexExceedDataset(index, self.__len__())
-        else:
-            if index < self.test_size:
-                index = index + self.train_size
-                part, template, gt, mask_loss = self.get_shapes(index)
-            else:
-                raise IndexExceedDataset(index, self.__len__())
+        val_dataset = self._train_importer(False)  # Don't augment validation
 
-        # Apply random translation to part and to full template
-        # part_trans = np.random.rand(1,3) - 0.5
-        # template_trans = np.random.rand(1, 3) - 0.5
-        # part[:,:3] = part[:,:3]  + part_trans
-        # gt[:,:3]  = gt[:,:3] + part_trans
-        # template[:,:3]  = template[:,:3]  + template_trans
-        if self.num_input_channels == 3:
-            template = template[:, :self.num_input_channels]
-            part = part[:, :self.num_input_channels]
-            gt = gt[:, :self.num_input_channels]
+        indices = list(range(self._trainset_size))
+        if shuffle:
+            if random_seed is not None:
+                np.random.seed(random_seed)
+            np.random.shuffle(indices)
 
-        return part, template, gt, index, mask_loss
+        indices = indices[:max_samples]  # Truncate to desired size
+        # Split validation
+        split = int(np.floor(valid_size * max_samples))
+        train_ids, valid_ids = indices[split:], indices[:split]
 
-    def __len__(self):
-        if self.train:
-            return self.train_size
-        else:
-            return self.test_size
+        num_train = len(train_ids)
+        num_valid = len(valid_ids)
 
+        train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size,
+                                                   sampler=SubsetRandomSampler(train_ids), num_workers=num_workers,
+                                                   pin_memory=pin_memory)
+        valid_loader = torch.utils.data.DataLoader(val_dataset, batch_size=batch_size,
+                                                   sampler=SubsetRandomSampler(valid_ids), num_workers=num_workers,
+                                                   pin_memory=pin_memory)
 
-if __name__ == '__main__':
-    print('AMASS Projections Dataset')
+        if show_sample: self._show_sample(train_dataset, 4)
 
-    import visdom
+        return (train_loader, num_train), (valid_loader, num_valid)
 
-    vis = visdom.Visdom(port=8888, env="test-amass-dataset")
-    n_input_ch = 6
+    def _show_sample(self, train_dataset, siz):
+        images, labels = iter(torch.utils.data.DataLoader(train_dataset, shuffle=True, batch_size=siz ** 2)).next()
+        plot_images(images.numpy().transpose([0, 2, 3, 1]), labels, self._class_labels, siz=siz)
 
-    d = FaustProjectionsPart2PartDataset(train=True, num_input_channels=6, train_size=100000, test_size=100000)
-    for i in range(13903,13913):
-        part_1, part_2, gt, subject_id, pose_id_part_1, pose_id_part_2, mask_id_part_1, mask_id_part_2, index = d[i]
-        vis.scatter(X=part_1[:, :3], win=f"part_1 train sample #{i}",
-                    opts=dict(title=f"part_1 train sample #{i}", markersize=2))
-        vis.scatter(X=part_2[:, :3], win=f"part_2 train sample #{i}",
-                    opts=dict(title=f"part_2 train sample #{i}", markersize=2))
-        vis.scatter(X=gt[:, :3], win=f"ground truth train sample #{i}",
-                    opts=dict(title=f"ground truth train sample #{i}", markersize=2))
-        print("SID.{}".format(subject_id))
-        print("PID1.{}".format(pose_id_part_1))
-        print("PID2.{}".format(pose_id_part_2))
-        print("MID1.{}".format(mask_id_part_1))
-        print("MID2.{}".format(mask_id_part_2))
+    def _train_importer(self, augment):
+        raise NotImplementedError
 
-
-    d = AmassProjectionsDataset(train=True, num_input_channels=n_input_ch, use_same_subject=True)
-    for i in range(10):
-        part, template, gt, index = d[i]
-        vis.scatter(X=template[:, :3], win=f"template train sample #{i}",
-                    opts=dict(title=f'template train sample #{i}', markersize=2))
-
-        # if d.num_input_channels == 6:
-        #     vis.quiver(template[:, :3], template[:, :3] + template[:, 3:6], win=f"template train sample #{i}",
-        #                opts=dict(title=f'template train sample #{i}', markersize=2),)
-
-    d = AmassProjectionsDataset(train=False, num_input_channels=n_input_ch, use_same_subject=True)
-    for i in range(10):
-        part, template, gt, index = d[i]
-        vis.scatter(X=template[:, :3], win=f"template train sample #{i}",
-                    opts=dict(title=f'template train sample #{i}', markersize=2))
-
-        # if d.num_input_channels == 6:
-        #     vis.quiver(template[:, :3], template[:, :3] + template[:, 3:6], win=f"template train sample #{i}",
-        #                opts=dict(title=f'template train sample #{i}', markersize=2))
-
-
-# ----------------------------------------------------------------------------------------------------------------------#
-#
-# ----------------------------------------------------------------------------------------------------------------------#
-
-
-def read_off_2(fp):
-    lines = [l.strip() for l in open(fp, "r")]
-    words = [int(i) for i in lines[1].split(' ')]
-    vn = words[0]
-    vertices = np.zeros((vn, 3), dtype='float32')
-    for i in range(2, 2 + vn):
-        vertices[i - 2] = [float(w) for w in lines[i].split(' ')]
-
-    return vertices
-
-
-def read_npz_2(fp):
-    return np.load(fp)['mask']
+    def _test_importer(self):
+        raise NotImplementedError

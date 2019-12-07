@@ -2,18 +2,9 @@ from __future__ import print_function
 import argparse
 import random
 #import numpy as np
-import torch
-import torch.optim as optim
-import os
-import json
-import visdom
-import time
-import matplotlib.pyplot as plt
-import scipy.io as sio
 
-from dataset import *
+from archive.old_dataset import *
 from model import *
-from utils import *
 
 try:
     import visdom
