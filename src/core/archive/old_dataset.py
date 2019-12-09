@@ -13,28 +13,7 @@ from pathlib import Path
 from support_material.dfaust_query import generate_dfaust_map
 
 
-def read_off_full(off_file):
-    vertexBuffer = []
-    indexBuffer = []
-    with open(off_file, "r") as modelfile:
-        first = modelfile.readline().strip()
-        if first != "OFF":
-            raise (Exception("not a valid OFF file ({})".format(first)))
 
-        parameters = modelfile.readline().strip().split()
-
-        if len(parameters) < 2:
-            raise (Exception("OFF file has invalid number of parameters"))
-
-        for i in range(int(parameters[0])):
-            coordinates = modelfile.readline().split()
-            vertexBuffer.append([float(coordinates[0]), float(coordinates[1]), float(coordinates[2])])
-
-        for i in range(int(parameters[1])):
-            indices = modelfile.readline().split()
-            indexBuffer.append([int(indices[1]), int(indices[2]), int(indices[3])])
-
-    return np.array(vertexBuffer), np.array(indexBuffer)
 
 
 DFAUST_SIDS = ['50002', '50004', '50007', '50009', '50020',
@@ -276,27 +255,7 @@ class AmassProjectionsDataset(data.Dataset):
 
         return template, part, gt, subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id, mask_loss
 
-    def read_npz(self, s_id, p_id, m_id):
 
-        name = os.path.join(self.path, "projection",
-                            "subjectID_{}_poseID_{}_projectionID_{}.npz".format(s_id, p_id, m_id))
-        mask = np.load(name)
-        mask = mask["mask"]
-
-        return mask
-
-    def read_off(self, s_id, p_id):
-
-        name = os.path.join(self.path, "original", "subjectID_{}_poseID_{}.OFF".format(s_id, p_id))
-
-        lines = [l.strip() for l in open(name, "r")]
-        words = [int(i) for i in lines[1].split(' ')]
-        vn = words[0]
-        vertices = np.zeros((vn, 3), dtype='float32')
-        for i in range(2, 2 + vn):
-            vertices[i - 2] = [float(w) for w in lines[i].split(' ')]
-
-        return vertices
 
     def __getitem__(self, index):
 

@@ -5,12 +5,13 @@ from torchvision import transforms
 from torch.utils.data.sampler import SubsetRandomSampler, SequentialSampler
 import matplotlib.pyplot as plt
 import numpy as np
-from gen_utils import banner
+from utils.gen_utils import banner
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                Base Class
 # ----------------------------------------------------------------------------------------------------------------------
-class ClassificationDataset:
+class PointDataset:
     def __init__(self, data_dir, class_labels, shape, testset_size, trainset_size, dataset_space, expected_files):
         # Basic Dataset Info
         self._class_labels = tuple(class_labels)
@@ -25,11 +26,7 @@ class ClassificationDataset:
         else:
             self._expected_files = expected_files
 
-        self._download = True if any(
-            not os.path.isfile(os.path.join(self._data_dir, file)) for file in self._expected_files) else False
-
     def data_summary(self, show_sample=False):
-        img_type = 'Grayscale' if self._shape[0] == 1 else 'Color'
         banner('Dataset Summary')
         print(f'\n* Dataset Name: {self.name()} , {img_type} images')
         print(f'* Data shape: {self._shape}')
@@ -342,7 +339,6 @@ def plot_images(images, cls_true, label_names, cls_pred=None, siz=3):
     plt.show()
 
 
-
 class DatasetMenu:
     _implemented = {
         # 'MNIST': MNIST,
@@ -360,18 +356,20 @@ class DatasetMenu:
     @staticmethod
     def get(dataset_name, data_dir):
         return DatasetMenu._implemented[dataset_name](data_dir)
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                Base Class
 # ----------------------------------------------------------------------------------------------------------------------
 class ProjectionDataset:
-    def __init__(self, projection_dir,mesh_dir,subject_ids,num_proj_per_mesh,):
+    def __init__(self, projection_dir, mesh_dir, subject_ids, num_proj_per_mesh, ):
         # Basic Dataset Info
         mesh_dir = Path(mesh_dir)
         projection_dir = Path(projection_dir)
         assert_is_dir(mesh_dir)
         assert_is_dir(projection_dir)
 
-        self._mesh_dir =projection_dir
+        self._mesh_dir = projection_dir
         self._projection_dir = projection_dir
         self._num_proj_per_mesh = num_proj_per_mesh
         self._subject_ids = subject_ids
@@ -384,7 +382,6 @@ class ProjectionDataset:
         print(f'* Number of classes: {self.num_classes()}')
         print(f'* Class Labels:\n{self._class_labels}')
         banner()
-
 
     def name(self):
         assert self.__class__.__name__ != 'PointDataset'
@@ -416,7 +413,7 @@ class ProjectionDataset:
             testset_siz = self._testset_size
 
         test_gen = DataLoader(test_dataset, batch_size=batch_size, sampler=test_sampler,
-                                               num_workers=num_workers, pin_memory=pin_memory)
+                              num_workers=num_workers, pin_memory=pin_memory)
 
         return test_gen, testset_siz
 
@@ -471,3 +468,16 @@ class ProjectionDataset:
 
     def _test_importer(self):
         raise NotImplementedError
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                Test Module
+# ----------------------------------------------------------------------------------------------------------------------
+
+def test_dataset():
+    pass
+
+
+
+
+if __name__ == "__main__": test_dataset()
