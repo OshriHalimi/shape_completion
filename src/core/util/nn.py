@@ -4,10 +4,17 @@ import time
 import sys
 import collections
 import numpy as np
-
+import psutil
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                      DEPRECATED
 # ----------------------------------------------------------------------------------------------------------------------#
+def determine_worker_num(batch_size):
+    cpu_cnt = psutil.cpu_count(logical=False)
+    if batch_size < cpu_cnt:
+        return batch_size
+    else:
+        return cpu_cnt
+
 def read_lr(path_to_log):
     epoch_list = []
     epoch = 0

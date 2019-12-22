@@ -1,6 +1,17 @@
 import sys
 from pathlib import Path
+import warnings
+import os
 
+class bcolors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
@@ -9,13 +20,35 @@ def assert_is_dir(dir):
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
-def banner(text=None, ch='=', length=78):
+def banner(text=None, ch='=', length=88):
     if text is not None:
         spaced_text = ' %s ' % text
     else:
         spaced_text = ''
-    print('\n', spaced_text.center(length, ch))
+    print(spaced_text.center(length, ch))
 
+def print_warning(message, category, filename, lineno, file=None, line=None):
+
+    if line is None:
+        try:
+            import linecache
+            line = linecache.getline(filename, lineno)
+        except Exception:
+            # When a warning is logged during Python shutdown, linecache
+            # and the import machinery don't work anymore
+            line = None
+            linecache = None
+    else:
+        line = line
+    if line:
+        line = line.strip()
+
+    filename = os.path.basename(filename)
+    print(bcolors.WARNING + f'At {filename}:{lineno} : {line}\nWARNING: {message}'+ bcolors.ENDC)
+
+warnings.showwarning = print_warning
+def warn(str,stacklevel=1):
+    warnings.warn(str,stacklevel=stacklevel+1)
 
 def query_yes_no(question, default="yes"):
     """Ask a yes/no question via raw_input() and return their answer.

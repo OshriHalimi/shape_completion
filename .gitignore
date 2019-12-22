@@ -4,6 +4,7 @@ results/
 */stats_cache.mat
 */noise_cache.mat
 *cache.mat
+article_sup/
 article_stats.mat
 tmp/
 log/

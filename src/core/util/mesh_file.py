@@ -1,9 +1,5 @@
 import numpy as np
-import torch
-import torch.nn.functional as F
 from plyfile import PlyData, PlyElement
-from data_utils import normr, index_sparse
-import os
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                              Mesh File Utils
@@ -30,13 +26,13 @@ def read_off_verts(fp):
     vbuf = []
     with open(fp, "r") as f:
         first = f.readline().strip()
-        if first != "OFF":
-            raise (Exception(f"Could not find OFF header for file: {first}"))
+        if first != "OFF" and first != "COFF":
+            raise (Exception(f"Could not find OFF header for file: {fp}"))
 
         parameters = f.readline().strip().split()
 
         if len(parameters) < 2:
-            raise (Exception(f"Wrong number of parameters fount at OFF file: {first}"))
+            raise (Exception(f"Wrong number of parameters fount at OFF file: {fp}"))
 
         for i in range(int(parameters[0])):
             xyz = f.readline().split()
@@ -50,13 +46,13 @@ def read_off_full(fp):
     fbuf = []
     with open(fp, "r") as f:
         first = f.readline().strip()
-        if first != "OFF":
-            raise (Exception(f"Could not find OFF header for file: {first}"))
+        if first != "OFF" and first != "COFF":
+            raise (Exception(f"Could not find OFF header for file: {fp}"))
 
         parameters = f.readline().strip().split()
 
         if len(parameters) < 2:
-            raise (Exception(f"Wrong number of parameters fount at OFF file: {first}"))
+            raise (Exception(f"Wrong number of parameters fount at OFF file: {fp}"))
 
         for i in range(int(parameters[0])):
             xyz = f.readline().split()
@@ -67,3 +63,25 @@ def read_off_full(fp):
             fbuf.append([int(inds[1]), int(inds[2]), int(inds[3])])
 
     return np.array(vbuf), np.array(fbuf)
+
+
+# def mesh_montage(images, cls_true, label_names, cls_pred=None, siz=3):
+#     # Adapted from https://github.com/Hvass-Labs/TensorFlow-Tutorials/
+#     fig, axes = plt.subplots(siz, siz)
+#
+#     for i, ax in enumerate(axes.flat):
+#         # plot img
+#         ax.imshow(images[i, :, :, :].squeeze(), interpolation='spline16', cmap='gray')
+#
+#         # show true & predicted classes
+#         cls_true_name = label_names[cls_true[i]]
+#         if cls_pred is None:
+#             xlabel = f"{cls_true_name} ({cls_true[i]})"
+#         else:
+#             cls_pred_name = label_names[cls_pred[i]]
+#             xlabel = f"True: {cls_true_name}\nPred: {cls_pred_name}"
+#         ax.set_xlabel(xlabel)
+#         ax.set_xticks([])
+#         ax.set_yticks([])
+#
+#     plt.show()
