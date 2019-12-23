@@ -33,6 +33,8 @@ class HierarchicalIndexTree:
     def __str__(self):
         # pf = pformat(self._hit)
         # return pf.replace('OrderedDict', 'HierarchicalIndexTree')
+        # TODO - While this returns a nice string - it changes the tree into the json format, which
+        # does not have ints as keys
         return 'HierarchicalIndexTree' + dumps(self._hit, indent=2)
 
     def depth(self):
@@ -154,7 +156,7 @@ class HierarchicalIndexTree:
 #                                    Utility Methods - TODO - migrate to Data Prep
 # ----------------------------------------------------------------------------------------------------------------------
 
-def construct_dfaust_hit_pickel():
+def construct_dfaust_hit_pickle():
     import re
     from dataset.abstract import PRIMARY_DATA_DIR
     from collections import defaultdict
@@ -167,7 +169,7 @@ def construct_dfaust_hit_pickel():
     with open(fp) as f:
         lines = [line.rstrip('\n') for line in f]
 
-    hit = defaultdict(dict)
+    hit = {}
     last_subj = None
 
     for line in lines:
@@ -175,12 +177,15 @@ def construct_dfaust_hit_pickel():
         if m:  # New hit
             sub_id, _ = m.group(1, 2)
             last_subj = sub_id
-            hit[last_subj] = defaultdict(dict)
+            hit[last_subj] = {}
         elif line.strip():
             seq, frame_cnt = line.split()
-            hit[last_subj][seq][int(frame_cnt)] = 10
+            frame_cnt = int(frame_cnt)
+            hit[last_subj][seq] = {}
+            for i in range(frame_cnt):
+                hit[last_subj][seq][i] = 10
 
-    hit = HierarchicalIndexTree(hit, in_memory=True)
+    hit = HierarchicalIndexTree(hit, in_memory=False)
 
     pkl_fp = dataset_fp / "DFaust_hit.pkl"
     with open(pkl_fp, "wb") as f:
@@ -189,15 +194,16 @@ def construct_dfaust_hit_pickel():
     return hit
 
 
-def construct_amass_hit_pickels():
+def construct_amass_hit_pickles():
     from pathlib import Path
     import json
     from pickle import dump
-    dict_dir = Path(r'C:\Users\idoim\Desktop\ShapeCompletion\src\core\archive')  # fix me as needed
-    for name in ['test_dict.json', 'train_dict.json', 'vald_dict.json']:
-        hit_name_appender = name.split('_')[0]
-        fp = dict_dir / name
-        with open(fp) as f:
+    from dataset.abstract import PRIMARY_DATA_DIR
+    train_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'AmassTrainPyProj' / 'train_dict.json'
+    vald_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'AmassValdPyProj' / 'vald_dict.json'
+    test_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'AmassTestPyProj' / 'test_dict.json'
+    for fp,appender in zip([train_fp, vald_fp, test_fp],['train','vald','test']):
+        with open(fp.resolve()) as f:
             hit = json.loads(f.read())
 
         # Transform:
@@ -209,12 +215,15 @@ def construct_amass_hit_pickels():
             for i in range(val):
                 hit[k][i] = 10
 
-        if name == 'test_dict.json':
+        if fp == test_fp:
             hit = HierarchicalIndexTree(hit, in_memory=True)
         else:
             hit = HierarchicalIndexTree(hit, in_memory=False)
-        with open(dict_dir / f'amass_{hit_name_appender}_hit.pkl', "wb") as file:
+
+        tgt_fp = fp.parents[0] / f'amass_{appender}_hit.pkl'
+        with open(tgt_fp, "wb") as file:
             dump(hit, file)
+            print(f'Created index at {tgt_fp.resolve()}')
 
         # print(hit)
         # print(hit.num_objects())
@@ -283,4 +292,9 @@ def hit_test():
 
 
 if __name__ == "__main__":
-    hit_test()
+    hit = construct_dfaust_hit_pickle()
+    print(hit)
+    print(hit.num_objects())
+    # construct_amass_hit_pickles()
+    # hit_test()
+

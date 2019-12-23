@@ -10,6 +10,8 @@ from pickle import load
 from copy import deepcopy
 from dataset.transforms import *
 from enum import Enum, auto
+from tqdm import tqdm
+import time
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                             Global Variables
@@ -28,19 +30,19 @@ class InCfg(Enum):
 # ----------------------------------------------------------------------------------------------------------------------
 
 class PointDataset(ABC):
-    def __init__(self, data_dir, is_synthetic, shape, in_channels, disk_space_bytes):
-        # Basic Dataset Info
-        self._hit = self._construct_hit()
-
+    def __init__(self, data_dir_override, is_synthetic, shape, in_channels, disk_space_bytes):
         # Check Data Directory:
-        if data_dir is None:
+        if data_dir_override is None:
             # TODO - Remove assumption of only synthetic and scan
             appender = 'synthetic' if is_synthetic else 'scan'
             self._data_dir = PRIMARY_DATA_DIR / appender / self.name()
         else:
-            self._data_dir = Path(data_dir)
+            self._data_dir = Path(data_dir_override)
         assert self._data_dir.is_dir(), f"Data directory of {self.name()} is invalid: \nCould not find {self._data_dir}"
         self._data_dir = self._data_dir.resolve()
+
+        # Basic Dataset Info
+        self._hit = self._construct_hit()
 
         # Insert Info:
         self._shape = tuple(shape)
@@ -88,14 +90,14 @@ class PointDataset(ABC):
             return deepcopy(self._f)
 
     def testloader(self, batch_size=16, set_size=None, shuffle=False, device='cuda'):
-        return self._loader(batch_size=batch_size, valid_rsize=0, set_size=set_size, transforms=None, shuffle=shuffle,
+        return self._loader(batch_size=batch_size, vald_rsize=0, set_size=set_size, transforms=None, shuffle=shuffle,
                             device=device)
 
-    def trainloader(self, batch_size=16, valid_rsize=0.1, set_size=None, transforms=None, shuffle=True, device='cuda'):
-        return self._loader(batch_size=batch_size, valid_rsize=valid_rsize, set_size=set_size, transforms=transforms,
+    def trainloader(self, batch_size=16, vald_rsize=0.1, set_size=None, transforms=None, shuffle=True, device='cuda'):
+        return self._loader(batch_size=batch_size, vald_rsize=vald_rsize, set_size=set_size, transforms=transforms,
                             shuffle=shuffle, device=device)
 
-    def _loader(self, batch_size, valid_rsize, set_size, transforms, shuffle, device):
+    def _loader(self, batch_size, vald_rsize, set_size, transforms, shuffle, device):
 
         # Handle Loader Parameters
         num_workers = determine_worker_num(batch_size)
@@ -112,18 +114,18 @@ class PointDataset(ABC):
         ids = ids[:max_samples]  # Shuffles sets may now hold different ids than 1:max_samples
 
         # Split validation
-        assert ((valid_rsize >= 0) and (valid_rsize <= 1)), "[!] Valid_size should be in the range [0, 1]."
-        if valid_rsize > 0:
-            split = int(np.floor(valid_rsize * max_samples))
-            ids, valid_ids = ids[split:], ids[:split]
+        assert ((vald_rsize >= 0) and (vald_rsize <= 1)), "[!] Valid_size should be in the range [0, 1]."
+        if vald_rsize > 0:
+            split = int(np.floor(vald_rsize * max_samples))
+            ids, vald_ids = ids[split:], ids[:split]
             train_loader = DataLoader(self._set_to_torch_set(transforms), batch_size=batch_size,
                                       sampler=SubsetRandomSampler(ids), num_workers=num_workers,
                                       pin_memory=pin_memory)
-            valid_loader = DataLoader(self._set_to_torch_set(None), batch_size=batch_size,
-                                      sampler=SubsetRandomSampler(valid_ids), num_workers=num_workers,
-                                      pin_memory=pin_memory)
+            vald_loader = DataLoader(self._set_to_torch_set(None), batch_size=batch_size,
+                                     sampler=SubsetRandomSampler(vald_ids), num_workers=num_workers,
+                                     pin_memory=pin_memory)
             # Add shape sanity check here ?
-            return (train_loader, len(ids)), (valid_loader, len(valid_ids))
+            return (train_loader, len(ids)), (vald_loader, len(vald_ids))
         else:
             train_loader = DataLoader(self._set_to_torch_set(transforms), batch_size=batch_size,
                                       sampler=SubsetRandomSampler(ids), num_workers=num_workers,
@@ -131,15 +133,28 @@ class PointDataset(ABC):
             return train_loader, len(ids)
 
     def validate_dataset(self):
-        for si in range(self.num_pnt_clouds()):
+        banner(f'Validation of dataset {self.name()} :: {self.num_pnt_clouds()} pnt clouds')
+        time.sleep(.01)  # For the STD-ERR lag
+        for si in tqdm(range(self.num_pnt_clouds())):
             hi = self._hit.si2hi(si)
             fps = self._hierarchical_index_to_path(hi)
             if not isinstance(fps, list):
                 fps = [fps]
+            # TODO - Maybe add a count of possible missing files? Not really needed, seeing working on a partial dataset
+            # requires updating the hit
+            # TODO - Note that it is not really needed to iterate over all the fps - only the projections + full set is
+            # enough - Better to change the call to something different maybe?
             for fp in fps:
-                assert os.path.isfile(fp), f"Missing file {fp} in dataset {self.name()}"
+                if isinstance(fp, Path):
+                    assert fp.is_file(), f"Missing file {fp.resolve()} in dataset {self.name()}"
+                else:
+                    try:
+                        fp = Path(fp)
+                        assert fp.isfile(), f"Missing file {fp.resolve()} in dataset {self.name()}"
+                    except:
+                        pass  # Some none-path object hidden in fp
 
-        print(f'Validation for {self.name()} passed')
+        print(f'Validation -- PASSED --')
 
     def _show_sample(self, montage_shape):  # TODO - Finish this
         raise NotImplementedError
@@ -186,36 +201,48 @@ class PointDataset(ABC):
 #
 # ----------------------------------------------------------------------------------------------------------------------
 class CompletionProjDataset(PointDataset, ABC):
-    def __init__(self, data_dir, is_synthetic, shape, in_channels, disk_space_bytes, in_cfg):
-        super().__init__(data_dir=data_dir, is_synthetic=is_synthetic, shape=shape,
+    def __init__(self, data_dir_override, is_synthetic, shape, in_channels, disk_space_bytes, in_cfg):
+        super().__init__(data_dir_override=data_dir_override, is_synthetic=is_synthetic, shape=shape,
                          in_channels=in_channels, disk_space_bytes=disk_space_bytes)
         self._in_cfg = in_cfg
         self._proj_dir = self._data_dir / 'projections'
-        self._full_dir = self._full_dir / 'full'
-        self._path_meth = getattr(self.__class__, f"_{in_cfg.name}_path")
-        self._data_load_meth = getattr(self.__class__, f"_{in_cfg.name}_load")
+        self._full_dir = self._data_dir / 'full'
+        self._path_meth = getattr(self.__class__, f"_{in_cfg.name.lower()}_path")
+        self._data_load_meth = getattr(self.__class__, f"_{in_cfg.name.lower()}_load")
 
     def _transformation_finalizer(self, transforms):
-        transforms.append(CompletionPairToTuple())  # Add in a final layer that destroys the CompletionPair
+        transforms.append(CompletionTripletToTuple())  # Add in a final layer that dismantles the CompletionTriplet
         return transforms
 
-    def full_full_part_path(self, hi):
-        pass
+    def _full_full_part_path(self, hi):
+        gt_fp = self._hi2full_path(hi)
+        mask_fp = self._hi2proj_path(hi)
+        # New index from the SAME subject
+        new_hi = self._hit.random_path_from_partial_path([hi[0]])
+        tp_fp = self._hi2full_path(new_hi)
+        return [hi, gt_fp, mask_fp, new_hi, tp_fp]
 
-    def full_full_part_load(self, fps):
-        pass
+    def _full_full_part_load(self, fps):
+        # TODO - Add in support for faces that are loaded from file - by overloading hi2full for example
+        return CompletionTriplet(f=self._f, hi=fps[0], gt_v=self._full2data(fps[1]), mask_vi=self._proj2data(fps[2]),
+                                 new_hi=fps[3], tp_v=self._full2data(fps[4]))
 
-    def full_part_part_path(self, hi):
-        pass
+    def _full_part_part_path(self, hi):
+        fps = self._full_full_part_path(hi)
+        # Use the old function and the new_hi to compute the part fp:
+        fps.append(self._hi2proj_path(fps[3]))
+        return fps
 
-    def full_part_part_load(self, fps):
-        pass
+    def _full_part_part_load(self, fps):
+        ct = self._full_full_part_load(fps)
+        ct.tp_mask_vi = self._proj2data(fps[5])
+        return ct
 
     def _hierarchical_index_to_path(self, hi):
-        return self._path_meth(hi)
+        return self._path_meth(self, hi)
 
     def _path_load(self, fps):
-        return self._data_load_meth(fps)
+        return self._data_load_meth(self, fps)
 
     @abstractmethod
     def _hi2proj_path(self, hi):

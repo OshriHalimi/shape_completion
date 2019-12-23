@@ -6,6 +6,8 @@ import numpy as np
 from util.mesh_file import read_npz_mask, read_off_verts
 import scipy.io as sio
 from dataset.transforms import Center
+import torch
+import re
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -23,11 +25,17 @@ class FaustProjDataset(SMPLCompletionProjDataset, ABC):
 
 
 class AmassProjDataset(SMPLCompletionProjDataset, ABC):
+    def _construct_hit(self):
+        hit_appender = re.search(r'Amass(.*)Py', self.__class__.__name__).group(1).lower()
+        fp = self._data_dir / f'amass_{hit_appender}_hit.pkl'
+        with open(fp, "rb") as f:
+            return load(f)
+
     def _hi2proj_path(self, hi):
         return self._proj_dir / f'subjectID_{hi[0]}_poseID_{hi[1]}_projectionID_{hi[2]}.npz'
 
     def _hi2full_path(self, hi):
-        return self._full_dir / f'"subjectID_{hi[0]}_poseID_{hi[1]}.OFF"'
+        return self._full_dir / f'subjectID_{hi[0]}_poseID_{hi[1]}.OFF'
 
     def _proj2data(self, fp):
         return read_npz_mask(fp)
@@ -42,7 +50,7 @@ class AmassProjDataset(SMPLCompletionProjDataset, ABC):
 
 class FaustPyProj(FaustProjDataset):
     def __init__(self, in_channels, in_cfg, data_dir_override):
-        super().__init__(data_dir=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
+        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
                          is_synthetic=True, shape=(6890, in_channels), disk_space_bytes=67984856)
 
     def _hi2proj_path(self, hi):
@@ -60,7 +68,7 @@ class FaustPyProj(FaustProjDataset):
 
 class FaustMatProj(FaustProjDataset):
     def __init__(self, in_channels, in_cfg, data_dir_override):
-        super().__init__(data_dir=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
+        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
                          is_synthetic=True, shape=(6890, in_channels), disk_space_bytes=300504051)
 
     def _hi2proj_path(self, hi):
@@ -81,11 +89,9 @@ class FaustMatProj(FaustProjDataset):
 # ----------------------------------------------------------------------------------------------------------------------
 
 class DFaustPyProj(SMPLCompletionProjDataset):
-    def __init__(self, in_channels, validate, data_dir_override):
-        super().__init__(shape=((6890, in_channels), (6890, in_channels)), disk_space_bytes=-1,
-                         is_synthetic=True, num_disk_accesses=-1,
-                         existing_in_channels=-1, in_channels=in_channels, data_dir=data_dir_override,
-                         validate=validate)
+    def __init__(self, in_channels, in_cfg, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
+                         is_synthetic=True, shape=(6890, in_channels), disk_space_bytes=32911290368)
 
     def _construct_hit(self):
         with open(self._data_dir / 'DFaust_hit.pkl', "rb") as f:
@@ -109,21 +115,21 @@ class DFaustPyProj(SMPLCompletionProjDataset):
 # ----------------------------------------------------------------------------------------------------------------------
 
 class AmassTrainPyProj(AmassProjDataset, ABC):
-    def _construct_hit(self):
-        with open(self._data_dir / 'DFaust_hit.pkl', "rb") as f:
-            return load(f)
+    def __init__(self, in_channels, in_cfg, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
+                         is_synthetic=True, shape=(6890, in_channels), disk_space_bytes=90026754048)
 
 
-class AmassValidPyProj(AmassProjDataset, ABC):
-    def _construct_hit(self):
-        with open(self._data_dir / 'DFaust_hit.pkl', "rb") as f:
-            return load(f)
+class AmassValdPyProj(AmassProjDataset, ABC):
+    def __init__(self, in_channels, in_cfg, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
+                         is_synthetic=True, shape=(6890, in_channels), disk_space_bytes=8288399360)
 
 
 class AmassTestPyProj(AmassProjDataset, ABC):
-    def _construct_hit(self):
-        with open(self._data_dir / 'DFaust_hit.pkl', "rb") as f:
-            return load(f)
+    def __init__(self, in_channels, in_cfg, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
+                         is_synthetic=True, shape=(6890, in_channels), disk_space_bytes=691769344)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -133,7 +139,7 @@ class AmassTestPyProj(AmassProjDataset, ABC):
 class PointDatasetMenu:
     _implemented = {
         'AmassTestPyProj': AmassTestPyProj,
-        'AmassValidPyProj': AmassValidPyProj,
+        'AmassValdPyProj': AmassValdPyProj,
         'AmassTrainPyProj': AmassTrainPyProj,
         'FaustPyProj': FaustPyProj,
         'FaustMatProj': FaustMatProj,
@@ -145,22 +151,23 @@ class PointDatasetMenu:
         return tuple(PointDatasetMenu._implemented.keys())
 
     @staticmethod
-    def get(dataset_name, in_channels=3, in_cfg=InCfg.FULL_FULL_PART, data_dir_overide=None):
+    def get(dataset_name, in_channels=3, in_cfg=InCfg.FULL_FULL_PART, data_dir_override=None):
         return PointDatasetMenu._implemented[dataset_name](in_channels=in_channels, in_cfg=in_cfg,
-                                                           data_dir_overide=data_dir_overide)
+                                                           data_dir_override=data_dir_override)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                Test Module
 # ----------------------------------------------------------------------------------------------------------------------
-
 def test_dataset():
     print(PointDatasetMenu.which())
-    ds = PointDatasetMenu.get('FaustMatProj', in_cfg=InCfg.FULL_FULL_PART, in_channels=12)
-    ds.data_summary(with_tree=False)
-    tl, num_tests = ds.trainloader(valid_rsize=0, transforms=[Center()])
+    ds = PointDatasetMenu.get('DFaustPyProj', in_cfg=InCfg.FULL_FULL_PART, in_channels=12)
+    ds.data_summary(with_tree=True)
+    ds.validate_dataset()
+    tl, num_tests = ds.trainloader(vald_rsize=0, transforms=[Center()])
     for obj in tl:
-        print(obj)
+        print(obj)  # Need to transfer to GPU
+        break
     # (trainl, num_train), (validl, num_valid) = ds.testloader()
 
 

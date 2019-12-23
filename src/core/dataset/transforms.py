@@ -15,13 +15,18 @@ DANGEROUS_MASK_THRESH = 100
 #
 # ----------------------------------------------------------------------------------------------------------------------
 
-class CompletionPair:
-    def __init__(self, gt_v, mask_vi, hi, f=None):
+class CompletionTriplet:
+    def __init__(self, f, hi, gt_v, mask_vi, new_hi, tp_v, tp_mask_vi=None):
+        self.hi = hi
         self.gt_v = gt_v
         self.mask_vi = mask_vi
-        self.hi = hi
+        self.new_hi = new_hi
+        self.tp_v = tp_v
+
+        self.tp_mask_vi = tp_mask_vi  # Sometimes None
         self.f = f
 
+        # Placeholders:
         self.mask_penalty_vec = None
 
 
@@ -66,33 +71,36 @@ class AlignInputChannels(Transform):
         self._req_in_channels = req_in_channels
 
     def __call__(self, data):
-        if isinstance(data, CompletionPair):
-            available_in_channels = data.gt_v.shape[1]
-            if available_in_channels > self._req_in_channels:
-                data.gt_v = data.gt_v[:, 0:self._req_in_channels]
-            else:
-                final_gt = [data.gt_v]
-                if self._req_in_channels >= 6 > available_in_channels:
-                    final_gt.append(calc_vnrmls(data.gt_v, data.f))
-                if self._req_in_channels >= 12 > available_in_channels:
-                    final_gt.append(calc_moments(data.gt_v))
-
-                data.gt_v = np.concatenate(final_gt, axis=1)
+        if isinstance(data, CompletionTriplet):  # Assumption: tp_v,gt_v use the same triangulation
+            data.gt_v = align_in_channels(data.gt_v, data.f, self._req_in_channels)
+            data.tp_v = align_in_channels(data.tp_v, data.f, self._req_in_channels)
         else:
             raise NotImplementedError
 
         return data
 
 
-class CompletionPairToTuple(Transform):
+class CompletionTripletToTuple(Transform):
     def __call__(self, data):
-        if isinstance(data, CompletionPair):
+        if isinstance(data, CompletionTriplet):
             # Checks:
             if len(data.mask_vi) < DANGEROUS_MASK_THRESH:
                 warn(f'Found mask of length {len(data.mask_vi)} with id: {data.hi}')
-            data.gt_V = data.gt_v.as_type(DEF_PRECISION)  # ONLY PLACE THAT PRECISION IS CHANGED
+            if data.tp_mask_vi is not None and len(data.mask_vi) < DANGEROUS_MASK_THRESH:
+                warn(f'Found mask of length {len(data.tp_mask_vi)} with id: {data.new_hi}')
 
-            return data.gt_v, padded_part_by_mask(data.mask_vi, data.gt_v), data.mask_penalty_vec
+            # ONLY PLACE THAT PRECISION IS CHANGED
+            data.gt_v = data.gt_v.astype(DEF_PRECISION)
+            data.tp_v = data.tp_v.astype(DEF_PRECISION)
+
+            output = [data.gt_v, data.tp_v, padded_part_by_mask(data.mask_vi, data.gt_v)]
+
+            if data.tp_mask_vi is not None:
+                output.append(padded_part_by_mask(data.tp_mask_vi, data.tp_v))
+            if data.mask_penalty_vec is not None:
+                output.append(data.mask_penalty_vec)
+
+            return tuple(output)
         else:
             raise NotImplementedError
 
@@ -102,8 +110,9 @@ class Center(Transform):
         self._slicer = slicer
 
     def __call__(self, data):
-        if isinstance(data, CompletionPair):
+        if isinstance(data, CompletionTriplet):
             data.gt_v[:, self._slicer] -= data.gt_v[:, self._slicer].mean(axis=0, keepdims=True)
+            data.tp_v[:, self._slicer] -= data.tp_v[:, self._slicer].mean(axis=0, keepdims=True)
         else:
             raise NotImplementedError
         return data
@@ -114,7 +123,7 @@ class AddMaskPenalty(Transform):
         self._penalty = penalty
 
     def __call__(self, data):
-        if isinstance(data, CompletionPair):
+        if isinstance(data, CompletionTriplet):
             data.mask_penalty_vec = np.ones(data.gt_v.shape[0])
             data.mask_penalty_vec[data.mask_vi] = self._penalty
         else:
@@ -125,15 +134,32 @@ class AddMaskPenalty(Transform):
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                              Mesh Utils
 # ----------------------------------------------------------------------------------------------------------------------#
+def align_in_channels(v, f, req_in_channels):
+    available_in_channels = v.shape[1]
+    if available_in_channels > req_in_channels:
+        return v[:, 0:req_in_channels]
+    else:
+        combined = [v]
+        if req_in_channels >= 6 > available_in_channels:
+            combined.append(calc_vnrmls(v, f))
+        if req_in_channels >= 12 > available_in_channels:
+            combined.append(calc_moments(v))
+
+        return np.concatenate(combined, axis=1)
+
+
 def calc_vnrmls(v, f):
     # NOTE - Vertices unreferenced by faces will be zero
-    a = v[f[:, 0], :]
-    b = v[f[:, 1], :]
-    c = v[f[:, 2], :]
-    fn = np.cross(b - a, c - a)
-    matrix = index_sparse(v.shape[0], f)
-    vn = matrix.dot(fn)
-    return normr(vn)
+    if f is None:
+        raise NotImplementedError # TODO - Add in computation for scans, without faces - either with pcnormals/
+    else:
+        a = v[f[:, 0], :]
+        b = v[f[:, 1], :]
+        c = v[f[:, 2], :]
+        fn = np.cross(b - a, c - a)
+        matrix = index_sparse(v.shape[0], f)
+        vn = matrix.dot(fn)
+        return normr(vn)
 
 
 def padded_part_by_mask(mask_vi, gt_v):
@@ -217,3 +243,34 @@ def test_normals(v, f, n):
     vnn = v + n
     ax.quiver(v[:, 0], v[:, 1], v[:, 2], vnn[:, 0], vnn[:, 1], vnn[:, 2], length=0.03, normalize=True)
     plt.show()
+
+
+import torch
+import torch.nn.functional as F
+from torch_scatter import scatter_add
+
+# TODO - See if this implementation is faster
+# [docs]class GenerateMeshNormals(object):
+#     r"""Generate normal vectors for each mesh node based on neighboring
+#     faces."""
+#
+#     def __call__(self, data):
+#         assert 'face' in data
+#         pos, face = data.pos, data.face
+#
+#         vec1 = pos[face[1]] - pos[face[0]]
+#         vec2 = pos[face[2]] - pos[face[0]]
+#         face_norm = F.normalize(vec1.cross(vec2), p=2, dim=-1)  # [F, 3]
+#
+#         idx = torch.cat([face[0], face[1], face[2]], dim=0)
+#         face_norm = face_norm.repeat(3, 1)
+#
+#         norm = scatter_add(face_norm, idx, dim=0, dim_size=pos.size(0))
+#         norm = F.normalize(norm, p=2, dim=-1)  # [N, 3]
+#
+#         data.norm = norm
+#
+#         return data
+#
+#     def __repr__(self):
+#         return '{}()'.format(self.__class__.__name__)
