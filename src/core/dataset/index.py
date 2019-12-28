@@ -70,7 +70,7 @@ class HierarchicalIndexTree:
         return sorted(list(key_set))
 
     def keep_ids_by_depth(self, keepers, depth):
-        raise NotImplementedError  # TODO - Implement this
+        raise NotImplementedError  # TODO - Implement this - along with dataset decimation
 
     def remove_ids_by_depth(self, goners, depth):
         if depth > self._depth - 1 or depth <= 0:
@@ -158,8 +158,7 @@ class HierarchicalIndexTree:
 
 def construct_dfaust_hit_pickle():
     import re
-    from dataset.abstract import PRIMARY_DATA_DIR
-    from collections import defaultdict
+    from cfg import PRIMARY_DATA_DIR
     from pathlib import Path
     from pickle import dump
     dataset_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'DFaustPyProj'
@@ -198,11 +197,11 @@ def construct_amass_hit_pickles():
     from pathlib import Path
     import json
     from pickle import dump
-    from dataset.abstract import PRIMARY_DATA_DIR
+    from cfg import PRIMARY_DATA_DIR
     train_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'AmassTrainPyProj' / 'train_dict.json'
     vald_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'AmassValdPyProj' / 'vald_dict.json'
     test_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'AmassTestPyProj' / 'test_dict.json'
-    for fp,appender in zip([train_fp, vald_fp, test_fp],['train','vald','test']):
+    for fp, appender in zip([train_fp, vald_fp, test_fp], ['train', 'vald', 'test']):
         with open(fp.resolve()) as f:
             hit = json.loads(f.read())
 
@@ -292,9 +291,8 @@ def hit_test():
 
 
 if __name__ == "__main__":
-    hit = construct_dfaust_hit_pickle()
-    print(hit)
-    print(hit.num_objects())
+    hit_test()
+    # example_hit = construct_dfaust_hit_pickle()
+    # print(example_hit)
+    # print(example_hit.num_objects())
     # construct_amass_hit_pickles()
-    # hit_test()
-

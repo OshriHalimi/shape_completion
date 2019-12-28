@@ -1,73 +1,63 @@
-from __future__ import print_function
-import argparse
+from argparse import ArgumentParser
 import random
-# import numpy as np
 import torch
 import torch.optim as optim
-from archive.old_dataset import *
-from model import *
 import visdom
+from dataset.datasets import PointDatasetMenu as ds_menu
+from util.gen import none_or_int
+import numpy as np
+import cfg
+
+random.seed(cfg.RANDOM_SEED)
+torch.manual_seed(cfg.RANDOM_SEED)
+np.random.seed(cfg.RANDOM_SEED)
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                  HARD CODED CONFIG
+# ----------------------------------------------------------------------------------------------------------------------
+GLOBAL_DS_SHUFFLE = False
+SSHUFFLE = 3
+S_NUMS = 3
+S_TRANSFORM = 3
+# double learning rate if you double batch size.
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------------------------------------------------
+
+def parse_cmd_args(p=ArgumentParser()):
+
+    # Exp Config:
+    p.add_argument('--exp_name', type=str, default='General',
+                   help='The experiment name. Leave blank to use the generic exp name')
+
+    # NN Config
+    p.add_argument('--resume_by', choices=['', 'val_acc', 'time'], default='time',
+                   help='Resume Configuration - Either by (1) Latest time OR (2) Best Vald Acc OR (3) No Resume')
+    p.add_argument('--use_visdom', type=bool, default=True)
+
+    # Dataset Config:
+    p.add_argument('--data_samples', nargs=3, type=none_or_int, default=[None,1000,1000],
+                   help='[Train,Validation,Test] number of samples. Use None for all in partition')
+    p.add_argument('--in_channels',choices=[3,6,12],default=6,
+                   help='Number of input channels')
+
+    # Train Config:
+    p.add_argument('--batch_size', type=int, default=16, help='SGD batch size')
+    p.add_argument('--n_epoch', type=int, default=1000, help='The number of epochs to train for')
+
+    # Losses: Use 0 to ignore, >0 to compute
+    p.add_argument('--l2_lambda', nargs=4, type=float, default=[1,0.1,0,0],
+                   help='[XYZ,Normal,Moments,Euclid_Maps] L2 loss multiplication modifiers')
+    # Loss Modifiers: # TODO - Implement for Euclid Maps as well
+    p.add_argument('--l2_mask_penalty',nargs=3,type=float,default=[0,0,0],
+                   help='[XYZ,Normal,Moments] increased weight on mask vertices')
+    p.add_argument('--l2_distant_v_penalty',nargs=3,type=float, default=[0,0,0],
+                   help='[XYZ,Normal,Moments] increased weight on distant vertices')
+    return p.parse_args()
 
 
-def main():
-    # OH: Wrapping the main code with __main__ check is necessary for Windows compatibility
-    # of the multi-process data loader (see pytorch documentation)
-    # =============PARAMETERS======================================== #
-    parser = argparse.ArgumentParser()
-    # Learning params
-    parser.add_argument('--batchSize', type=int, default=8, help='input batch size')
-    parser.add_argument('--workers', type=int, help='number of data loading workers', default=8)
-    parser.add_argument('--nepoch', type=int, default=1000, help='number of epochs to train for')
 
-    # folder where to take pre-trained parameters
-    parser.add_argument('--model_dir', type=str, default='',
-                        help='optional reload model directory')
-    parser.add_argument('--model_file', type=str, default='',
-                        help='optional reload model file in model directory')
-    # folder that stores the log for the run
-    parser.add_argument('--save_path', type=str, default='Exp18_TrainingWithDFaust_LossWithNormals',
-                        help='save path')
-    # parser.add_argument('--env', type=str, default="shape_completion", help='visdom environment')  # OH: TODO edit
+def args_to_exp():
 
-    # Network params
-    parser.add_argument('--num_input_channels', type=int, default=12)
-    parser.add_argument('--num_output_channels', type=int,
-                        default=3)  # We assume the network return predicted xyz as 3 channels
-    parser.add_argument('--use_same_subject', type=bool, default=True)
-    # OH: a flag wether to use the same subject in AMASS examples (or two different subjects)
-    parser.add_argument('--centering', type=bool, default=True)
-    # OH: indicating whether the shapes are centerd w.r.t center of mass before entering the network
-
-    # Dataset params - Ido - Don't think these work
-    parser.add_argument('--amass_train_size', type=int, default=10000)
-    parser.add_argument('--amass_validation_size', type=int, default=10000)
-    parser.add_argument('--amass_test_size', type=int, default=200)
-    parser.add_argument('--dynamic_faust_train_size', type=int, default=10000)
-    parser.add_argument('--dynamic_faust_test_size', type=int, default=10000)
-    parser.add_argument('--faust_train_size', type=int, default=8000)
-    parser.add_argument('--faust_test_size', type=int, default=2000)
-    parser.add_argument('--p2p_faust_train_size', type=int, default=80000) #part 2 part dataloader
-    parser.add_argument('--p2p_faust_test_size', type=int, default=20000)
-    parser.add_argument('--filtering', type=float, default=0.09, help='amount of filtering to apply on l2 distances')
-
-    # Losses: Use 0 to ignore the specific loss, and val > 0 to compute it. The higher the value, the more weight the loss is
-    parser.add_argument('--normal_loss_slope', type=int, default=0.1)
-    parser.add_argument('--euclid_dist_loss_slope', type=int, default=0)  # Warning - Requires a lot of memory!
-    parser.add_argument('--distant_vertex_loss_slope', type=int, default=1)
-
-    # Adjustments to the XYZ  and Normal losses
-    parser.add_argument('--mask_xyz_penalty', type=int, default=1, help='Penalize only the mask values on xyz loss')
-    parser.add_argument('--use_mask_normal_penalty', type=bool, default=True,
-                        help='Penalize only the mask values on normal loss')
-    parser.add_argument('--use_mask_normal_distant_vertex_penalty', type=bool, default=True)
-
-    parser.add_argument('--use_visdom', type=bool, default=True)
-
-    opt = parser.parse_args()
-    print(opt)
-
-    assert opt.faust_train_size <= 8000
-    # =============DEFINE stuff for logs ======================================== #
     # Launch visdom for visualization
     if opt.use_visdom:
         vis = visdom.Visdom(port=8888, env=opt.save_path)
@@ -98,9 +88,9 @@ def main():
 
     # ===================CREATE DATASET================================= #
     dataset = FaustProjectionsPart2PartDataset(train=True, num_input_channels=opt.num_input_channels,
-                                      train_size=opt.p2p_faust_train_size, test_size = opt.p2p_faust_test_size)
+                                               train_size=opt.p2p_faust_train_size, test_size=opt.p2p_faust_test_size)
 
-    #dataset = AmassProjectionsDataset(split='train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
+    # dataset = AmassProjectionsDataset(split='train', num_input_channels=opt.num_input_channels, filtering=opt.filtering,
     #                                  mask_penalty=opt.mask_xyz_penalty, use_same_subject=opt.use_same_subject,
     #                                  train_size=opt.amass_train_size, validation_size=opt.amass_validation_size)
 
@@ -330,54 +320,6 @@ def main():
 
         # save latest network
         torch.save(network.state_dict(), '%s/network_last.pth' % (dir_name))
-
-
-def compute_loss(gt, gt_rec, template, mask_loss, f_tup, opt):
-    gt_rec_xyz = gt_rec[:, :3, :]
-    gt_xyz = gt[:, :3, :]
-    template_xyz = template[:, :3, :]
-
-    # Compute XYZ Loss
-    multiplying_factor = 1
-    if opt.mask_xyz_penalty and mask_loss is not None:
-        multiplying_factor *= mask_loss
-    if opt.distant_vertex_loss_slope > 0:
-        distant_vertex_penalty = torch.norm(gt_xyz - template_xyz, dim=1, keepdim=True)  # Vector
-        distant_vertex_penalty /= torch.mean(distant_vertex_penalty, dim=2, keepdim=True)
-        distant_vertex_penalty = torch.max(distant_vertex_penalty, torch.ones((1, 1, 1), device='cuda'))
-        distant_vertex_penalty[distant_vertex_penalty > 1] *= opt.distant_vertex_loss_slope
-        # distant_vertex_loss = torch.mean(distant_vertex_penalty * ((gt_rec_xyz - gt_xyz) ** 2))
-        # print(f'Distant Vertex Loss {distant_vertex_loss:4f}')
-        multiplying_factor *= distant_vertex_penalty
-    loss = torch.mean(multiplying_factor * ((gt_rec_xyz - gt_xyz) ** 2))
-    # loss = torch.tensor(0).float().cuda()
-
-    # Compute Normal Loss
-    if opt.normal_loss_slope > 0:
-        gt_rec_n = calc_vnrmls_batch(gt_rec_xyz, f_tup)
-        if gt.shape[1] > 3:  # Has normals
-            gt_n = gt[:, 3:6, :]
-        else:
-            gt_n = calc_vnrmls_batch(gt_xyz, f_tup)
-
-        multiplying_factor = 1
-        if opt.use_mask_normal_penalty and mask_loss is not None:
-            multiplying_factor *= mask_loss
-        if opt.use_mask_normal_distant_vertex_penalty:
-            multiplying_factor *= distant_vertex_penalty
-
-        normal_loss = opt.normal_loss_slope * torch.mean(multiplying_factor * ((gt_rec_n - gt_n) ** 2))
-        # print(f'Vertex Normal Loss {normal_loss:4f}')
-        loss += normal_loss
-
-    # Compute Euclidean Distance Loss
-    if opt.euclid_dist_loss_slope > 0:
-        euclid_dist_loss = opt.euclid_dist_loss_slope * torch.mean(
-            (calc_euclidean_dist_matrix(gt_rec_xyz) - calc_euclidean_dist_matrix(gt_xyz)) ** 2)
-        # print(f'Euclid Distances Loss {euclid_dist_loss:4f}')
-        loss += euclid_dist_loss
-
-    return loss
 
 
 if __name__ == '__main__': main()

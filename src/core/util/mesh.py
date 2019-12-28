@@ -1,26 +1,14 @@
 import numpy as np
 from plyfile import PlyData, PlyElement
 
+
+# TODO - Add visualizations here
 # ----------------------------------------------------------------------------------------------------------------------#
-#                                              Mesh File Utils
+#                                                   READ
 # ----------------------------------------------------------------------------------------------------------------------#
-def write_ply(points, filename, text=True):
-    """ input: Nx3, write points to filename as PLY format. """
-    points = [(points[i, 0], points[i, 1], points[i, 2]) for i in range(points.shape[0])]
-    vertex = np.array(points, dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
-    el = PlyElement.describe(vertex, 'vertex', comments=['vertices'])
-    PlyData([el], text=text).write(filename)
-
-
-# def apply_different_rotation_for_each_point(R,x):
-# OH: R is a torch tensor of dimensions [batch x num_points x 3 x 3]
-#     x i a torch tensor of dimenstions [batch x num_points x 3    ]
-#     the result has the same dimensions as x
-
-# initialize the weighs of the network for Convolutional layers and batchnorm layers
-
 def read_npz_mask(fp):
     return np.load(fp)["mask"]
+
 
 def read_off_verts(fp):
     vbuf = []
@@ -65,6 +53,20 @@ def read_off_full(fp):
     return np.array(vbuf), np.array(fbuf)
 
 
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                                   WRITE
+# ----------------------------------------------------------------------------------------------------------------------#
+
+def write_ply(points, filename, text=True):
+    """ input: Nx3, write points to filename as PLY format. """
+    points = [(points[i, 0], points[i, 1], points[i, 2]) for i in range(points.shape[0])]
+    vertex = np.array(points, dtype=[('x', 'f4'), ('y', 'f4'), ('z', 'f4')])
+    el = PlyElement.describe(vertex, 'vertex', comments=['vertices'])
+    PlyData([el], text=text).write(filename)
+
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                                   GRAVEYARD
+# ----------------------------------------------------------------------------------------------------------------------#
 # def mesh_montage(images, cls_true, label_names, cls_pred=None, siz=3):
 #     # Adapted from https://github.com/Hvass-Labs/TensorFlow-Tutorials/
 #     fig, axes = plt.subplots(siz, siz)

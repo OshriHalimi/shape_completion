@@ -1,20 +1,66 @@
 from collections.abc import MutableMapping
 from collections import OrderedDict
 import random
+import numpy as np
+
+
 # ----------------------------------------------------------------------------------------------------------------------
-#                                                Dictionary
+#                                                     Lists
 # ----------------------------------------------------------------------------------------------------------------------
+def split_frac(l, fracs):
+    # Accumulate the percentages
+    splits = np.cumsum(fracs).astype(np.float)
+
+    # Two cases: Percentage list is full or missing the last value
+    if splits[-1] == 1:
+        # Split doesn't need last percent, it will just take what is left
+        splits = splits[:-1]
+    elif splits[-1] > 1:
+        raise ValueError("Sum of fracs are greater than one")
+    # On < 1 -> Do Nothing
+
+    # Turn values into indices
+    splits *= len(l)
+
+    # Turn double indices into integers.
+    # CAUTION: numpy rounds to closest EVEN number when a number is halfway
+    # between two integers. So 0.5 will become 0 and 1.5 will become 2!
+    # If you want to round up in all those cases, do
+    # splits += 0.5 instead of round() before casting to int
+    splits += 0.5
+    splits = splits.astype(np.int)
+
+    return np.split(l, splits)
+
+
+# def split_frac_tester():
+#     import numpy as np, numpy.random
+#     import random
+#     for i in range(1,10000):
+#         indices = list(range(i))
+#         n_split = random.randint(1, 20)
+#         n_dirac = random.randint(1, 1000*1000)/1000
+#         splits = np.random.dirichlet(np.ones(n_split) * n_dirac, size=1)*3/4
+#         # splits = [0.05,0.05,0.9]
+#         assert sum(map(len,split_frac(indices,splits))) == i , f"{i}"
+
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                   Dicts
+# ----------------------------------------------------------------------------------------------------------------------
+
 def max_dict_depth(dic, level=1):
     if not isinstance(dic, dict) or not dic:
         return level
     return max(max_dict_depth(dic[key], level + 1)
                for key in dic)
 
+
 def min_dict_depth(dic, level=1):
     if not isinstance(dic, dict) or not dic:
         return level
     return min(min_dict_depth(dic[key], level + 1)
                for key in dic)
+
 
 def deep_dict_to_rdict(d):
     rdict = RandomDict()
@@ -28,9 +74,9 @@ def deep_dict_to_rdict(d):
 
     return rdict
 
-def deep_check_odict(d):
 
-    if not isinstance(d,OrderedDict):
+def deep_check_odict(d):
+    if not isinstance(d, OrderedDict):
         return False
     else:
         kids_are_ordered = True
@@ -52,8 +98,9 @@ def delete_keys_from_dict(dictionary, keys):
                 modified_dict[key] = value  # or copy.deepcopy(value) if a copy is desired for non-dicts.
     return modified_dict
 
+
 # ----------------------------------------------------------------------------------------------------------------------
-#                                                Dictionary
+#                                         Rand Dict Implementation
 # ----------------------------------------------------------------------------------------------------------------------
 class RandomDict(MutableMapping):
     def __init__(self, *args, **kwargs):
@@ -80,7 +127,7 @@ class RandomDict(MutableMapping):
         self.keys[key] = i
 
     def __delitem__(self, key):
-        if not key in self.keys:
+        if key not in self.keys:
             raise KeyError
 
         # index of item to delete is i
@@ -101,7 +148,7 @@ class RandomDict(MutableMapping):
         del self.keys[key]
 
     def __getitem__(self, key):
-        if not key in self.keys:
+        if key not in self.keys:
             raise KeyError
 
         i = self.keys[key]

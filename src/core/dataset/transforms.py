@@ -4,12 +4,6 @@ import torch.nn.functional as tf
 from util.datascience import normr, index_sparse
 from util.gen import warn
 
-# ----------------------------------------------------------------------------------------------------------------------
-#                                                 Globals
-# ----------------------------------------------------------------------------------------------------------------------
-DEF_PRECISION = np.float32
-DANGEROUS_MASK_THRESH = 100
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 #
@@ -81,22 +75,30 @@ class AlignInputChannels(Transform):
 
 
 class CompletionTripletToTuple(Transform):
+    def __init__(self):
+        # To avoid circular import errors:
+        from cfg import DANGEROUS_MASK_THRESH, DEF_PRECISION
+        self._mask_thresh = DANGEROUS_MASK_THRESH
+        self._def_prec = DEF_PRECISION
+
     def __call__(self, data):
         if isinstance(data, CompletionTriplet):
             # Checks:
-            if len(data.mask_vi) < DANGEROUS_MASK_THRESH:
+            if len(data.mask_vi) < self._mask_thresh:
                 warn(f'Found mask of length {len(data.mask_vi)} with id: {data.hi}')
-            if data.tp_mask_vi is not None and len(data.mask_vi) < DANGEROUS_MASK_THRESH:
+            if data.tp_mask_vi is not None and len(data.mask_vi) < self._mask_thresh:
                 warn(f'Found mask of length {len(data.tp_mask_vi)} with id: {data.new_hi}')
 
             # ONLY PLACE THAT PRECISION IS CHANGED
-            data.gt_v = data.gt_v.astype(DEF_PRECISION)
-            data.tp_v = data.tp_v.astype(DEF_PRECISION)
+            data.gt_v = data.gt_v.astype(self._def_prec)
+            data.tp_v = data.tp_v.astype(self._def_prec)
 
-            output = [data.gt_v, data.tp_v, padded_part_by_mask(data.mask_vi, data.gt_v)]
+            output = [data.hi, data.gt_v, padded_part_by_mask(data.mask_vi, data.gt_v), data.new_hi, data.tp_v]
 
             if data.tp_mask_vi is not None:
                 output.append(padded_part_by_mask(data.tp_mask_vi, data.tp_v))
+
+            # Additional input - outside of the input config
             if data.mask_penalty_vec is not None:
                 output.append(data.mask_penalty_vec)
 
@@ -132,8 +134,16 @@ class AddMaskPenalty(Transform):
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
-#                                              Mesh Utils
+#                                           Transform Inner Functions
 # ----------------------------------------------------------------------------------------------------------------------#
+
+def padded_part_by_mask(mask_vi, gt_v):
+    # Pad the mask to length:
+    needed_padding_len = gt_v.shape[0] - len(mask_vi)
+    mask_vi_padded = np.append(mask_vi, np.random.choice(mask_vi, needed_padding_len, replace=True))  # Copies
+    return gt_v[mask_vi_padded, :]
+
+
 def align_in_channels(v, f, req_in_channels):
     available_in_channels = v.shape[1]
     if available_in_channels > req_in_channels:
@@ -151,7 +161,7 @@ def align_in_channels(v, f, req_in_channels):
 def calc_vnrmls(v, f):
     # NOTE - Vertices unreferenced by faces will be zero
     if f is None:
-        raise NotImplementedError # TODO - Add in computation for scans, without faces - either with pcnormals/
+        raise NotImplementedError  # TODO - Add in computation for scans, without faces - either with pcnormals/
     else:
         a = v[f[:, 0], :]
         b = v[f[:, 1], :]
@@ -162,21 +172,37 @@ def calc_vnrmls(v, f):
         return normr(vn)
 
 
-def padded_part_by_mask(mask_vi, gt_v):
-    # Pad the mask to length:
-    needed_padding_len = gt_v.shape[0] - len(mask_vi)
-    mask_vi_padded = np.append(mask_vi, np.random.choice(mask_vi, needed_padding_len, replace=True))  # Copies
-    return gt_v[mask_vi_padded, :]
-
-
 def calc_moments(v):
     x, y, z = v[:, 0], v[:, 1], v[:, 2]
     return np.stack((x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
-#                                              Unchecked
+#                                               PyTorch Batch Computations - TODO - Migrate this
 # ----------------------------------------------------------------------------------------------------------------------#
+
+def batch_euclidean_dist_matrix(x):
+    # X of dim: [batch_size x nv x 3]
+    x = x.transpose(2, 1)
+    r = torch.sum(x ** 2, dim=2).unsqueeze(2)  # [batch_size  x num_points x 1]
+    r_t = r.transpose(2, 1)  # [batch_size x 1 x num_points]
+    inner = torch.bmm(x, x.transpose(2, 1))
+    dist_mat = tf.relu(r - 2 * inner + r_t) ** 0.5  # the residual numerical error can be negative ~1e-16
+    return dist_mat
+
+
+def batch_vnrmls(v, f_tup):
+    # v dimensions: [batch_size x 3 x n_vertices]
+    # f dimensions: ( [n_faces x 3] , [n_faces x 3] )
+    v = v.transpose(2, 1)
+    vn = torch.zeros_like(v)
+    for i in range(v.shape[0]):
+        vn[i, :, :] = calc_vnrmls_torch(v[i, :, :], f_tup)
+
+    v = v.transpose(2, 1)
+    vn = vn.transpose(2, 1)
+    return vn
+
 
 def calc_vnrmls_torch(v, f_tup):
     f, f_torch = f_tup
@@ -204,52 +230,10 @@ def calc_vnrmls_torch(v, f_tup):
     return vn
 
 
-def calc_vnrmls_batch(v, f_tup):
-    # v dimensions: [batch_size x 3 x n_vertices]
-    # f dimensions: ( [n_faces x 3] , [n_faces x 3] )
-    v = v.transpose(2, 1)
-    vn = torch.zeros_like(v)
-    for i in range(v.shape[0]):
-        vn[i, :, :] = calc_vnrmls_torch(v[i, :, :], f_tup)
-
-    v = v.transpose(2, 1)
-    vn = vn.transpose(2, 1)
-    return vn
-
-    # XF = V[:, :, triv].transpose(2,
-    #                              1)  # first dimension runs on the vertices in the triangle, second on the triangles and third on x,y,z coordinates
-    # N = torch.cross(XF[:, :, :, 1] - XF[:, :, :, 0],
-    #                 XF[:, :, :, 2] - XF[:, :, :, 0])  # OH: normal field T x 3, directed outwards
-    # N = N / torch.sqrt(torch.sum(N ** 2, dim=-1, keepdim=True))
-
-
-def calc_euclidean_dist_matrix(x):
-    # OH: x contains the coordinates of the mesh,
-    # x dimensions are [batch_size x num_nodes x 3]
-
-    x = x.transpose(2, 1)
-    r = torch.sum(x ** 2, dim=2).unsqueeze(2)  # OH: [batch_size  x num_points x 1]
-    r_t = r.transpose(2, 1)  # OH: [batch_size x 1 x num_points]
-    inner = torch.bmm(x, x.transpose(2, 1))
-    dist_mat = tf.relu(r - 2 * inner + r_t) ** 0.5  # OH: the residual numerical error can be negative ~1e-16
-    return dist_mat
-
-
-def test_normals(v, f, n):
-    import matplotlib.pyplot as plt
-    fig = plt.figure()
-    ax = fig.gca(projection='3d')
-    ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=0.2, antialiased=True)
-    vnn = v + n
-    ax.quiver(v[:, 0], v[:, 1], v[:, 2], vnn[:, 0], vnn[:, 1], vnn[:, 2], length=0.03, normalize=True)
-    plt.show()
-
-
-import torch
-import torch.nn.functional as F
-from torch_scatter import scatter_add
-
-# TODO - See if this implementation is faster
+# import torch
+# import torch.nn.functional as F
+# from torch_scatter import scatter_add
+# TODO - See if this implementation is faster for vnrmrls
 # [docs]class GenerateMeshNormals(object):
 #     r"""Generate normal vectors for each mesh node based on neighboring
 #     faces."""
@@ -274,3 +258,17 @@ from torch_scatter import scatter_add
 #
 #     def __repr__(self):
 #         return '{}()'.format(self.__class__.__name__)
+
+
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                              Tests
+# ----------------------------------------------------------------------------------------------------------------------#
+
+def test_normals(v, f, n):
+    import matplotlib.pyplot as plt
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=0.2, antialiased=True)
+    vnn = v + n
+    ax.quiver(v[:, 0], v[:, 1], v[:, 2], vnn[:, 0], vnn[:, 1], vnn[:, 2], length=0.03, normalize=True)
+    plt.show()

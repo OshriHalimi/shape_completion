@@ -1,8 +1,8 @@
 import numpy as np
 import open3d as o3d
 
-if __name__ == "__main__":
 
+def voxels():
     print("Load a ply point cloud, print it, and render it")
     pcd = o3d.io.read_point_cloud("frag.ply")
     print(pcd)
@@ -34,3 +34,33 @@ if __name__ == "__main__":
     chair.paint_uniform_color([1, 0.706, 0])
     o3d.visualization.draw_geometries([chair])
     print("")
+
+
+if __name__ == "__main__":
+    voxels()
+
+
+# import torch
+# import torchvision
+# from torch.utils.tensorboard import SummaryWriter
+# from torchvision import datasets, transforms
+# from architecture.PytorchNet import PytorchNet
+#
+# # Writer will output to ./runs/ directory by default
+# # writer = SummaryWriter()
+#
+# transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
+# trainset = datasets.MNIST('mnist_train', train=True, download=True, transform=transform)
+# trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
+# model = torchvision.models.resnet50(False)
+# # Have ResNet architecture take in grayscale rather than RGB
+# for (x,y) in trainloader:
+#     break
+# model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
+# pymodel = PytorchNet.monkeypatch(model)
+# pymodel.print_weights()
+# print(pymodel.family_name())
+# # pymodel.visualize()
+#
+# print(pymodel.output_size())
+# pymodel.summary()

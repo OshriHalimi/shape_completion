@@ -26,14 +26,16 @@ def index_sparse(columns, indices, data=None):
     return matrix
 
 
-def normc(Mat):
-    return normalize(Mat, norm='l2', axis=0)
+def normc(mat):
+    return normalize(mat, norm='l2', axis=0)
 
-def normr(Mat):
-    return normalize(Mat, norm='l2', axis=1)
 
-def normv(Vec):
-    return normalize(Vec, norm='l2')
+def normr(mat):
+    return normalize(mat, norm='l2', axis=1)
+
+
+def normv(vec):
+    return normalize(vec, norm='l2')
 # ----------------------------------------------------------------------------------------------------------------------#
 #
 # ----------------------------------------------------------------------------------------------------------------------#
