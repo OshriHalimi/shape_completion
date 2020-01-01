@@ -2,17 +2,21 @@ from pathlib import Path
 from torch.utils.data import DataLoader
 from dataset.collate import default_collate
 import torch.utils.data
-from abc import ABC, abstractmethod
+from abc import ABC  # , abstractmethod
 from torch.utils.data.sampler import SubsetRandomSampler
-from util.gen import banner, convert_bytes
+from util.gen import banner, convert_bytes,time_me
 from util.container import split_frac
+from util.mesh_io import numpy2vtkActor,print_vtkplotter_help
+from vtkplotter import Plotter, Spheres, show
 from pickle import load
 from copy import deepcopy
 from dataset.transforms import *
 from enum import Enum, auto
 from tqdm import tqdm
+from types import MethodType
 import time
 import psutil
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #
@@ -50,7 +54,7 @@ class PointDataset(ABC):
 
         self._f = None
 
-    def data_summary(self, show_sample=False, with_tree=False):
+    def data_summary(self, with_tree=False):
         banner('Dataset Summary')
         print(f'* Dataset Name: {self.name()}')
         print(f'* Point Cloud Number: {self.num_pnt_clouds()}')
@@ -62,8 +66,6 @@ class PointDataset(ABC):
             banner('Dataset Index Tree')
             self.report_index_tree()
         banner()
-        if show_sample:
-            self._show_sample(montage_shape=(3, 3))
 
     def name(self):
         return self.__class__.__name__
@@ -88,16 +90,28 @@ class PointDataset(ABC):
         else:
             return deepcopy(self._f)
 
+    def sample(self, num_samples=10, transforms=None):
+        if num_samples > self.num_pnt_clouds():
+            warn(f"Requested {num_samples} samples when dataset only holds {self.num_pnt_clouds()}. "
+                 f"Returning the latter")
+        ldr = self.loader(ids=None, transforms=transforms, batch_size=num_samples, device='cpu-single')
+        return next(iter(ldr))
+        # return [attempt_squeeze(next(ldr_it)) for _ in range(num_samples)]
+
     def loader(self, ids=None, transforms=None, batch_size=16, device='cuda'):
         if ids is None:
             ids = range(self.num_pnt_clouds())
         assert len(ids) > 0, "Found loader with no data samples inside"
-        num_workers = determine_worker_num(batch_size)
         device = device.lower()
-        assert device in ['cuda', 'cpu']
+        assert device in ['cuda', 'cpu','cpu-single']
         pin_memory = (device == 'cuda')
+        if device == 'cpu-single':
+            n_workers = 0
+        else:
+            n_workers = determine_worker_num(batch_size)
+
         train_loader = DataLoader(self._set_to_torch_set(transforms, len(ids)), batch_size=batch_size,
-                                  sampler=SubsetRandomSampler(ids), num_workers=num_workers,
+                                  sampler=SubsetRandomSampler(ids), num_workers=n_workers,
                                   pin_memory=pin_memory, collate_fn=default_collate)
         return train_loader
 
@@ -112,7 +126,7 @@ class PointDataset(ABC):
         :param s_transform: A list - s_transforms[i] is the transforms for the ith split
         :param global_shuffle: If True, shuffles the entire set before split
         :param batch_size: Integer > 0
-        :param device: 'cuda' or 'cpu'
+        :param device: 'cuda' or 'cpu' or 'cpu-single'
         :return: A list of (loaders,num_samples)
         """
 
@@ -141,6 +155,7 @@ class PointDataset(ABC):
             loaders = loaders[0]
         return loaders
 
+    @time_me
     def validate_dataset(self):
         banner(f'Validation of dataset {self.name()} :: {self.num_pnt_clouds()} pnt clouds')
         time.sleep(.01)  # For the STD-ERR lag
@@ -163,11 +178,6 @@ class PointDataset(ABC):
 
         print(f'Validation -- PASSED --')
 
-    def _show_sample(self, montage_shape):  # TODO - Not implemented
-        raise NotImplementedError
-        # images, labels = iter(torch.util.data.DataLoader(train_dataset, shuffle=True, batch_size=siz ** 2)).next()
-        # plot_images(images.numpy().transpose([0, 2, 3, 1]), labels, self._class_labels, siz=siz)
-
     def _set_to_torch_set(self, transforms, num_ids):
         if transforms is None:
             transforms = []
@@ -177,20 +187,24 @@ class PointDataset(ABC):
         transforms = Compose(transforms)
         return PointDatasetLoaderBridge(self, self._transformation_finalizer(transforms), loader_len=num_ids)
 
-    @abstractmethod
+    # @abstractmethod
     def _transformation_finalizer(self, transforms):
         raise NotImplementedError
 
-    @abstractmethod
+    # @abstractmethod
     def _hierarchical_index_to_path(self, hi):
         raise NotImplementedError
 
-    @abstractmethod
+    # @abstractmethod
     def _path_load(self, fps):
         raise NotImplementedError
 
-    @abstractmethod
+    # @abstractmethod
     def _construct_hit(self):
+        raise NotImplementedError
+
+    # @abstractmethod
+    def show_sample(self, montage_shape):
         raise NotImplementedError
 
 
@@ -216,6 +230,7 @@ class PointDatasetLoaderBridge(torch.utils.data.Dataset):
         data = self._ds_inst._path_load(fp)
         return self._transforms(data)
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
@@ -228,12 +243,14 @@ def exact_num_loader_obj(loader):
     # This is more exact than len(loader)*batch_size - Seeing we don't round up the last batch to batch_size
     return len(loader.dataset)
 
+
 def determine_worker_num(batch_size):
     cpu_cnt = psutil.cpu_count(logical=False)
     if batch_size < cpu_cnt:
         return batch_size
     else:
         return cpu_cnt
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #
@@ -245,25 +262,39 @@ class CompletionProjDataset(PointDataset, ABC):
         self._in_cfg = in_cfg
         self._proj_dir = self._data_dir / 'projections'
         self._full_dir = self._data_dir / 'full'
-        self._path_meth = getattr(self.__class__, f"_{in_cfg.name.lower()}_path")
-        self._data_load_meth = getattr(self.__class__, f"_{in_cfg.name.lower()}_load")
+        # Bind the methods at runtime:
+        self._hierarchical_index_to_path = MethodType(getattr(self.__class__, f"_{in_cfg.name.lower()}_path"), self)
+        self._path_load = MethodType(getattr(self.__class__, f"_{in_cfg.name.lower()}_load"), self)
+
+        from cfg import DANGEROUS_MASK_THRESH, DEF_PRECISION
+        self._mask_thresh = DANGEROUS_MASK_THRESH
+        self._def_precision = DEF_PRECISION
 
     def _transformation_finalizer(self, transforms):
-        transforms.append(CompletionTripletToTuple())  # Add in a final layer that dismantles the CompletionTriplet
+        transforms.append(CompletionDataFinalizer())
         return transforms
 
     def _full2part_path(self, hi):
         gt_fp = self._hi2full_path(hi)
         mask_fp = self._hi2proj_path(hi)
         # New index from the SAME subject
-        new_hi = self._hit.random_path_from_partial_path([hi[0]])
-        tp_fp = self._hi2full_path(new_hi)
-        return [hi, gt_fp, mask_fp, new_hi, tp_fp]
+        tp_hi = self._hit.random_path_from_partial_path([hi[0]])
+        tp_fp = self._hi2full_path(tp_hi)
+        return [hi, gt_fp, mask_fp, tp_hi, tp_fp]  # TODO - Think about just using dicts all the way
 
     def _full2part_load(self, fps):
         # TODO - Add in support for faces that are loaded from file - by overloading hi2full for example
-        return CompletionTriplet(f=self._f, hi=fps[0], gt_v=self._full2data(fps[1]), mask_vi=self._proj2data(fps[2]),
-                                 new_hi=fps[3], tp_v=self._full2data(fps[4]))
+
+        hi = fps[0]
+        gt_v = self._full2data(fps[1]).astype(self._def_precision)
+        gt_mask_vi = self._proj2data(fps[2])
+        tp_hi = fps[3]
+        tp_v = self._full2data(fps[4]).astype(self._def_precision)
+        if len(gt_mask_vi) < self._mask_thresh:
+            warn(f'Found mask of length {len(gt_mask_vi)} with id: {hi}')
+
+        # We protect the gt_mask_vi with a list, so it will not be directly batched
+        return {'f': self._f, 'gt_hi': hi, 'gt_v': gt_v, 'gt_mask_vi': [gt_mask_vi], 'tp_hi': tp_hi, 'tp_v': tp_v}
 
     def _part2part_path(self, hi):
         fps = self._full2part_path(hi)
@@ -272,29 +303,57 @@ class CompletionProjDataset(PointDataset, ABC):
         return fps
 
     def _part2part_load(self, fps):
-        ct = self._full2part_load(fps)
-        ct.tp_mask_vi = self._proj2data(fps[5])
-        return ct
+        comp_d = self._full2part_load(fps)
+        tp_mask_vi = self._proj2data(fps[5])
+        if len(tp_mask_vi) < self._mask_thresh:
+            warn(f'Found mask of length {len(tp_mask_vi)} with id: {comp_d["tp_hi"]}')
+        comp_d['tp_mask_vi'] = [tp_mask_vi]
+        return comp_d
 
-    def _hierarchical_index_to_path(self, hi):
-        return self._path_meth(self, hi)
+    def show_sample(self, n_shapes=8, key='gt_part_v', strategy='spheres'):
 
-    def _path_load(self, fps):
-        return self._data_load_meth(self, fps)
+        using_full = key in ['gt_v', 'tp_v']
+        # TODO - Remove this by finding the vtk bug - or replacing the whole vtk shit
+        assert not(not using_full and strategy=='mesh') , "Mesh strategy for 'part' gets stuck in vtkplotter"
+        fp_fun = self._hi2full_path if using_full else self._hi2proj_path
 
-    @abstractmethod
+        samp = self.sample(num_samples=n_shapes, transforms=None)
+        vp = Plotter(N=n_shapes, axes=0)
+        vp.legendSize = 0.4
+        for i in range(n_shapes):  # for each available color map name
+
+            adder = key.split('_')[0]
+            if using_full:
+                v,f = samp[key][i,:,0:3].numpy(), self._f # TODO - Add in support for faces loaded from file
+            else:
+                v, f = trunc_to_vertex_subset(samp[f'{adder}_v'][i,:,0:3].numpy(), self._f, samp[f'{adder}_mask_vi'][i][0])
+
+            if strategy == 'cloud':
+                a = numpy2vtkActor(v, None,clr='w') # clr=v is cool
+            elif strategy == 'mesh':
+                a = numpy2vtkActor(v, f,clr='gold')
+            elif strategy == 'spheres':
+                a = Spheres(v, c='w', r=0.01) # TODO - compute r with respect to the mesh
+
+            a.legend(f'{key} | {fp_fun(samp[f"{adder}_hi"][i]).name}')
+            vp.show(a, at=i)
+
+        print_vtkplotter_help()
+        vp.show(interactive=1)
+
+    # @abstractmethod
     def _hi2proj_path(self, hi):
         raise NotImplementedError
 
-    @abstractmethod
+    # @abstractmethod
     def _hi2full_path(self, hi):
         raise NotImplementedError
 
-    @abstractmethod
+    # @abstractmethod
     def _proj2data(self, fp):
         raise NotImplementedError
 
-    @abstractmethod
+    # @abstractmethod
     def _full2data(self, fp):
         raise NotImplementedError
 
@@ -312,7 +371,12 @@ class SMPLCompletionProjDataset(CompletionProjDataset, ABC):
 # ----------------------------------------------------------------------------------------------------------------------
 
 if __name__ == "__main__":
-    pass
+    from dataset.datasets import PointDatasetMenu
+    from dataset.index import HierarchicalIndexTree
+    print(PointDatasetMenu.which())
+    ds = PointDatasetMenu.get('AmassValdPyProj', in_cfg=InCfg.FULL2PART, in_channels=3)
+    # ds.validate_dataset()
+    ds.show_sample(key='gt_v',strategy='mesh',n_shapes=8)
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                     Graveyard

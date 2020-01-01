@@ -25,7 +25,6 @@ def index_sparse(columns, indices, data=None):
 
     return matrix
 
-
 def normc(mat):
     return normalize(mat, norm='l2', axis=0)
 

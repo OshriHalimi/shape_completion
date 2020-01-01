@@ -9,25 +9,6 @@ from util.gen import warn
 #
 # ----------------------------------------------------------------------------------------------------------------------
 
-class CompletionTriplet:
-    def __init__(self, f, hi, gt_v, mask_vi, new_hi, tp_v, tp_mask_vi=None):
-        self.hi = hi
-        self.gt_v = gt_v
-        self.mask_vi = mask_vi
-        self.new_hi = new_hi
-        self.tp_v = tp_v
-
-        self.tp_mask_vi = tp_mask_vi  # Sometimes None
-        self.f = f
-
-        # Placeholders:
-        self.mask_penalty_vec = None
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-#
-# ----------------------------------------------------------------------------------------------------------------------
-
 class Transform:
     def __repr__(self):
         return self.__class__.__name__ + '()'
@@ -64,84 +45,63 @@ class AlignInputChannels(Transform):
     def __init__(self, req_in_channels):
         self._req_in_channels = req_in_channels
 
-    def __call__(self, data):
-        if isinstance(data, CompletionTriplet):  # Assumption: tp_v,gt_v use the same triangulation
-            data.gt_v = align_in_channels(data.gt_v, data.f, self._req_in_channels)
-            data.tp_v = align_in_channels(data.tp_v, data.f, self._req_in_channels)
+    def __call__(self, x):
+        if isinstance(x, dict):  # Assumption: tp_v,gt_v use the same triangulation
+            x['gt_v'] = align_in_channels(x['gt_v'], x['f'], self._req_in_channels)
+            x['tp_v'] = align_in_channels(x['tp_v'], x['f'], self._req_in_channels)
+            del x['f'] # Presumption: The triangulation is not needed after this
         else:
             raise NotImplementedError
+        return x
 
-        return data
-
-
-class CompletionTripletToTuple(Transform):
-    def __init__(self):
-        # To avoid circular import errors:
-        from cfg import DANGEROUS_MASK_THRESH, DEF_PRECISION
-        self._mask_thresh = DANGEROUS_MASK_THRESH
-        self._def_prec = DEF_PRECISION
-
-    def __call__(self, data):
-        if isinstance(data, CompletionTriplet):
-            # Checks:
-            if len(data.mask_vi) < self._mask_thresh:
-                warn(f'Found mask of length {len(data.mask_vi)} with id: {data.hi}')
-            if data.tp_mask_vi is not None and len(data.mask_vi) < self._mask_thresh:
-                warn(f'Found mask of length {len(data.tp_mask_vi)} with id: {data.new_hi}')
-
-            # ONLY PLACE THAT PRECISION IS CHANGED
-            data.gt_v = data.gt_v.astype(self._def_prec)
-            data.tp_v = data.tp_v.astype(self._def_prec)
-
-            output = [data.hi, data.gt_v, padded_part_by_mask(data.mask_vi, data.gt_v), data.new_hi, data.tp_v]
-
-            if data.tp_mask_vi is not None:
-                output.append(padded_part_by_mask(data.tp_mask_vi, data.tp_v))
-
-            # Additional input - outside of the input config
-            if data.mask_penalty_vec is not None:
-                output.append(data.mask_penalty_vec)
-
-            return tuple(output)
+class CompletionDataFinalizer(Transform):
+    def __call__(self,x):
+        if isinstance(x, dict):
+            # Done last, since we might transform the mask
+            x['gt_part'] = padded_part_by_mask(x['gt_mask_vi'][0], x['gt_v'])
+            if 'tp_mask_vi' in x:
+                x['tp_part'] = padded_part_by_mask(x['tp_mask_vi'][0], x['tp_v'])
         else:
             raise NotImplementedError
+        return x
 
+# TODO : Add in Mask Flip
 
 class Center(Transform):
     def __init__(self, slicer=slice(0, 3)):
         self._slicer = slicer
 
-    def __call__(self, data):
-        if isinstance(data, CompletionTriplet):
-            data.gt_v[:, self._slicer] -= data.gt_v[:, self._slicer].mean(axis=0, keepdims=True)
-            data.tp_v[:, self._slicer] -= data.tp_v[:, self._slicer].mean(axis=0, keepdims=True)
+    def __call__(self, x):
+        if isinstance(x, dict):
+            x['gt_v'][:, self._slicer] -= x['gt_v'][:, self._slicer].mean(axis=0, keepdims=True)
+            x['tp_v'][:, self._slicer] -= x['tp_v'][:, self._slicer].mean(axis=0, keepdims=True)
         else:
             raise NotImplementedError
-        return data
+        return x
 
 
 class AddMaskPenalty(Transform):
     def __init__(self, penalty):
         self._penalty = penalty
 
-    def __call__(self, data):
-        if isinstance(data, CompletionTriplet):
-            data.mask_penalty_vec = np.ones(data.gt_v.shape[0])
-            data.mask_penalty_vec[data.mask_vi] = self._penalty
+    def __call__(self, x):
+        if isinstance(x, dict):
+            x['mask_penalty_vec'] = np.ones(x['gt_v'].shape[0])
+            x['mask_penalty_vec'][x['gt_mask_vi']] = self._penalty
         else:
             raise NotImplementedError
-        return data
+        return x
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                           Transform Inner Functions
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def padded_part_by_mask(mask_vi, gt_v):
+def padded_part_by_mask(mask_vi, v):
     # Pad the mask to length:
-    needed_padding_len = gt_v.shape[0] - len(mask_vi)
+    needed_padding_len = v.shape[0] - len(mask_vi)
     mask_vi_padded = np.append(mask_vi, np.random.choice(mask_vi, needed_padding_len, replace=True))  # Copies
-    return gt_v[mask_vi_padded, :]
+    return v[mask_vi_padded, :]
 
 
 def align_in_channels(v, f, req_in_channels):
@@ -175,6 +135,27 @@ def calc_vnrmls(v, f):
 def calc_moments(v):
     x, y, z = v[:, 0], v[:, 1], v[:, 2]
     return np.stack((x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
+
+
+def flip_mask(nv, vi):
+    indicator = np.ones((nv,))
+    indicator[vi] = 0
+    return np.where(indicator == 1)[0]
+
+
+def trunc_to_vertex_subset(v, f, vi):
+    nv = v.shape[0]
+    # Compute new vertices:
+    v2 = v[vi, :]
+    # Compute map from old vertex indices to new vertex indices
+    vlut = np.full((nv,), fill_value=-1)
+    vlut[vi] = np.arange(len(vi))  # Bad vertices have no mapping, and stay -1.
+
+    # Change vertex labels in face array. Bad vertices have no mapping, and stay -1.
+    f2 = vlut[f]
+    # Keep only faces with valid vertices:
+    f2 = f2[np.sum(f2 == -1, axis=1) == 0, :]
+    return v2, f2
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -238,9 +219,9 @@ def calc_vnrmls_torch(v, f_tup):
 #     r"""Generate normal vectors for each mesh node based on neighboring
 #     faces."""
 #
-#     def __call__(self, data):
-#         assert 'face' in data
-#         pos, face = data.pos, data.face
+#     def __call__(self, x):
+#         assert 'face' in x
+#         pos, face = x.pos, x.face
 #
 #         vec1 = pos[face[1]] - pos[face[0]]
 #         vec2 = pos[face[2]] - pos[face[0]]
@@ -252,9 +233,9 @@ def calc_vnrmls_torch(v, f_tup):
 #         norm = scatter_add(face_norm, idx, dim=0, dim_size=pos.size(0))
 #         norm = F.normalize(norm, p=2, dim=-1)  # [N, 3]
 #
-#         data.norm = norm
+#         x.norm = norm
 #
-#         return data
+#         return x
 #
 #     def __repr__(self):
 #         return '{}()'.format(self.__class__.__name__)

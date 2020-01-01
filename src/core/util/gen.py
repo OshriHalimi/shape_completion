@@ -1,8 +1,8 @@
 import sys
 import warnings
 import os
-
-
+import timeit
+from datetime import timedelta
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Pretty Prints
 # ----------------------------------------------------------------------------------------------------------------------
@@ -14,6 +14,12 @@ def banner(text=None, ch='=', length=88):
     print(spaced_text.center(length, ch))
 
 
+def hms_string(sec_elapsed):
+    h = int(sec_elapsed / (60 * 60))
+    m = int((sec_elapsed % (60 * 60)) / 60)
+    s = sec_elapsed % 60.
+    return "{}:{:>02}:{:>05.2f}".format(h, m, s)
+
 class BColors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -24,6 +30,24 @@ class BColors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+# Decorator to time functions
+def time_me(method):
+    def timed(*args, **kw):
+        ts = timeit.default_timer()
+        result = method(*args, **kw)
+        te = timeit.default_timer()
+        # This snippet here allows extraction of the timing:
+        # Snippet:
+        # if 'log_time' in kw:
+        #     name = kw.get('log_name', method.__name__.upper()) # Key defaults to method name
+        #     kw['log_time'][name] = int((te - ts) * 1000)
+        # Usage:
+        # logtime_data = {}
+        # ret_val = some_func_with_decorator(log_time=logtime_data)
+        # else:
+        print(f'{method.__name__} compute time :: {str(timedelta(seconds=te-ts))}')
+        return result
+    return timed
 
 def print_warning(message, category, filename, lineno, file=None, line=None):
     # if line is None:

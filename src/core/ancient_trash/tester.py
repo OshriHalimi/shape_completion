@@ -1,6 +1,10 @@
 import numpy as np
 import open3d as o3d
+from util.mesh_io import read_off,write_off,write_obj
+from dataset.transforms import flip_mask
 
+def tester():
+    pass
 
 def voxels():
     print("Load a ply point cloud, print it, and render it")
@@ -37,7 +41,7 @@ def voxels():
 
 
 if __name__ == "__main__":
-    voxels()
+    tester()
 
 
 # import torch

@@ -3,7 +3,7 @@ from dataset.abstract import SMPLCompletionProjDataset, InCfg
 from dataset.index import HierarchicalIndexTree
 from pickle import load
 import numpy as np
-from util.mesh import read_npz_mask, read_off_verts
+from util.mesh_io import read_npz_mask, read_off_verts
 import scipy.io as sio
 from dataset.transforms import Center
 import re
@@ -161,14 +161,16 @@ class PointDatasetMenu:
 def test_dataset():
     print(PointDatasetMenu.which())
     ds = PointDatasetMenu.get('DFaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=12)
-    ds.data_summary(with_tree=False)
+    # ds.data_summary(with_tree=False)
     # ds.validate_dataset()
-    # tl, num_tests = ds.loader(ids=None,batch_size=2, transforms=[Center()])
-    # (tl,n_train),(vl,n_vald),(tsl,n_test) = ds.split_loaders(split=[0.5,0.4,0.1],s_nums=[100,200,300000],
+    ds.show_sample()
+    # print(samp)
+    # tl = ds.loader(ids=None,batch_size=2, transforms=[Center()])
+    # t1,vl,tsl = ds.split_loaders(split=[0.5,0.4,0.1],s_nums=[100,200,300000],
     # s_shuffle=[True]*3,s_transform=[Center()]*3,global_shuffle=True)
     tl = ds.split_loaders(split=[1], s_nums=[None] , s_shuffle=[True] , s_transform=[Center()] )
-
-    # ids = get_loader_ids(tl)
+    #
+    # # ids = get_loader_ids(tl)
     for obj in tl:
         print(obj)  # Need to transfer to GPU
         break

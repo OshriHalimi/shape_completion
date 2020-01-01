@@ -12,7 +12,7 @@ from torch._six import container_abcs, string_classes, int_classes
 np_str_obj_array_pattern = re.compile(r'[SaUO]')
 
 
-def default_convert(data,rec_level = 0):
+def default_convert(data):
     r"""Converts each NumPy array data field into a tensor"""
     elem_type = type(data)
     if isinstance(data, torch.Tensor):
@@ -71,7 +71,8 @@ def default_collate(batch,rec_level=0):
     elif isinstance(elem, string_classes):
         return batch
     elif isinstance(elem, container_abcs.Mapping):
-        return {key: default_collate([d[key] for d in batch]) for key in elem}
+        # Changes do not allow collating deep lists - either list in list or list in dict
+        return {key: default_collate([d[key] for d in batch],rec_level=1) for key in elem}
     elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
         return elem_type(*(default_collate(samples) for samples in zip(*batch)))
     elif isinstance(elem, container_abcs.Sequence):
