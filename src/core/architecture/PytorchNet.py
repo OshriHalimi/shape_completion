@@ -2,33 +2,73 @@ import torch
 import torch.nn as nn
 import numpy as np
 from collections import OrderedDict
-from util.gen import banner
+from util.gen import banner, warn,list_class_declared_methods,convert_bytes
 from torchviz import make_dot
 import types
 from pathlib import Path
-
+from pytorch_lightning import LightningModule
+from collections.abc import Sequence
+from inspect import signature
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               	  Abstract PyTorch Wrapper
 # ----------------------------------------------------------------------------------------------------------------------
-class PytorchNet(nn.Module):
+class PytorchNet(LightningModule):
     # self._use_cuda = True if (str(self._device) == "cuda" and torch.cuda.is_available()) else False
     @classmethod
-    def monkeypatch(cls, o):
-        # There should be some nicer method to do this - but I rather save the time instead
-        o.on_gpu = types.MethodType(cls.on_gpu, o)
-        o.family_name = types.MethodType(cls.family_name, o)
-        o.visualize = types.MethodType(cls.visualize, o)
-        o.output_size = types.MethodType(cls.output_size, o)
-        o.print_weights = types.MethodType(cls.print_weights, o)
-        o.summary = types.MethodType(cls.summary, o)
-        o._random_input = types.MethodType(cls._random_input, o)
-        o._predict_input_size = types.MethodType(cls._predict_input_size, o)
+    def monkeypatch(cls, o, force=False):
+        # Check we are not overriding something:
+        to_override = list_class_declared_methods(cls) - {'monkeypatch'}  # Remove the class methods
+        existing_attributes = set(dir(o))  # Checks for variables as well
+        intersect = existing_attributes & to_override
+        if intersect:
+            if force:
+                warn(f"Found method collision - removing override of {intersect}")
+                to_override -= intersect
+            else:
+                assert not intersect, f"Found Monkeypatch intersection {intersect}"
+
+        # Do a bounding to the object o
+        for meth_name in to_override:
+            setattr(o, meth_name, types.MethodType(getattr(cls, meth_name), o))
 
         return o
 
-    def on_gpu(self):
-        return next(self.parameters()).is_cuda
+    def identify_system(self):
+        from platform import python_version
+        from util.cpuinfo import cpu
+        import psutil
+        print(f'Python {python_version()} , Pytorch {torch.__version__}, CuDNN {torch.backends.cudnn.version()}')
+        cpu_dict = cpu.info[0]
+        mem = psutil.virtual_memory().total
+        num_cores_str = f" :: {psutil.cpu_count()/psutil.cpu_count(logical=False)} Cores"
+        mem_str = f" :: {convert_bytes(mem)} Memory"
+
+        if 'ProcessorNameString' in cpu_dict: # Windows
+            cpu_name = cpu_dict['ProcessorNameString'] + num_cores_str + mem_str
+        elif 'model name' in cpu_dict: # Linux
+            cpu_name = cpu_dict['model name'] + num_cores_str + mem_str
+        else:
+            raise NotImplementedError
+
+        print(f'CPU : {cpu_name}')
+        gpu_count = torch.cuda.device_count()
+        print(f'Found {gpu_count} GPU Devices:')
+        for i in range(torch.cuda.device_count()):
+            p = torch.cuda.get_device_properties(i)
+            print(f'\tGPU {i}: {p.name} [{p.multi_processor_count} SMPs , {convert_bytes(p.total_memory)} Memory]')
+
+
+    def ongpu(self):
+        # Due to the lightning model on_gpu variable
+        indicator = getattr(self,'on_gpu',None)
+        if indicator is None:
+            return next(self.parameters()).is_cuda
+        else:
+            return indicator
+            # This is the code:
+            # self.on_gpu = True if (gpus and torch.cuda.is_available()) else False
+            # Not exactly the same, in truth. It depends on the time we call ongpu()
 
     def family_name(self):
         # For Families of Models - such as ResNet190, ResNet180 etc - FamilyName == ResNet
@@ -38,7 +78,7 @@ class PytorchNet(nn.Module):
         # Possible Formats: https://www.graphviz.org/doc/info/output.html
         x = self._random_input(x_shape)
         y = self.forward(*x)
-        g = make_dot(y, params=dict(self.named_parameters()))
+        g = make_dot(y, params=None)
         g.format = frmt
         fp = g.view(filename=self.family_name(), cleanup=True)
         print(f'Outputted {g.format} visualization file to {Path(fp).resolve()}')
@@ -46,7 +86,7 @@ class PytorchNet(nn.Module):
     def output_size(self, x_shape=None):
         x = self._random_input(x_shape)
         y = self.forward(*x)
-        out = list(y.size()[1:])
+        out = tuple(y.size()[1:])
         if len(out) == 1:
             out = out[0]
         return out
@@ -149,19 +189,34 @@ class PytorchNet(nn.Module):
         return summary
 
     def _random_input(self, x_shape):
-        dtype = torch.cuda.FloatTensor if self.on_gpu() else torch.FloatTensor
+        dtype = torch.cuda.FloatTensor if self.ongpu() else torch.FloatTensor
 
         if x_shape is None:
             x_shape = self._predict_input_size()
 
-        # multiple inputs to the network
-        if isinstance(x_shape, tuple):
+        # Multiple
+        if not isinstance(x_shape[0],Sequence):
             x_shape = [x_shape]
 
         # batch_size of 2 for batchnorm
         return [torch.rand(2, *in_size).type(dtype) for in_size in x_shape]
 
     def _predict_input_size(self):
-        # TODO - this kinda sucks. It should depend on the type of input layer found
-        print('Attempt was made to discern needed input size')
-        return tuple(next(self.parameters()).size()[1:])
+        # TODO - Simply doesn't really work. Not sure it is possible to predict
+        num_input_params_to_forward = len(signature(getattr(self,'forward')).parameters)
+        first_layer_size = (tuple(next(self.parameters()).size()[1:][::-1]),)
+        in_shape = first_layer_size *  num_input_params_to_forward
+        warn(f'Experimental input size prediction : {in_shape}')
+        return in_shape
+
+
+def test():
+    import torch
+    import torchvision
+    model = torchvision.models.resnet50(False)
+    pymodel = PytorchNet.monkeypatch(model)
+    pymodel.identify_system()
+
+
+if __name__ == '__main__':
+    test()

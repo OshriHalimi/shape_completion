@@ -99,6 +99,7 @@ class PointDataset(ABC):
         # return [attempt_squeeze(next(ldr_it)) for _ in range(num_samples)]
 
     def loader(self, ids=None, transforms=None, batch_size=16, device='cuda'):
+        # TODO - Add distributed support here. What does num_workers need to be?
         if ids is None:
             ids = range(self.num_pnt_clouds())
         assert len(ids) > 0, "Found loader with no data samples inside"
@@ -109,6 +110,9 @@ class PointDataset(ABC):
             n_workers = 0
         else:
             n_workers = determine_worker_num(batch_size)
+
+        # if self.use_ddp:
+        #     train_sampler = DistributedSampler(dataset)
 
         train_loader = DataLoader(self._set_to_torch_set(transforms, len(ids)), batch_size=batch_size,
                                   sampler=SubsetRandomSampler(ids), num_workers=n_workers,

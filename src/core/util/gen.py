@@ -3,6 +3,9 @@ import warnings
 import os
 import timeit
 from datetime import timedelta
+import inspect
+from types import FunctionType
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Pretty Prints
 # ----------------------------------------------------------------------------------------------------------------------
@@ -13,6 +16,19 @@ def banner(text=None, ch='=', length=88):
         spaced_text = ''
     print(spaced_text.center(length, ch))
 
+
+def tutorial(func):
+    def wrapper(*args, **kwargs):
+        banner(title(func.__name__))
+        return func(*args,**kwargs)
+    return wrapper
+
+
+def title(s):
+    s = s.replace('_',' ')
+    s = s.replace('-', ' ')
+    s = s.title()
+    return s
 
 def hms_string(sec_elapsed):
     h = int(sec_elapsed / (60 * 60))
@@ -30,6 +46,7 @@ class BColors:
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
 
+
 # Decorator to time functions
 def time_me(method):
     def timed(*args, **kw):
@@ -45,9 +62,11 @@ def time_me(method):
         # logtime_data = {}
         # ret_val = some_func_with_decorator(log_time=logtime_data)
         # else:
-        print(f'{method.__name__} compute time :: {str(timedelta(seconds=te-ts))}')
+        print(f'{method.__name__} compute time :: {str(timedelta(seconds=te - ts))}')
         return result
+
     return timed
+
 
 def print_warning(message, category, filename, lineno, file=None, line=None):
     # if line is None:
@@ -140,6 +159,92 @@ def query_yes_no(question, default="yes"):
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
+
+def list_class_declared_methods(o):
+    # dynasty - parent = class_declared
+    # narrow_class - parent_methods = class_declared
+    # Only the new methods - not related to the parent class
+    parent_methods = list_parent_class_methods(o)
+    only_in_class_methods = list_narrow_class_methods(o)
+    # Now remove the intersection
+    return only_in_class_methods - parent_methods
+
+def list_narrow_class_methods(o):
+    # Class Only Methods
+    if not inspect.isclass(o):
+        o = o.__class__
+    return set(x for x, y in o.__dict__.items() if (type(y) == FunctionType) or isinstance(y, classmethod) or
+               isinstance(y, staticmethod))
+
+def list_dynasty_class_methods(o):
+    # Class + Parent Class Methods
+    if not inspect.isclass(o):
+        o = o.__class__
+    return {func for func in dir(o) if callable(getattr(o, func))}
+    # # https://docs.python.org/3/library/inspect.html#inspect.isclass
+    # TODO - Many objects inside the class are callable as well - this is a problem. Depends on definition.
+
+def list_parent_class_methods(o):
+    if not inspect.isclass(o):
+        o = o.__class__
+
+    parent_methods = set()
+    for c in o.__bases__:
+        parent_methods |= list_dynasty_class_methods(c)
+        # parent_methods |= list_parent_class_methods(c) # Recursive Tree DFS - Removed
+    return parent_methods
+
+def func_name():
+    import traceback
+    return traceback.extract_stack(None, 2)[0][2]
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# class Parent:
+#     PARENT_STATIC = 1
+#
+#     def __init__(self):
+#         self.father_inside = 5
+#
+#     def papa(self):
+#         pass
+#
+#     def mama(self):
+#         pass
+#
+#     @classmethod
+#     def parent_class(cls):
+#         pass
+#
+#     @staticmethod
+#     def parent_static():
+#         pass
+#
+#
+# class Son(Parent):
+#     SON_VAR = 1
+#
+#     def __init__(self):
+#         super().__init__()
+#         self.son_inside = 1
+#
+#     def papa(self):
+#         pass
+#
+#     def child(self):
+#         pass
+#
+#     @classmethod
+#     def son_class(cls):
+#         pass
+#
+#     @staticmethod
+#     def son_static():
+#         pass

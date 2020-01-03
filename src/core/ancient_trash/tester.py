@@ -1,11 +1,67 @@
 import numpy as np
 import open3d as o3d
-from util.mesh_io import read_off,write_off,write_obj
+from util.mesh_io import read_off, write_off, write_obj
+from util.gen import list_class_declared_methods,list_narrow_class_methods,list_dynasty_class_methods,list_parent_class_methods
 from dataset.transforms import flip_mask
+import torchvision
+from architecture.PytorchNet import PytorchNet
+from types import FunctionType
+import inspect
+class Parent:
+    PARENT_STATIC = 1
 
+    def __init__(self):
+        self.father_inside = 5
+
+    def papa(self):
+        pass
+
+    def mama(self):
+        pass
+
+    @classmethod
+    def parent_class(cls):
+        pass
+
+    @staticmethod
+    def parent_static():
+        pass
+
+
+class Son(Parent):
+    SON_VAR = 1
+
+    def __init__(self):
+        super().__init__()
+        self.son_inside = 1
+
+    def papa(self):
+        pass
+
+    def child(self):
+        pass
+
+    @classmethod
+    def son_class(cls):
+        pass
+
+    @staticmethod
+    def son_static():
+        pass
+
+#-----------------------------------------------------------------------------------------------------------------------
+#
+#-----------------------------------------------------------------------------------------------------------------------
+from architecture.PytorchNet import PytorchNet
+from timeit import timeit
 def tester():
-    pass
-
+    print(sorted(list(list_dynasty_class_methods(Son))))
+    print(sorted(list(list_parent_class_methods(Son))))
+    print(sorted(list(list_class_declared_methods(Son))))
+    print(sorted(list(list_narrow_class_methods(Son))))
+#-----------------------------------------------------------------------------------------------------------------------
+#
+#-----------------------------------------------------------------------------------------------------------------------
 def voxels():
     print("Load a ply point cloud, print it, and render it")
     pcd = o3d.io.read_point_cloud("frag.ply")
@@ -39,32 +95,8 @@ def voxels():
     o3d.visualization.draw_geometries([chair])
     print("")
 
-
+#-----------------------------------------------------------------------------------------------------------------------
+#
+#-----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
     tester()
-
-
-# import torch
-# import torchvision
-# from torch.utils.tensorboard import SummaryWriter
-# from torchvision import datasets, transforms
-# from architecture.PytorchNet import PytorchNet
-#
-# # Writer will output to ./runs/ directory by default
-# # writer = SummaryWriter()
-#
-# transform = transforms.Compose([transforms.ToTensor(), transforms.Normalize((0.5,), (0.5,))])
-# trainset = datasets.MNIST('mnist_train', train=True, download=True, transform=transform)
-# trainloader = torch.utils.data.DataLoader(trainset, batch_size=64, shuffle=True)
-# model = torchvision.models.resnet50(False)
-# # Have ResNet architecture take in grayscale rather than RGB
-# for (x,y) in trainloader:
-#     break
-# model.conv1 = torch.nn.Conv2d(1, 64, kernel_size=7, stride=2, padding=3, bias=False)
-# pymodel = PytorchNet.monkeypatch(model)
-# pymodel.print_weights()
-# print(pymodel.family_name())
-# # pymodel.visualize()
-#
-# print(pymodel.output_size())
-# pymodel.summary()
