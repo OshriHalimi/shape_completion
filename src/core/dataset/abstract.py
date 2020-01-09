@@ -4,14 +4,15 @@ from dataset.collate import default_collate
 import torch.utils.data
 from abc import ABC  # , abstractmethod
 from torch.utils.data.sampler import SubsetRandomSampler
-from util.gen import banner, convert_bytes,time_me
+from util.gen import banner, convert_bytes, time_me
 from util.container import split_frac
-from util.mesh_io import numpy2vtkActor,print_vtkplotter_help
+from util.mesh_io import numpy2vtkactor, print_vtkplotter_help
 from vtkplotter import Plotter, Spheres, show
 from pickle import load
 from copy import deepcopy
 from dataset.transforms import *
 from enum import Enum, auto
+import sys
 from tqdm import tqdm
 from types import MethodType
 import time
@@ -99,12 +100,13 @@ class PointDataset(ABC):
         # return [attempt_squeeze(next(ldr_it)) for _ in range(num_samples)]
 
     def loader(self, ids=None, transforms=None, batch_size=16, device='cuda'):
+        # TODO - Consider adding support for num objects + split
         # TODO - Add distributed support here. What does num_workers need to be?
         if ids is None:
             ids = range(self.num_pnt_clouds())
         assert len(ids) > 0, "Found loader with no data samples inside"
         device = device.lower()
-        assert device in ['cuda', 'cpu','cpu-single']
+        assert device in ['cuda', 'cpu', 'cpu-single']
         pin_memory = (device == 'cuda')
         if device == 'cpu-single':
             n_workers = 0
@@ -162,8 +164,8 @@ class PointDataset(ABC):
     @time_me
     def validate_dataset(self):
         banner(f'Validation of dataset {self.name()} :: {self.num_pnt_clouds()} pnt clouds')
-        time.sleep(.01)  # For the STD-ERR lag
-        for si in tqdm(range(self.num_pnt_clouds())):
+        # time.sleep(.01)  # For the STD-ERR lag
+        for si in tqdm(range(self.num_pnt_clouds()), file=sys.stdout, dynamic_ncols=True):
             hi = self._hit.si2hi(si)
             fps = self._hierarchical_index_to_path(hi)
             if not isinstance(fps, list):
@@ -318,26 +320,27 @@ class CompletionProjDataset(PointDataset, ABC):
 
         using_full = key in ['gt_v', 'tp_v']
         # TODO - Remove this by finding the vtk bug - or replacing the whole vtk shit
-        assert not(not using_full and strategy=='mesh') , "Mesh strategy for 'part' gets stuck in vtkplotter"
+        assert not (not using_full and strategy == 'mesh'), "Mesh strategy for 'part' gets stuck in vtkplotter"
         fp_fun = self._hi2full_path if using_full else self._hi2proj_path
 
         samp = self.sample(num_samples=n_shapes, transforms=None)
-        vp = Plotter(N=n_shapes, axes=0)
+        vp = Plotter(N=n_shapes, axes=0)  # ,size="full"
         vp.legendSize = 0.4
         for i in range(n_shapes):  # for each available color map name
 
             adder = key.split('_')[0]
             if using_full:
-                v,f = samp[key][i,:,0:3].numpy(), self._f # TODO - Add in support for faces loaded from file
+                v, f = samp[key][i, :, 0:3].numpy(), self._f  # TODO - Add in support for faces loaded from file
             else:
-                v, f = trunc_to_vertex_subset(samp[f'{adder}_v'][i,:,0:3].numpy(), self._f, samp[f'{adder}_mask_vi'][i][0])
+                v, f = trunc_to_vertex_subset(samp[f'{adder}_v'][i, :, 0:3].numpy(), self._f,
+                                              samp[f'{adder}_mask_vi'][i][0])
 
             if strategy == 'cloud':
-                a = numpy2vtkActor(v, None,clr='w') # clr=v is cool
+                a = numpy2vtkactor(v, None, clr='w')  # clr=v is cool
             elif strategy == 'mesh':
-                a = numpy2vtkActor(v, f,clr='gold')
+                a = numpy2vtkactor(v, f, clr='gold')
             elif strategy == 'spheres':
-                a = Spheres(v, c='w', r=0.01) # TODO - compute r with respect to the mesh
+                a = Spheres(v, c='w', r=0.01)  # TODO - compute r with respect to the mesh
 
             a.legend(f'{key} | {fp_fun(samp[f"{adder}_hi"][i]).name}')
             vp.show(a, at=i)
@@ -377,10 +380,11 @@ class SMPLCompletionProjDataset(CompletionProjDataset, ABC):
 if __name__ == "__main__":
     from dataset.datasets import PointDatasetMenu
     from dataset.index import HierarchicalIndexTree
+
     print(PointDatasetMenu.which())
     ds = PointDatasetMenu.get('AmassValdPyProj', in_cfg=InCfg.FULL2PART, in_channels=3)
     # ds.validate_dataset()
-    ds.show_sample(key='gt_v',strategy='mesh',n_shapes=8)
+    ds.show_sample(key='gt_v', strategy='mesh', n_shapes=8)
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                     Graveyard

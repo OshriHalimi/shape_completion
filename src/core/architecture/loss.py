@@ -1,5 +1,13 @@
 import torch
-from dataset.transforms import batch_euclidean_dist_matrix, batch_vnrmls
+from dataset.transforms import Compose,Transform,batch_euclidean_dist_matrix, batch_vnrmls
+
+class Loss(Compose):
+    def __init__(self,hparams):
+        loss_transforms =[]
+
+        super().__init__(loss_transforms)
+
+
 
 
 # TODO - This needs work

@@ -110,6 +110,18 @@ def convert_bytes(num):
             return "%3.1f %s" % (num, x)
         num /= 1024.0
 
+# def make_directory(name):
+#     result = Path("result")
+#     result.mkdir(exist_ok=True)
+#     if name is not None:
+#         dir_name = name
+#     else:
+#         now = datetime.datetime.now()
+#         dir_name = datetime.datetime.strftime(now, "%y_%m_%d_%H")
+#     log_dir = result / dir_name
+#     log_dir.mkdir(exist_ok=True)
+#
+#     return log_dir
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Arguments
@@ -177,8 +189,7 @@ def list_narrow_class_methods(o):
     # Class Only Methods
     if not inspect.isclass(o):
         o = o.__class__
-    return set(x for x, y in o.__dict__.items() if (type(y) == FunctionType) or isinstance(y, classmethod) or
-               isinstance(y, staticmethod))
+    return set(x for x, y in o.__dict__.items() if isinstance(y, (FunctionType,classmethod,staticmethod)))
 
 def list_dynasty_class_methods(o):
     # Class + Parent Class Methods

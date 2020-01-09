@@ -3,7 +3,6 @@ from vtkplotter.actors import Actor
 from vtkplotter.utils import buildPolyData
 
 
-# TODO - Add visualizations here
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                   READ
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -77,8 +76,9 @@ def write_obj(fp, v, f):
 #                                                   VTK Platform
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def numpy2vtkActor(v, f,clr='gold'):
-    return Actor(buildPolyData(v, f,),computeNormals=False,c=clr) # Normals are in C++ - Can't extract them
+def numpy2vtkactor(v, f, clr='gold'):
+    return Actor(buildPolyData(v, f, ), computeNormals=False, c=clr)  # Normals are in C++ - Can't extract them
+
 
 def print_vtkplotter_help():
     print("""
@@ -116,6 +116,7 @@ def print_vtkplotter_help():
 |----------------------------------------------------------|
 | Check out documentation at:  https://vtkplotter.embl.es  |
  ==========================================================""")
+
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                   TODO - Integrate
@@ -201,3 +202,36 @@ end_header
 #     ax.quiver(v[:, 0], v[:, 1], v[:, 2], vnn[:, 0], vnn[:, 1], vnn[:, 2], length=0.03, normalize=True)
 #     plt.show()
 
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                                   GRAVEYARD - VISDOM
+# ----------------------------------------------------------------------------------------------------------------------#
+#     if opt.use_visdom:
+#         vis = visdom.Visdom(port=8888, env=opt.save_path)
+#             # VIZUALIZE
+#             if opt.use_visdom and i % 100 == 0:
+#                 vis.scatter(X=part[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Part',
+#                             opts=dict(title="Train_Part", markersize=2, ), )
+#                 vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Template',
+#                             opts=dict(title="Train_Template", markersize=2, ), )
+#                 vis.scatter(X=gt_rec[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_output',
+#                             opts=dict(title="Train_output", markersize=2, ), )
+#                 vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Ground_Truth',
+#                             opts=dict(title="Train_Ground_Truth", markersize=2, ), )
+#             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
+#                      Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val))),
+#                      win='Faust loss',
+#                      opts=dict(title="Faust loss", legend=["Train loss", "Faust Validation loss", ]))
+#             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
+#                      Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val)))),
+#                      win='"Faust log loss',
+#                      opts=dict(title="Faust log loss", legend=["Train loss", "Faust Validation loss", ]))
+#
+#             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
+#                      Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass))),
+#                      win='AMASS loss',
+#                      opts=dict(title="AMASS loss", legend=["Train loss", "Validation loss", "Validation loss amass"]))
+#             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
+#                      Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass)))),
+#                      win='AMASS log loss',
+#                      opts=dict(title="AMASS log loss", legend=["Train loss", "Faust Validation loss", ]))
+#

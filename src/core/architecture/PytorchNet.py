@@ -2,13 +2,15 @@ import torch
 import torch.nn as nn
 import numpy as np
 from collections import OrderedDict
-from util.gen import banner, warn,list_class_declared_methods,convert_bytes
+from util.gen import banner, warn, list_class_declared_methods, convert_bytes
 from torchviz import make_dot
 import types
 from pathlib import Path
 from pytorch_lightning import LightningModule
 from collections.abc import Sequence
 from inspect import signature
+import random
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               	  Abstract PyTorch Wrapper
@@ -41,12 +43,12 @@ class PytorchNet(LightningModule):
         print(f'Python {python_version()} , Pytorch {torch.__version__}, CuDNN {torch.backends.cudnn.version()}')
         cpu_dict = cpu.info[0]
         mem = psutil.virtual_memory().total
-        num_cores_str = f" :: {psutil.cpu_count()/psutil.cpu_count(logical=False)} Cores"
+        num_cores_str = f" :: {psutil.cpu_count() / psutil.cpu_count(logical=False)} Cores"
         mem_str = f" :: {convert_bytes(mem)} Memory"
 
-        if 'ProcessorNameString' in cpu_dict: # Windows
+        if 'ProcessorNameString' in cpu_dict:  # Windows
             cpu_name = cpu_dict['ProcessorNameString'] + num_cores_str + mem_str
-        elif 'model name' in cpu_dict: # Linux
+        elif 'model name' in cpu_dict:  # Linux
             cpu_name = cpu_dict['model name'] + num_cores_str + mem_str
         else:
             raise NotImplementedError
@@ -58,10 +60,9 @@ class PytorchNet(LightningModule):
             p = torch.cuda.get_device_properties(i)
             print(f'\tGPU {i}: {p.name} [{p.multi_processor_count} SMPs , {convert_bytes(p.total_memory)} Memory]')
 
-
     def ongpu(self):
         # Due to the lightning model on_gpu variable
-        indicator = getattr(self,'on_gpu',None)
+        indicator = getattr(self, 'on_gpu', None)
         if indicator is None:
             return next(self.parameters()).is_cuda
         else:
@@ -195,7 +196,7 @@ class PytorchNet(LightningModule):
             x_shape = self._predict_input_size()
 
         # Multiple
-        if not isinstance(x_shape[0],Sequence):
+        if not isinstance(x_shape[0], Sequence):
             x_shape = [x_shape]
 
         # batch_size of 2 for batchnorm
@@ -203,12 +204,53 @@ class PytorchNet(LightningModule):
 
     def _predict_input_size(self):
         # TODO - Simply doesn't really work. Not sure it is possible to predict
-        num_input_params_to_forward = len(signature(getattr(self,'forward')).parameters)
+        num_input_params_to_forward = len(signature(getattr(self, 'forward')).parameters)
         first_layer_size = (tuple(next(self.parameters()).size()[1:][::-1]),)
-        in_shape = first_layer_size *  num_input_params_to_forward
+        in_shape = first_layer_size * num_input_params_to_forward
         warn(f'Experimental input size prediction : {in_shape}')
         return in_shape
 
+
+def set_determinsitic_run(seed=None):
+    if seed is None:
+        # Specific to the ShapeCompletion platform
+        from cfg import RANDOM_SEED
+        seed = RANDOM_SEED
+
+    # CPU Seeds
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    # GPU Seeds
+    torch.cuda.manual_seed_all(seed)
+    # CUDNN Framework
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = True
+    # Might be best to turn off benchmark for deterministic results:
+    # https://discuss.pytorch.org/t/what-is-the-differenc-between-cudnn-deterministic-and-cudnn-benchmark/38054
+
+
+def worker_init_closure(seed=None):
+    if seed is None:
+        # Specific to the ShapeCompletion platform
+        from cfg import RANDOM_SEED
+        seed = RANDOM_SEED
+
+    def worker_init_fn(worker_id):
+        random.seed(worker_id + seed)
+        np.random.seed(worker_id + seed)
+        torch.manual_seed(seed)
+        # See if this needs more work
+
+    return worker_init_fn
+
+# TODO - Consider completing this
+# def memory():
+#     if device.type == 'cuda':
+#         print(torch.cuda.get_device_name(0))
+#         print('Memory Usage:')
+#         print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
+#         print('Cached:   ', round(torch.cuda.memory_cached(0) / 1024 ** 3, 1), 'GB')
 
 def test():
     import torch

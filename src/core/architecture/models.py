@@ -5,33 +5,31 @@ import torch.nn.functional as F
 import numpy as np
 from architecture.PytorchNet import PytorchNet
 import torch.nn.init as init
-
+from test_tube import HyperOptArgumentParser
+from architecture.lightning import CompletionModel
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      Full Models 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class CompletionNet(PytorchNet):
-    def __init__(self, code_size=1024, in_channels=3, out_channels=3, decoder_convl=5):
-        super().__init__()
-        self.code_size = code_size  # Also the code size 
-        self.in_channels = in_channels
-        self.out_channels = out_channels
+class CompletionNet(CompletionModel):
 
+    # @override
+    def _build_model(self):
         # Encoder takes a 3D point cloud as an input. 
         # Note that a linear layer is applied to the global feature vector
         self.encoder = nn.Sequential(
-            PointNetFeatures(only_global_feats=True, code_size=self.code_size, in_channels=self.in_channels),
-            nn.Linear(self.code_size, self.code_size),
-            nn.BatchNorm1d(self.code_size),
+            PointNetFeatures(only_global_feats=True, code_size=self.hparams.code_size,
+                             in_channels=self.hparams.in_channels),
+            nn.Linear(self.hparams.code_size, self.hparams.code_size),
+            nn.BatchNorm1d(self.hparams.code_size),
             nn.ReLU()
         )
-        self.decoder = CompletionDecoder(pnt_code_size=in_channels + 2 * self.code_size,
-                                         out_channels=self.out_channels, num_convl=decoder_convl)
+        self.decoder = CompletionDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
+                                         out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
 
-        self.init()
-
-    def init(self):
+    # @override
+    def _init_model(self):
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
                 init.normal_(m.weight, mean=1.0, std=0.02)
@@ -39,22 +37,36 @@ class CompletionNet(PytorchNet):
                 init.normal_(m.weight, mean=1.0, std=0.02)
                 init.constant_(m.bias, 0)
 
-    def forward(self, part, template):
+
+    @staticmethod
+    # TODO - Not sure if this placement is comfortable
+    def add_model_specific_args(parent_parser):
+        p = HyperOptArgumentParser(parents=[parent_parser])
+        p.add_argument('--code_size', default=1024, type=int)
+        p.add_argument('--in_channels', default=3, type=int)
+        p.add_argument('--out_channels', default=3, type=int)
+        p.add_argument('--decoder_convl', default=5, type=int)
+        return p
+
+    def forward(self, b):
+        # TODO - Add handling of differently scaled meshes
+        part, template = b['gt_part_v'],b['tp_v']
+        # part, template [bs x nv x 3]
+        bs = part.size(0)
+        nv = part.size(2)
+
         # TODO - Get rid of this transpose & contiguous
-        # part, template [b x nv x 3]
         part = part.transpose(2, 1).contiguous()
         template = template.transpose(2, 1).contiguous()
-        # part, template [b x 3 x nv]
-        b = part.size(0)
-        nv = part.size(2)
+        # part, template [bs x 3 x nv]
 
         # [ b x code_size ] 
         part_code = self.encoder(part)
         template_code = self.encoder(template)
 
         # [b x code_size x nv]
-        part_code = part_code.unsqueeze(2).expand(b, self.code_size, nv)
-        template_code = template_code.unsqueeze(2).expand(b, self.code_size, nv)
+        part_code = part_code.unsqueeze(2).expand(bs, self.code_size, nv)
+        template_code = template_code.unsqueeze(2).expand(bs, self.code_size, nv)
 
         # [b x (3 + 2*code_size) x nv]
         y = torch.cat((template, part_code, template_code), 1).contiguous()

@@ -18,10 +18,10 @@ class Compose(object):
     def __init__(self, transforms):
         self.transforms = transforms
 
-    def __call__(self, img):
+    def __call__(self, x):
         for t in self.transforms:
-            img = t(img)
-        return img
+            x = t(x)
+        return x
 
     def append(self, new_transform):
         self.transforms.append(new_transform)
