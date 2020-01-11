@@ -32,7 +32,7 @@ class CompletionLightningModel(PytorchNet):
     def _init_model(self):
         raise NotImplementedError
 
-    def forward(self, part, template): # TODO - Forward run is now unable to support P2P 
+    def forward(self, part, template): # TODO - Forward run is now unable to support P2P
         raise NotImplementedError
 
     def set_loaders(self, loaders):
