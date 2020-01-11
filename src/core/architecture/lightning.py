@@ -1,19 +1,7 @@
-import os
-import logging
-from argparse import ArgumentParser
-from collections import OrderedDict
-from pytorch_lightning.logging import TestTubeLogger
 import torch
-import torch.nn as nn
-import torch.nn.functional as F
-import torchvision.transforms as transforms
 from torch import optim
-from torch.utils.data import DataLoader
-from torch.utils.data.distributed import DistributedSampler
-from torchvision.datasets import MNIST
-from architecture.pytorch_extensions import PytorchNet
+from util.pytorch_extensions import PytorchNet
 import pytorch_lightning as pl
-from pytorch_lightning import Trainer
 from architecture.loss import F2PLoss
 
 
@@ -44,7 +32,7 @@ class CompletionLightningModel(PytorchNet):
     def _init_model(self):
         raise NotImplementedError
 
-    def forward(self, part, template):
+    def forward(self, part, template): # TODO - Forward run is now unable to support P2P 
         raise NotImplementedError
 
     def set_loaders(self, loaders):

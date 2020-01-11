@@ -3,7 +3,6 @@ import torch.nn as nn
 import torch.utils.data
 import torch.nn.functional as F
 import numpy as np
-from architecture.pytorch_extensions import PytorchNet
 import torch.nn.init as init
 from test_tube import HyperOptArgumentParser
 from architecture.lightning import CompletionLightningModel

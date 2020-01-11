@@ -3,7 +3,7 @@ from util.gen import none_or_int, banner, tutorial
 from pytorch_lightning import Trainer
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
-from architecture.pytorch_extensions import PytorchNet, set_determinsitic_run
+from util.pytorch_extensions import PytorchNet, set_determinsitic_run
 from dataset.transforms import *
 
 # ----------------------------------------------------------------------------------------------------------------------
