@@ -5,7 +5,7 @@ import torch.utils.data
 from abc import ABC  # , abstractmethod
 from torch.utils.data.sampler import SubsetRandomSampler
 from util.gen import banner, convert_bytes, time_me
-from util.container import split_frac
+from util.container import split_frac,enum_eq
 from util.mesh_io import numpy2vtkactor, print_vtkplotter_help
 from vtkplotter import Plotter, Spheres, show
 from pickle import load
@@ -277,7 +277,11 @@ class CompletionProjDataset(PointDataset, ABC):
         self._def_precision = DEF_PRECISION
 
     def _transformation_finalizer(self, transforms):
-        transforms.append(CompletionDataFinalizer())
+        # A bit messy
+        keys = [('gt_part','gt_mask_vi','gt_v')]
+        if enum_eq(self._in_cfg,InCfg.PART2PART):
+            keys.append((('tp_part','tp_mask_vi','tp_v')))
+        transforms.append(PartCompiler(keys))
         return transforms
 
     def _full2part_path(self, hi):

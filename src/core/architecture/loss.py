@@ -1,11 +1,67 @@
 import torch
-from dataset.transforms import Compose,Transform,batch_euclidean_dist_matrix, batch_vnrmls
+from dataset.transforms import batch_euclidean_dist_matrix, batch_vnrmls
+import numpy as np
 
-class Loss(Compose):
-    def __init__(self,hparams):
-        loss_transforms =[]
+# p.add_argument('--l2_lambda', nargs=4, type=float, default=[1, 0.1, 0, 0],
+#                help='[XYZ,Normal,Moments,Euclid_Maps] L2 loss multiplication modifiers')
+# # Loss Modifiers: # TODO - Implement for Euclid Maps as well.
+# p.add_argument('--l2_mask_penalty', nargs=3, type=float, default=[0, 0, 0],
+#                help='[XYZ,Normal,Moments] increased weight on mask vertices. Use val <= 1 to disable')
+# p.add_argument('--l2_distant_v_penalty
 
-        super().__init__(loss_transforms)
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                   Loss Helpers
+# ----------------------------------------------------------------------------------------------------------------------
+class Loss:
+    # def __init__(self,hparams):
+    # 
+    #
+    #
+    #
+    # def f2p_loss(xb,gtr):
+    #
+    #     # Step 1: Align gtr input channels:
+    #
+
+
+    @staticmethod
+    def _l2_loss(v1b, v2b, weight_factor, vertex_mask=1):
+        return weight_factor * torch.mean(vertex_mask * ((v1b - v2b) ** 2))
+
+    @staticmethod
+    def _mask_penalty_weight(mask_b, nv, weight_factor):
+        """
+        :param mask_b: A list of masks (protected inside a list)
+        :param nv: The number of vertices
+        :param weight_factor: Additional weight multiplier for the mask vertices - A scalar > 1
+        """
+        if weight_factor <= 1:
+            return 1
+        b = len(mask_b)
+        w = np.ones((b, nv, 1))
+        for i in range(b):
+            w[i, mask_b[i][0], :] = weight_factor
+
+    @staticmethod
+    def _distant_vertex_weight(gtb_xyz, tpb_xyz, weight_factor):
+        """
+        :param gtb_xyz: ground-truth batched tensor [b x nv x 3]
+        :param tpb_xyz: template batched tensor [b x nv x 3]
+        :param weight_factor: Additional weight multiplier for the far off vertices - A scalar > 1
+        This function returns a bxnvx1 point-wise weight. For vertices that are similar between gt & tp - return 1.
+        For "distant" vertices - return some cost greater than 1.
+        Defines the point-wise difference as: d = ||gtb_xyz - tpb_xyz|| - a  [b x nv x 1] vector
+        Normalize d by its mean: dhat = d/mean(d)
+        Far-off vertices are defined as vertices for which dhat > 1 - i.e., the difference is greater than the mean vertices
+        The weight function w is defined by W_i = max(dhat_i,1) * weight_factor
+        """
+        if weight_factor <= 1:
+            return 1
+        d = torch.norm(gtb_xyz - tpb_xyz, dim=2, keepdim=True)
+        d /= torch.mean(d, dim=1, keepdim=True)  # dhat
+        w = torch.max(d, torch.ones((1, 1, 1), device='cuda'))  # TODO - fix device
+        w[w > 1] *= weight_factor
+        return w
 
 
 

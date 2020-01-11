@@ -33,12 +33,13 @@ def parse_args(model_cls):
     # Losses: Use 0 to ignore, >0 to compute
     p.add_argument('--l2_lambda', nargs=4, type=float, default=[1, 0.1, 0, 0],
                    help='[XYZ,Normal,Moments,Euclid_Maps] L2 loss multiplication modifiers')
-    # Loss Modifiers: # TODO - Implement for Euclid Maps as well
+    # Loss Modifiers: # TODO - Implement for Euclid Maps as well.
     p.add_argument('--l2_mask_penalty', nargs=3, type=float, default=[0, 0, 0],
-                   help='[XYZ,Normal,Moments] increased weight on mask vertices')
+                   help='[XYZ,Normal,Moments] increased weight on mask vertices. Use val <= 1 to disable')
     p.add_argument('--l2_distant_v_penalty', nargs=3, type=float, default=[0, 0, 0],
-                   help='[XYZ,Normal,Moments] increased weight on distant vertices')
+                   help='[XYZ,Normal,Moments] increased weight on distant vertices. Use val <= 1 to disable')
 
+    # TODO - Assert that if l2_lambda is requried for normals/momenets than input channels are 6,12 etc
     p.add_argument("--stop_num", "-s", type=int, default=100,
                    help="Number of Early Stopping")
     p.add_argument("--weight_decay", type=float, default=1e-4,

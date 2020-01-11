@@ -3,10 +3,11 @@ import numpy as np
 import torch.nn.functional as tf
 from util.datascience import normr, index_sparse
 from util.gen import warn
+import random
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-#
+#                                                  Transforms- Abstract
 # ----------------------------------------------------------------------------------------------------------------------
 
 class Transform:
@@ -39,57 +40,63 @@ class Compose(object):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-#
+#                                               Special Transforms
 # ----------------------------------------------------------------------------------------------------------------------
 class AlignInputChannels(Transform):
     def __init__(self, req_in_channels):
         self._req_in_channels = req_in_channels
 
     def __call__(self, x):
-        if isinstance(x, dict):  # Assumption: tp_v,gt_v use the same triangulation
-            x['gt_v'] = align_in_channels(x['gt_v'], x['f'], self._req_in_channels)
-            x['tp_v'] = align_in_channels(x['tp_v'], x['f'], self._req_in_channels)
-            del x['f'] # Presumption: The triangulation is not needed after this
-        else:
-            raise NotImplementedError
+        x['gt_v'] = align_in_channels(x['gt_v'], x['f'], self._req_in_channels)
+        x['tp_v'] = align_in_channels(x['tp_v'], x['f'], self._req_in_channels)
+        del x['f']  # TODO - Change this - Presumption: The triangulation is not needed after this
         return x
 
-class CompletionDataFinalizer(Transform):
-    def __call__(self,x):
-        if isinstance(x, dict):
-            # Done last, since we might transform the mask
-            x['gt_part'] = padded_part_by_mask(x['gt_mask_vi'][0], x['gt_v'])
-            if 'tp_mask_vi' in x:
-                x['tp_part'] = padded_part_by_mask(x['tp_mask_vi'][0], x['tp_v'])
-        else:
-            raise NotImplementedError
+
+class PartCompiler(Transform):
+    def __init__(self, part_keys):
+        self._part_keys = part_keys
+
+    def __call__(self, x):
+        # Done last, since we might transform the mask
+        for (k_part, k_mask, k_full) in self._part_keys:
+            x[k_part] = padded_part_by_mask(x[k_mask][0], x[k_full])
         return x
 
-# TODO : Add in Mask Flip
+
+# ----------------------------------------------------------------------------------------------------------------------
+#                                               Data Augmentation Transforms
+# ----------------------------------------------------------------------------------------------------------------------
+
+class RandomMaskFlip(Transform):
+    def __init__(self, prob):  # Probability of mask flip
+        self._prob = prob
+
+    def __call__(self, x):
+        if random.random() < self._prob:
+            nv = x['gt_v'].shape[0]
+            x['gt_mask_vi'] = flip_mask(nv, x['gt_mask_vi'])
+            # TODO: tp mask flips?
+        return x
+
 
 class Center(Transform):
     def __init__(self, slicer=slice(0, 3)):
         self._slicer = slicer
 
     def __call__(self, x):
-        if isinstance(x, dict):
-            x['gt_v'][:, self._slicer] -= x['gt_v'][:, self._slicer].mean(axis=0, keepdims=True)
-            x['tp_v'][:, self._slicer] -= x['tp_v'][:, self._slicer].mean(axis=0, keepdims=True)
-        else:
-            raise NotImplementedError
+        x['gt_v'][:, self._slicer] -= x['gt_v'][:, self._slicer].mean(axis=0, keepdims=True)
+        x['tp_v'][:, self._slicer] -= x['tp_v'][:, self._slicer].mean(axis=0, keepdims=True)
         return x
 
 
-class AddMaskPenalty(Transform):
-    def __init__(self, penalty):
-        self._penalty = penalty
+class UniformVertexScale(Transform):
+    def __init__(self, scale):
+        self._scale = scale
 
     def __call__(self, x):
-        if isinstance(x, dict):
-            x['mask_penalty_vec'] = np.ones(x['gt_v'].shape[0])
-            x['mask_penalty_vec'][x['gt_mask_vi']] = self._penalty
-        else:
-            raise NotImplementedError
+        x['gt_v'][:, 0:3] *= self._scale
+        x['tp_v'][:, 0:3] *= self._scale
         return x
 
 

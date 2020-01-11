@@ -1,12 +1,15 @@
 import numpy as np
 import open3d as o3d
 from util.mesh_io import read_off, write_off, write_obj
-from util.gen import list_class_declared_methods,list_narrow_class_methods,list_dynasty_class_methods,list_parent_class_methods
+from util.gen import list_class_declared_methods, list_narrow_class_methods, list_dynasty_class_methods, \
+    list_parent_class_methods
 from dataset.transforms import flip_mask
 import torchvision
 from architecture.PytorchNet import PytorchNet
 from types import FunctionType
 import inspect
+
+
 class Parent:
     PARENT_STATIC = 1
 
@@ -49,19 +52,34 @@ class Son(Parent):
     def son_static():
         pass
 
-#-----------------------------------------------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------------------------------------------------
 #
-#-----------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------
 from architecture.PytorchNet import PytorchNet
 from timeit import timeit
+from pprint import pprint
+
+
 def tester():
-    print(sorted(list(list_dynasty_class_methods(Son))))
-    print(sorted(list(list_parent_class_methods(Son))))
-    print(sorted(list(list_class_declared_methods(Son))))
-    print(sorted(list(list_narrow_class_methods(Son))))
-#-----------------------------------------------------------------------------------------------------------------------
+    n = 11
+    mat = [[0 for _ in range(n)] for _ in range(n)]
+    for i in range(n):
+        for j in range(n):
+            if i + j >= n - 1 and j % 2 == 0:
+                mat[i][j] = 1
+
+    pprint(mat)
+
+    # print(sorted(list(list_dynasty_class_methods(Son))))
+    # print(sorted(list(list_parent_class_methods(Son))))
+    # print(sorted(list(list_class_declared_methods(Son))))
+    # print(sorted(list(list_narrow_class_methods(Son))))
+
+
+# -----------------------------------------------------------------------------------------------------------------------
 #
-#-----------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------
 def voxels():
     print("Load a ply point cloud, print it, and render it")
     pcd = o3d.io.read_point_cloud("frag.ply")
@@ -95,8 +113,9 @@ def voxels():
     o3d.visualization.draw_geometries([chair])
     print("")
 
-#-----------------------------------------------------------------------------------------------------------------------
+
+# -----------------------------------------------------------------------------------------------------------------------
 #
-#-----------------------------------------------------------------------------------------------------------------------
+# -----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
     tester()
