@@ -6,48 +6,45 @@ from architecture.models import F2PEncoderDecoder
 from util.pytorch_extensions import PytorchNet, set_determinsitic_run
 from dataset.transforms import *
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Main Arguments
 # ----------------------------------------------------------------------------------------------------------------------
 def parse_args(model_cls):
     p = HyperOptArgumentParser(strategy='random_search')
-    # Exp Config:
-    p.add_argument('--exp_name', type=str, default='General',
+    # Check-pointing
+    p.add_argument('--exp_name', type=str, default='',  # TODO - Don't forget to change me!
                    help='The experiment name. Leave blank to use the generic exp name')
-
-    # NN Config
-    p.add_argument('--resume_by', choices=['', 'val_acc', 'time'], default='time',
-                   help='Resume Configuration - Either by (1) Latest time OR (2) Best Vald Acc OR (3) No Resume')
-    p.add_argument('--use_visdom', type=bool, default=True)
+    p.add_argument('--resume', tye=bool, default=True,
+                   help='Input TRUE to attempt resume of the checkpoint under exp_name')
 
     # Dataset Config:
+    p.add_argument('--batch_size', type=int, default=16, help='SGD batch size')
     p.add_argument('--data_samples', nargs=3, type=none_or_int, default=[None, 1000, 1000],
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
                    help='Number of input channels')
 
     # Train Config:
-    p.add_argument('--batch_size', type=int, default=16, help='SGD batch size')
     p.add_argument('--n_epoch', type=int, default=1000, help='The number of epochs to train for')
+    p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
+    p.add_argument('--use_tensorboard', type=bool, default=True)
 
-    # Losses: Use 0 to ignore, >0 to compute
-    p.add_argument('--lambdas', nargs=4, type=float, default=[1, 0.1, 0, 0],
-                   help='[XYZ,Normal,Moments,Euclid_Maps] loss multiplication modifiers')
+    # Optimizer
+    p.add_argument("--weight_decay", type=float, default=0, help="Adam's weight decay - usually use 1e-4")
+    p.add_argument("--stop_num", "-s", type=int, default=5, help="number of epoches ")
+    # TODO - double learning rate if you double batch size.
+
+    # L2 Losses: Use 0 to ignore, >0 to compute
+    p.add_argument('--lambdas', nargs=4, type=float, default=[1, 0.1, 0, 0,0],
+                   help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas] loss multiplication modifiers')
     # Loss Modifiers: # TODO - Implement for Euclid Maps as well.
     p.add_argument('--mask_penalties', nargs=3, type=float, default=[0, 0, 0],
                    help='[XYZ,Normal,Moments] increased weight on mask vertices. Use val <= 1 to disable')
     p.add_argument('--dist_v_penalties', nargs=3, type=float, default=[0, 0, 0],
                    help='[XYZ,Normal,Moments] increased weight on distant vertices. Use val <= 1 to disable')
 
-    # TODO - Assert that if l2_lambda is requried for normals/momenets than input channels are 6,12 etc
-    p.add_argument("--stop_num", "-s", type=int, default=100,
-                   help="Number of Early Stopping")
-    p.add_argument("--weight_decay", type=float, default=1e-4,
-                   help="Adam's weight decay")
-
     p = model_cls.add_model_specific_args(p)
-
-    # TODO - double learning rate if you double batch size.
 
     return p.parse_args()
 
@@ -58,13 +55,11 @@ def parse_args(model_cls):
 def train_main(hparams):
     # Set the random seed:
     set_determinsitic_run()
-
-    model_cls = F2PEncoderDecoder
-
+    architecture_cls = F2PEncoderDecoder
     # Bring in arguments:
-    hparams = parse_args(model_cls)
+    hparams = parse_args(architecture_cls)
     # Bring in model:
-    nn = model_cls(hparams)
+    nn = architecture_cls(hparams,resume=hparams.resume)
 
     # Bring in data:
     ds = PointDatasetMenu.get('FaustPyProj')
@@ -72,7 +67,8 @@ def train_main(hparams):
                                   s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=10)
 
     # Bridge data and model
-    nn.init_data(ds)
+    nn.init_data(ds,my_loaders) # Make sure to input the train dataset
+
 
     # TODO - Handle Resume case :
     #     exp = TestTubeLogger(save_dir=save_dir)
@@ -80,8 +76,9 @@ def train_main(hparams):
 
     trainer = Trainer()  # Add options
     trainer.fit(nn)
+    trainer.test(nn)
+
     # The user can try to turn off validation by setting val_check_interval to a big valu
-    # # trainer = Trainer(logger=False, - To turn off loging
     # # Remember that checkpoints destroy the checkpoint directory - make sure it is set correctly
     # # assert num examples > batch
     # # from pytorch_lightning
@@ -135,8 +132,8 @@ def test_main():
     # )
     # resume_from_checkpoint - Resume from something specific
 
-    #This is the easiest/fastest way which loads hyperparameters
-    #and weights from a checkpoint, such as the one saved by the ModelCheckpoint callback
+    # This is the easiest/fastest way which loads hyperparameters
+    # and weights from a checkpoint, such as the one saved by the ModelCheckpoint callback
     # pretrained_model = MyLightningModule.load_from_checkpoint(
     #     checkpoint_path='/path/to/pytorch_checkpoint.ckpt'
     # )
@@ -176,6 +173,7 @@ def test_main():
     #     prefix=''
     # )
     # {}_ckpt_epoch_{}.ckpt {prefix}
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                 Tutorials
@@ -222,7 +220,7 @@ def pytorch_net_tutorial():
     # What is it? PyTorchNet is a derived class of LightningModule, allowing for extended operations on it
     # Let's see some of them:
 
-    nn = F2PEncoderDecoder() # Remember that F2PEncoderDecoder is a subclass of PytorchNet
+    nn = F2PEncoderDecoder()  # Remember that F2PEncoderDecoder is a subclass of PytorchNet
     nn.identify_system()  # Outputs the specs of the current system - Useful for identifying existing GPUs
 
     banner('General Net Info')
@@ -244,4 +242,4 @@ def pytorch_net_tutorial():
     py_nn.summary(x_shape=(3, 28, 28), batch_size=64)
 
 
-if __name__ == '__main__': pytorch_net_tutorial()
+if __name__ == '__main__': train_main()

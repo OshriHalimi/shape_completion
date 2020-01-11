@@ -31,13 +31,13 @@ class CompletionLightningModel(PytorchNet):
     def forward(self, part, template):  # TODO - Forward run is now unable to support P2P
         raise NotImplementedError
 
-    def init_data(self, dat, loaders):
+    def init_data(self, trainset, loaders):
         # TODO - Consider using a dict instead of list  {'Test':ldr,'Val':ldr,'Train':ldr}
-        self.dat = dat
+        self.trainset = trainset
         self.loaders = loaders
         # TODO - Create flags for the Loss in dataset
         # TODO - Add support for multiple GPUs
-        self.loss = F2PSMPLLoss(hparams=self.hparams, faces=dat.faces(torch_version=True), device='cuda')
+        self.loss = F2PSMPLLoss(hparams=self.hparams, faces=trainset.faces(torch_version=True), device='cuda')
 
     def training_step(self, b, _):
 

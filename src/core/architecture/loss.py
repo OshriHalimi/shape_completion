@@ -75,6 +75,10 @@ class F2PSMPLLoss:
                     loss += self._l2_loss(b['gt_v'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
                 elif i == 3:  # Euclidean Distance Matrices
                     loss += self._l2_loss(batch_euclid_dist_mat(gtb_xyz), batch_euclid_dist_mat(gtrb), lamb=lamb)
+                elif i == 4:  # Face Areas:
+                    pass
+                # TODO - add Face Areas here:
+                # loss += self._l2_loss(face_areas(gtb_xyz))
                 else:
                     raise AssertionError
         return loss
