@@ -2,8 +2,8 @@ from dataset.datasets import PointDatasetMenu
 from util.gen import none_or_int, banner, tutorial
 from pytorch_lightning import Trainer
 from test_tube import HyperOptArgumentParser
-from architecture.models import CompletionNet
-from architecture.PytorchNet import PytorchNet, set_determinsitic_run
+from architecture.models import F2PEncoderDecoder
+from architecture.pytorch_extensions import PytorchNet, set_determinsitic_run
 from dataset.transforms import *
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -31,12 +31,12 @@ def parse_args(model_cls):
     p.add_argument('--n_epoch', type=int, default=1000, help='The number of epochs to train for')
 
     # Losses: Use 0 to ignore, >0 to compute
-    p.add_argument('--l2_lambda', nargs=4, type=float, default=[1, 0.1, 0, 0],
-                   help='[XYZ,Normal,Moments,Euclid_Maps] L2 loss multiplication modifiers')
+    p.add_argument('--lambdas', nargs=4, type=float, default=[1, 0.1, 0, 0],
+                   help='[XYZ,Normal,Moments,Euclid_Maps] loss multiplication modifiers')
     # Loss Modifiers: # TODO - Implement for Euclid Maps as well.
-    p.add_argument('--l2_mask_penalty', nargs=3, type=float, default=[0, 0, 0],
+    p.add_argument('--mask_penalties', nargs=3, type=float, default=[0, 0, 0],
                    help='[XYZ,Normal,Moments] increased weight on mask vertices. Use val <= 1 to disable')
-    p.add_argument('--l2_distant_v_penalty', nargs=3, type=float, default=[0, 0, 0],
+    p.add_argument('--dist_v_penalties', nargs=3, type=float, default=[0, 0, 0],
                    help='[XYZ,Normal,Moments] increased weight on distant vertices. Use val <= 1 to disable')
 
     # TODO - Assert that if l2_lambda is requried for normals/momenets than input channels are 6,12 etc
@@ -59,7 +59,7 @@ def train_main(hparams):
     # Set the random seed:
     set_determinsitic_run()
 
-    model_cls = CompletionNet
+    model_cls = F2PEncoderDecoder
 
     # Bring in arguments:
     hparams = parse_args(model_cls)
@@ -90,7 +90,7 @@ def train_main(hparams):
 
 
 def test_main():
-    nn = CompletionNet.load_from_metrics(
+    nn = F2PEncoderDecoder.load_from_metrics(
         weights_path='/path/to/pytorch_checkpoint.ckpt',
         tags_csv='/path/to/test_tube/experiment/version/meta_tags.csv',
         on_gpu=True,
@@ -221,7 +221,8 @@ def dataset_tutorial():
 def pytorch_net_tutorial():
     # What is it? PyTorchNet is a derived class of LightningModule, allowing for extended operations on it
     # Let's see some of them:
-    nn = CompletionNet()  # Use default constructor parameters. Remember that CompNet is a subclass of PytorchNet
+
+    nn = F2PEncoderDecoder() # Remember that F2PEncoderDecoder is a subclass of PytorchNet
     nn.identify_system()  # Outputs the specs of the current system - Useful for identifying existing GPUs
 
     banner('General Net Info')
@@ -243,4 +244,4 @@ def pytorch_net_tutorial():
     py_nn.summary(x_shape=(3, 28, 28), batch_size=64)
 
 
-if __name__ == '__main__': dataset_tutorial()
+if __name__ == '__main__': pytorch_net_tutorial()

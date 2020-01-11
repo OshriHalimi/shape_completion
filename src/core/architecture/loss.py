@@ -1,69 +1,105 @@
 import torch
-from dataset.transforms import batch_euclidean_dist_matrix, batch_vnrmls
+from dataset.transforms import batch_euclid_dist_mat, batch_vnrmls, batch_moments
 import numpy as np
 
-# p.add_argument('--l2_lambda', nargs=4, type=float, default=[1, 0.1, 0, 0],
-#                help='[XYZ,Normal,Moments,Euclid_Maps] L2 loss multiplication modifiers')
+
+# p.add_argument('--lambdas', nargs=4, type=float, default=[1, 0.1, 0, 0],
+#                help='[XYZ,Normal,Moments,Euclid_Maps] loss multiplication modifiers')
 # # Loss Modifiers: # TODO - Implement for Euclid Maps as well.
-# p.add_argument('--l2_mask_penalty', nargs=3, type=float, default=[0, 0, 0],
+# p.add_argument('--mask_penalties', nargs=3, type=float, default=[0, 0, 0],
 #                help='[XYZ,Normal,Moments] increased weight on mask vertices. Use val <= 1 to disable')
-# p.add_argument('--l2_distant_v_penalty
+# p.add_argument('--dist_v_penalties', nargs=3, type=float, default=[0, 0, 0],
+#                help='[XYZ,Normal,Moments] increased weight on distant vertices. Use val <= 1 to disable')
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Loss Helpers
 # ----------------------------------------------------------------------------------------------------------------------
-class Loss:
-    # def __init__(self,hparams):
-    # 
-    #
-    #
-    #
-    # def f2p_loss(xb,gtr):
-    #
-    #     # Step 1: Align gtr input channels:
-    #
+class F2PLoss:
+    def __init__(self, hparams, device):
 
+        # Take all deciding factors:
+        self.in_channels = hparams.in_channels
+        self.lambdas = hparams.lambdas
+        self.mask_penalties = hparams.mask_penalties
+        self.dist_v_penalties = hparams.dist_v_penalties
 
-    @staticmethod
-    def _l2_loss(v1b, v2b, weight_factor, vertex_mask=1):
-        return weight_factor * torch.mean(vertex_mask * ((v1b - v2b) ** 2))
+        # Sanity Check - Input Channels:
+        if self.lambdas[1] > 0:
+            assert self.in_channels >= 6, "Only makes sense to compute normal losses with normals available"
+        if self.lambdas[2] > 0:
+            assert self.in_channels >= 12, "Only makes sense to compute moment losses with moments available"
 
-    @staticmethod
-    def _mask_penalty_weight(mask_b, nv, weight_factor):
+        # Sanity Check - Destory dangling mask_penalties/distant_v_penalties
+        for i, lamb in enumerate(self.lambdas[0:3]):  # TODO - Implement 0:4
+            if lamb <= 0:
+                self.mask_penalties[i] = 0
+                self.dist_v_penalties[i] = 0
+
+        self.device = device  # TODO - Is torch.current enough? Don't think so...
+
+    def compute(self, b, gtrb):
+
+        # TODO - This codes assumes gtr has 3 input channels
+
+        # Aliasing:
+        gtb_xyz = b['gt_v'][:, 0:3, :]
+        tpb_xyz = b['tp_v'][:, 0:3, :]
+        mask_vi = b['gt_mask_vi']
+        nv = gtrb.shape[1]
+
+        loss = torch.zeros((1), device=self.device)
+        for i, lamb in enumerate(self.lambdas):
+
+            if lamb > 0:
+                w = self._mask_penalty_weight(mask_b=mask_vi, nv=nv, lamb=self.mask_penalties[i]) * \
+                    self._distant_vertex_weight(gtb_xyz, tpb_xyz, self.dist_v_penalties[i])
+                if i == 0:  # XYZ
+                    loss += self._l2_loss(gtb_xyz, gtrb, lamb=lamb, vertex_mask=w)
+                elif i == 1:  # Normals
+                    loss += self._l2_loss(b['gt_v'][:, 3:6, :], batch_vnrmls(gtrb, b['f']), lamb=lamb,
+                                          vertex_mask=w)
+                elif i == 2:  # Moments:
+                    loss += self._l2_loss(b['gt_v'][:, 6:12, :], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
+                elif i==3:
+                    loss += self._l2_loss(batch_euclid_dist_mat(gtb_xyz),batch_euclid_dist_mat(gtrb),lamb=lamb)
+        return loss
+
+    def _mask_penalty_weight(self, mask_b, nv, lamb):
         """
         :param mask_b: A list of masks (protected inside a list)
         :param nv: The number of vertices
-        :param weight_factor: Additional weight multiplier for the mask vertices - A scalar > 1
+        :param lamb: Additional weight multiplier for the mask vertices - A scalar > 1
         """
-        if weight_factor <= 1:
+        if lamb <= 1:
             return 1
         b = len(mask_b)
-        w = np.ones((b, nv, 1))
+        w = torch.ones((b, nv, 1), device=self.device)
         for i in range(b):
-            w[i, mask_b[i][0], :] = weight_factor
+            w[i, mask_b[i][0], :] = lamb
 
-    @staticmethod
-    def _distant_vertex_weight(gtb_xyz, tpb_xyz, weight_factor):
+    def _distant_vertex_weight(self, gtb_xyz, tpb_xyz, lamb):
         """
         :param gtb_xyz: ground-truth batched tensor [b x nv x 3]
         :param tpb_xyz: template batched tensor [b x nv x 3]
-        :param weight_factor: Additional weight multiplier for the far off vertices - A scalar > 1
+        :param lamb: Additional weight multiplier for the far off vertices - A scalar > 1
         This function returns a bxnvx1 point-wise weight. For vertices that are similar between gt & tp - return 1.
         For "distant" vertices - return some cost greater than 1.
         Defines the point-wise difference as: d = ||gtb_xyz - tpb_xyz|| - a  [b x nv x 1] vector
         Normalize d by its mean: dhat = d/mean(d)
         Far-off vertices are defined as vertices for which dhat > 1 - i.e., the difference is greater than the mean vertices
-        The weight function w is defined by W_i = max(dhat_i,1) * weight_factor
+        The weight function w is defined by W_i = max(dhat_i,1) * lamb
         """
-        if weight_factor <= 1:
+        if lamb <= 1:
             return 1
         d = torch.norm(gtb_xyz - tpb_xyz, dim=2, keepdim=True)
         d /= torch.mean(d, dim=1, keepdim=True)  # dhat
-        w = torch.max(d, torch.ones((1, 1, 1), device='cuda'))  # TODO - fix device
-        w[w > 1] *= weight_factor
+        w = torch.max(d, torch.ones((1, 1, 1), device=self.device))  # TODO - fix device
+        w[w > 1] *= lamb
         return w
 
-
+    @staticmethod
+    def _l2_loss(v1b, v2b, lamb, vertex_mask=1):
+        return lamb * torch.mean(vertex_mask * ((v1b - v2b) ** 2))
 
 
 # TODO - This needs work
@@ -106,7 +142,7 @@ def compute_loss(gt, gt_rec, template, mask_loss, f, opt):
     # Compute Euclidean Distance Loss
     if opt.euclid_dist_loss_slope > 0:
         euclid_dist_loss = opt.euclid_dist_loss_slope * torch.mean(
-            (batch_euclidean_dist_matrix(gt_rec_xyz) - batch_euclidean_dist_matrix(gt_xyz)) ** 2)
+            (batch_euclid_dist_mat(gt_rec_xyz) - batch_euclid_dist_mat(gt_xyz)) ** 2)
         # print(f'Euclid Distances Loss {euclid_dist_loss:4f}')
         loss += euclid_dist_loss
 

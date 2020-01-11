@@ -3,7 +3,6 @@ import torch.nn as nn
 import numpy as np
 from collections import OrderedDict
 from util.gen import banner, warn, list_class_declared_methods, convert_bytes
-from torchviz import make_dot
 import types
 from pathlib import Path
 from pytorch_lightning import LightningModule
@@ -76,6 +75,7 @@ class PytorchNet(LightningModule):
         return self.__class__.__name__
 
     def visualize(self, x_shape=None, frmt='pdf'):
+        from torchviz import make_dot
         # Possible Formats: https://www.graphviz.org/doc/info/output.html
         x = self._random_input(x_shape)
         y = self.forward(*x)

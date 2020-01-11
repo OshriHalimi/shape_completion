@@ -1,7 +1,8 @@
 import torch
 import numpy as np
-import torch.nn.functional as tf
+import torch.nn.functional as F
 from util.datascience import normr, index_sparse
+from torch_scatter import scatter_add
 from util.gen import warn
 import random
 
@@ -49,7 +50,8 @@ class AlignInputChannels(Transform):
     def __call__(self, x):
         x['gt_v'] = align_in_channels(x['gt_v'], x['f'], self._req_in_channels)
         x['tp_v'] = align_in_channels(x['tp_v'], x['f'], self._req_in_channels)
-        del x['f']  # TODO - Change this - Presumption: The triangulation is not needed after this
+        if self._req_in_channels < 6:  # Small optimization
+            del x['f']
         return x
 
 
@@ -118,14 +120,14 @@ def align_in_channels(v, f, req_in_channels):
     else:
         combined = [v]
         if req_in_channels >= 6 > available_in_channels:
-            combined.append(calc_vnrmls(v, f))
+            combined.append(vnrmls(v, f))
         if req_in_channels >= 12 > available_in_channels:
-            combined.append(calc_moments(v))
+            combined.append(moments(v))
 
         return np.concatenate(combined, axis=1)
 
 
-def calc_vnrmls(v, f):
+def vnrmls(v, f):
     # NOTE - Vertices unreferenced by faces will be zero
     if f is None:
         raise NotImplementedError  # TODO - Add in computation for scans, without faces - either with pcnormals/
@@ -139,7 +141,7 @@ def calc_vnrmls(v, f):
         return normr(vn)
 
 
-def calc_moments(v):
+def moments(v):
     x, y, z = v[:, 0], v[:, 1], v[:, 2]
     return np.stack((x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
 
@@ -166,90 +168,47 @@ def trunc_to_vertex_subset(v, f, vi):
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
-#                                               PyTorch Batch Computations - TODO - Migrate this
+#                                       PyTorch Batch Computations - TODO - Migrate this
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def batch_euclidean_dist_matrix(x):
-    # X of dim: [batch_size x nv x 3]
-    x = x.transpose(2, 1)
-    r = torch.sum(x ** 2, dim=2).unsqueeze(2)  # [batch_size  x num_points x 1]
-    r_t = r.transpose(2, 1)  # [batch_size x 1 x num_points]
-    inner = torch.bmm(x, x.transpose(2, 1))
-    dist_mat = tf.relu(r - 2 * inner + r_t) ** 0.5  # the residual numerical error can be negative ~1e-16
-    return dist_mat
+def batch_euclid_dist_mat(vb):
+    # vb of dim: [batch_size x nv x 3]
+    r = torch.sum(vb ** 2, dim=2, keepdim=True)  # [batch_size  x num_points x 1]
+    inner = torch.bmm(vb, vb.transpose(2, 1))  # TODO - Implement correctly
+    return F.relu(r - 2 * inner + r.transpose(2, 1)) ** 0.5  # the residual numerical error can be negative ~1e-16
 
 
-def batch_vnrmls(v, f_tup):
-    # v dimensions: [batch_size x 3 x n_vertices]
-    # f dimensions: ( [n_faces x 3] , [n_faces x 3] )
-    v = v.transpose(2, 1)
-    vn = torch.zeros_like(v)
-    for i in range(v.shape[0]):
-        vn[i, :, :] = calc_vnrmls_torch(v[i, :, :], f_tup)
+def batch_moments(vb):
+    # TODO - Implement
+    # x, y, z = v[:, 0], v[:, 1], v[:, 2]
+    # return np.stack((x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
+    raise NotImplementedError
 
-    v = v.transpose(2, 1)
-    vn = vn.transpose(2, 1)
+
+def batch_vnrmls(vb, fb):
+    # vb dimensions: [batch_size x n_vertices x3]
+    # fb dimensions: [batch_size x n_faces x3]
+    vn = torch.zeros_like(vb)
+    for i in range(vb.shape[0]):
+        vn[i, :, :] = vnrmls_torch(vb[i, :, :], fb[i, :, :])
     return vn
 
 
-def calc_vnrmls_torch(v, f_tup):
-    f, f_torch = f_tup
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                        PyTorch Singleton Computations - TODO - Migrate this
+# ----------------------------------------------------------------------------------------------------------------------#
 
-    a = v[f_torch[:, 0], :]
-    b = v[f_torch[:, 1], :]
-    c = v[f_torch[:, 2], :]
-    fn = torch.cross(b - a, c - a)
-
-    matrix = index_sparse(v.shape[0], f)
-    matrix = torch.from_numpy(matrix.todense()).float().cuda()
-    vn = torch.mm(matrix, fn)
-    # Normalize them
-    # Note - in some runs I've made, vectors computed are degenrate and cause errors in the computation.
-    # The normr function masks these - I.I.
-    # vn = vn / np.sqrt(np.sum(vn ** 2, -1, keepdims=True)) # Does not handle 0 vectors
-    vn = tf.normalize(vn, p=2, dim=1)
-    # vn = normr(vn)
-    # Old Vertex Normals
-    # vn = np.zeros_like(v)
-    # vn[self.ref_tri[:, 0], :] = vn[self.ref_tri[:, 0], :] + fn
-    # vn[self.ref_tri[:, 1], :] = vn[self.ref_tri[:, 1], :] + fn
-    # vn[self.ref_tri[:, 2], :] = vn[self.ref_tri[:, 2], :] + fn
-
-    return vn
-
-
-# import torch
-# import torch.nn.functional as F
-# from torch_scatter import scatter_add
-# TODO - See if this implementation is faster for vnrmrls
-# [docs]class GenerateMeshNormals(object):
-#     r"""Generate normal vectors for each mesh node based on neighboring
-#     faces."""
-#
-#     def __call__(self, x):
-#         assert 'face' in x
-#         pos, face = x.pos, x.face
-#
-#         vec1 = pos[face[1]] - pos[face[0]]
-#         vec2 = pos[face[2]] - pos[face[0]]
-#         face_norm = F.normalize(vec1.cross(vec2), p=2, dim=-1)  # [F, 3]
-#
-#         idx = torch.cat([face[0], face[1], face[2]], dim=0)
-#         face_norm = face_norm.repeat(3, 1)
-#
-#         norm = scatter_add(face_norm, idx, dim=0, dim_size=pos.size(0))
-#         norm = F.normalize(norm, p=2, dim=-1)  # [N, 3]
-#
-#         x.norm = norm
-#
-#         return x
-#
-#     def __repr__(self):
-#         return '{}()'.format(self.__class__.__name__)
+def vnrmls_torch(v, f):
+    a = v[f[:, 0], :]
+    b = v[f[:, 1], :]
+    c = v[f[:, 2], :]
+    fn = F.normalize(torch.cross(b - a, c - a), p=2, dim=1)
+    vn = scatter_add(fn.repeat(3, 1), f, dim=0, dim_size=v.size(0))
+    return F.normalize(vn, p=2, dim=1)  # [nv, 3]
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
-#                                              Tests
+#                                                    Tests
 # ----------------------------------------------------------------------------------------------------------------------#
 
 def test_normals(v, f, n):
@@ -260,3 +219,31 @@ def test_normals(v, f, n):
     vnn = v + n
     ax.quiver(v[:, 0], v[:, 1], v[:, 2], vnn[:, 0], vnn[:, 1], vnn[:, 2], length=0.03, normalize=True)
     plt.show()
+
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                                    Graveyard
+# ----------------------------------------------------------------------------------------------------------------------#
+# def calc_vnrmls_torch(v, f_tup):
+#     f, f_torch = f_tup
+#
+#     a = v[f_torch[:, 0], :]
+#     b = v[f_torch[:, 1], :]
+#     c = v[f_torch[:, 2], :]
+#     fn = torch.cross(b - a, c - a)
+#
+#     matrix = index_sparse(v.shape[0], f)
+#     matrix = torch.from_numpy(matrix.todense()).float().cuda()
+#     vn = torch.mm(matrix, fn)
+#     # Normalize them
+#     # Note - in some runs I've made, vectors computed are degenrate and cause errors in the computation.
+#     # The normr function masks these - I.I.
+#     # vn = vn / np.sqrt(np.sum(vn ** 2, -1, keepdims=True)) # Does not handle 0 vectors
+#     vn = tf.normalize(vn, p=2, dim=1)
+#     # vn = normr(vn)
+#     # Old Vertex Normals
+#     # vn = np.zeros_like(v)
+#     # vn[self.ref_tri[:, 0], :] = vn[self.ref_tri[:, 0], :] + fn
+#     # vn[self.ref_tri[:, 1], :] = vn[self.ref_tri[:, 1], :] + fn
+#     # vn[self.ref_tri[:, 2], :] = vn[self.ref_tri[:, 2], :] + fn
+#
+#     return vn

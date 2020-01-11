@@ -5,7 +5,7 @@ from util.gen import list_class_declared_methods, list_narrow_class_methods, lis
     list_parent_class_methods
 from dataset.transforms import flip_mask
 import torchvision
-from architecture.PytorchNet import PytorchNet
+from architecture.pytorch_extensions import PytorchNet
 from types import FunctionType
 import inspect
 
@@ -56,7 +56,7 @@ class Son(Parent):
 # -----------------------------------------------------------------------------------------------------------------------
 #
 # -----------------------------------------------------------------------------------------------------------------------
-from architecture.PytorchNet import PytorchNet
+from architecture.pytorch_extensions import PytorchNet
 from timeit import timeit
 from pprint import pprint
 

@@ -3,16 +3,16 @@ import torch.nn as nn
 import torch.utils.data
 import torch.nn.functional as F
 import numpy as np
-from architecture.PytorchNet import PytorchNet
+from architecture.pytorch_extensions import PytorchNet
 import torch.nn.init as init
 from test_tube import HyperOptArgumentParser
-from architecture.lightning import CompletionModel
+from architecture.lightning import CompletionLightningModel
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      Full Models 
 # ----------------------------------------------------------------------------------------------------------------------
 
-class CompletionNet(CompletionModel):
+class F2PEncoderDecoder(CompletionLightningModel):
 
     # @override
     def _build_model(self):
@@ -41,19 +41,19 @@ class CompletionNet(CompletionModel):
     @staticmethod
     # TODO - Not sure if this placement is comfortable
     def add_model_specific_args(parent_parser):
-        p = HyperOptArgumentParser(parents=[parent_parser])
+        p = HyperOptArgumentParser(parents=parent_parser)
         p.add_argument('--code_size', default=1024, type=int)
         p.add_argument('--in_channels', default=3, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--decoder_convl', default=5, type=int)
         return p
 
-    def forward(self, b):
+    def forward(self, part, template):
         # TODO - Add handling of differently scaled meshes
-        part, template = b['gt_part_v'],b['tp_v']
+        # part, template = b['gt_part_v'],b['tp_v']
         # part, template [bs x nv x 3]
         bs = part.size(0)
-        nv = part.size(2)
+        nv = part.size(1)
 
         # TODO - Get rid of this transpose & contiguous
         part = part.transpose(2, 1).contiguous()
@@ -65,8 +65,8 @@ class CompletionNet(CompletionModel):
         template_code = self.encoder(template)
 
         # [b x code_size x nv]
-        part_code = part_code.unsqueeze(2).expand(bs, self.code_size, nv)
-        template_code = template_code.unsqueeze(2).expand(bs, self.code_size, nv)
+        part_code = part_code.unsqueeze(2).expand(bs, self.hparams.code_size, nv)
+        template_code = template_code.unsqueeze(2).expand(bs, self.hparams.code_size, nv)
 
         # [b x (3 + 2*code_size) x nv]
         y = torch.cat((template, part_code, template_code), 1).contiguous()

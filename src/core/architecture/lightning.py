@@ -11,23 +11,27 @@ from torch import optim
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torchvision.datasets import MNIST
-from architecture import PytorchNet
+from architecture.pytorch_extensions import PytorchNet
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer
-from architecture.loss import build_loss
+from architecture.loss import F2PLoss
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
-class CompletionModel(PytorchNet):
-    def __init__(self, hparams, resume=True):
+class CompletionLightningModel(PytorchNet):
+    def __init__(self, hparams=None, resume=True):
         super().__init__()
-        self.hparams = hparams
+        if hparams is None:  # Just the model - for forward runs only
+            hparams = self.add_model_specific_args([]).parse_args()
+        else:
+            self.loss = F2PLoss(hparams, device='cuda')  # TODO
+
         # If you specify an example input, the summary will show input/output for each layer
         # self.example_input_array = torch.rand(5, 28 * 28)
 
-        self.loss = build_loss(hparams)
+        self.hparams = hparams
         self._build_model()
         if resume:
             pass  # TODO
@@ -40,7 +44,7 @@ class CompletionModel(PytorchNet):
     def _init_model(self):
         raise NotImplementedError
 
-    def forward(self, b):
+    def forward(self, part, template):
         raise NotImplementedError
 
     def set_loaders(self, loaders):
@@ -49,8 +53,8 @@ class CompletionModel(PytorchNet):
 
     def training_step(self, b, _):
 
-        y_hat = self.forward(b)
-        loss_val = self.loss(b['gt_v'], y_hat)
+        y_hat = self.forward(b['gt_part_v'], b['tp_v'])
+        loss_val = self.loss.compute(b['gt_v'], y_hat)
 
         # in DP mode (default) make sure if result is scalar, there's another dim in the beginning
         if self.trainer.use_dp or self.trainer.use_ddp2:

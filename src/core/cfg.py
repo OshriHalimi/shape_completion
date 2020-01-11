@@ -10,7 +10,7 @@ from pathlib import Path
 DEF_PRECISION = np.float32  # Translates to tensor types as well
 DANGEROUS_MASK_THRESH = 100
 
-# Used in PytorchNet.py
+# Used in pytorch_extensions.py
 RANDOM_SEED = 2147483647  # datetime.now() For a truly random seed
 
 
