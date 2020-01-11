@@ -87,7 +87,7 @@ class PointDataset(ABC):
         assert self._f is not None, "Faces property is empty"
         if torch_version:
             # GPU doesn't deal well with int32 versions of the data -> That's why we transfer it to long
-            return torch.from_numpy(self._f).long().cuda(), deepcopy(self._f)  # TODO - Make normal compute all GPU
+            return torch.from_numpy(self._f).long().cuda() #, deepcopy(self._f)
         else:
             return deepcopy(self._f)
 

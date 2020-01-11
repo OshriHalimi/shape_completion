@@ -72,7 +72,7 @@ def train_main(hparams):
                                   s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=10)
 
     # Bridge data and model
-    nn.set_loaders(ds)
+    nn.init_data(ds)
 
     # TODO - Handle Resume case :
     #     exp = TestTubeLogger(save_dir=save_dir)
@@ -98,7 +98,7 @@ def test_main():
     )
     ldr = PointDatasetMenu.get('DFaustPyProj').loader(ids=range(1000), transforms=None, batch_size=16)
     # Use only test loader
-    nn.set_loaders([None, None, ldr])
+    nn.init_data([None, None, ldr])
 
     #     early_stop = EarlyStopping(
     #         monitor='avg_val_loss',

@@ -11,7 +11,9 @@ matplotlib==3.0.2
 scikit_learn==0.20.2
 torch-scatter==1.4.0
 pillow==6.2.1
-# Step 4: In order to support nn.visualize(), you must install Graphviz. For Windows: 
+# Step 4[ SKIP THIS if installing a bot computer ] : In order to support nn.visualize(), you must install Graphviz. For Windows: 
 # 1. Open up your browser and go to: https://graphviz.gitlab.io/_pages/Download/windows/graphviz-2.38.msi
 # 2. Install the application. Default install path is: C:\Program Files (x86)\Graphviz2.38
 # 3. Add to your PATH variable: "C:\Program Files (x86)\Graphviz2.38\bin"
+# Step 5: If using PyCharm - Make sure that 'src/core' is enabled as the Sources Root  - https://stackoverflow.com/questions/28705029/pycharm-error-no-module-when-trying-to-import-own-module-python-script
+# Step 6: Make sure you have the dataset installed

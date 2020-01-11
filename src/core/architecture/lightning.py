@@ -2,7 +2,7 @@ import torch
 from torch import optim
 from util.pytorch_extensions import PytorchNet
 import pytorch_lightning as pl
-from architecture.loss import F2PLoss
+from architecture.loss import F2PSMPLLoss
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -13,13 +13,9 @@ class CompletionLightningModel(PytorchNet):
         super().__init__()
         if hparams is None:  # Just the model - for forward runs only
             hparams = self.add_model_specific_args([]).parse_args()
-        else:
-            self.loss = F2PLoss(hparams, device='cuda')  # TODO
-
+        self.hparams = hparams
         # If you specify an example input, the summary will show input/output for each layer
         # self.example_input_array = torch.rand(5, 28 * 28)
-
-        self.hparams = hparams
         self._build_model()
         if resume:
             pass  # TODO
@@ -32,12 +28,16 @@ class CompletionLightningModel(PytorchNet):
     def _init_model(self):
         raise NotImplementedError
 
-    def forward(self, part, template): # TODO - Forward run is now unable to support P2P
+    def forward(self, part, template):  # TODO - Forward run is now unable to support P2P
         raise NotImplementedError
 
-    def set_loaders(self, loaders):
+    def init_data(self, dat, loaders):
         # TODO - Consider using a dict instead of list  {'Test':ldr,'Val':ldr,'Train':ldr}
+        self.dat = dat
         self.loaders = loaders
+        # TODO - Create flags for the Loss in dataset
+        # TODO - Add support for multiple GPUs
+        self.loss = F2PSMPLLoss(hparams=self.hparams, faces=dat.faces(torch_version=True), device='cuda')
 
     def training_step(self, b, _):
 

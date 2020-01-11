@@ -50,8 +50,8 @@ class AlignInputChannels(Transform):
     def __call__(self, x):
         x['gt_v'] = align_in_channels(x['gt_v'], x['f'], self._req_in_channels)
         x['tp_v'] = align_in_channels(x['tp_v'], x['f'], self._req_in_channels)
-        if self._req_in_channels < 6:  # Small optimization
-            del x['f']
+        # if self._req_in_channels < 6:
+        del x['f'] # Remove this as an optimization
         return x
 
 
