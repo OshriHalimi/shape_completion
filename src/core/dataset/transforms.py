@@ -170,6 +170,12 @@ def trunc_to_vertex_subset(v, f, vi):
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                       PyTorch Batch Computations - TODO - Migrate this
 # ----------------------------------------------------------------------------------------------------------------------#
+def tester():
+    from dataset.datasets import PointDatasetMenu,InCfg
+    ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
+    samp = ds.sample(num_samples=10, transforms=[Center()])
+    print(samp)
+
 
 def batch_euclid_dist_mat(vb):
     # vb of dim: [batch_size x nv x 3]
@@ -220,6 +226,7 @@ def test_normals(v, f, n):
     ax.quiver(v[:, 0], v[:, 1], v[:, 2], vnn[:, 0], vnn[:, 1], vnn[:, 2], length=0.03, normalize=True)
     plt.show()
 
+
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                    Graveyard
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -247,3 +254,5 @@ def test_normals(v, f, n):
 #     # vn[self.ref_tri[:, 2], :] = vn[self.ref_tri[:, 2], :] + fn
 #
 #     return vn
+
+if __name__ == '__main__': tester()
