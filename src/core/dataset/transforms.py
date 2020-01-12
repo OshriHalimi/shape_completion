@@ -5,6 +5,7 @@ from util.datascience import normr, index_sparse
 from torch_scatter import scatter_add
 from util.gen import warn
 import random
+import cfg
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -51,7 +52,7 @@ class AlignInputChannels(Transform):
         x['gt_v'] = align_in_channels(x['gt_v'], x['f'], self._req_in_channels)
         x['tp_v'] = align_in_channels(x['tp_v'], x['f'], self._req_in_channels)
         # if self._req_in_channels < 6:
-        del x['f'] # Remove this as an optimization
+        # del x['f'] # Remove this as an optimization
         return x
 
 
@@ -170,12 +171,59 @@ def trunc_to_vertex_subset(v, f, vi):
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                       PyTorch Batch Computations - TODO - Migrate this
 # ----------------------------------------------------------------------------------------------------------------------#
-def tester():
+def tester_vnrmls():
     from dataset.datasets import PointDatasetMenu,InCfg
     ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
-    samp = ds.sample(num_samples=10, transforms=[Center()])
+    samp = ds.sample(num_samples=10, transforms=[Center()]) #dim:
+    batch_v = samp['gt_v'][:,:,:3]
+    batch_f = samp['f']
+    batch_f = batch_f.long()
+    faces = batch_f[0,:,:]
+    N_faces = faces.shape[0]
+    N_vertices = batch_v.shape[1]
+
+    adjacency_VF = calc_adjacency_VF(faces, N_faces, N_vertices)  # This operation can be calculated once for the whole training
+    vertex_normals, is_valid_vnb = batch_vnrmls(batch_v, faces, adjacency_VF)
+    magnitude = torch.norm(vertex_normals, dim = 2)  # Debug: assert the values are equal to 1.000
+
+    v = batch_v[4,:,:]
+    f = faces
+    n = vertex_normals[4,:,:]
+    test_vnormals(v, f, n)
     print(samp)
 
+def tester_fnrmls():
+    from dataset.datasets import PointDatasetMenu,InCfg
+    ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
+    samp = ds.sample(num_samples=10, transforms=[Center()]) #dim:
+    batch_v = samp['gt_v'][:,:,:3]
+    batch_f = samp['f']
+    batch_f = batch_f.long()
+    faces = batch_f[0,:,:]
+
+    face_normals, is_valid_fnb, face_areas_b = batch_fnrmls_fareas(batch_v, faces)
+    magnitude = torch.norm(face_normals, dim=2)  # Debug: assert the values are equal to 1.000
+
+    v = batch_v[4,:,:]
+    f = faces
+    n = face_normals[4,:,:]
+    test_fnormals(v, f, n)
+    print(samp)
+
+def calc_adjacency_VF(faces, N_faces, N_vertices):
+    '''
+    :param faces: dim: [N_faces x 3]
+    :param N_faces: number of faces
+    :param N_vertices: number of vertices
+    :return: adjacency_VF: sparse integer adjacenecy matrix between vertices and faces, dim: [N_vertices x N_faces]
+    '''
+    i0 = torch.stack((faces[:,0], torch.arange(N_faces)), dim=1)
+    i1 = torch.stack((faces[:,1], torch.arange(N_faces)), dim=1)
+    i2 = torch.stack((faces[:,2], torch.arange(N_faces)), dim=1)
+    ind = torch.cat((i0, i1, i2), dim = 0)
+    ones_vec = torch.ones([3 * N_faces], dtype=torch.int8)
+    adjacency_VF = torch.sparse.IntTensor(ind.t(), ones_vec, torch.Size([N_vertices, N_faces]))
+    return adjacency_VF
 
 def batch_euclid_dist_mat(vb):
     # vb of dim: [batch_size x nv x 3]
@@ -190,21 +238,84 @@ def batch_moments(vb):
     # return np.stack((x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
     raise NotImplementedError
 
+def batch_fnrmls_fareas(vb, f):
+    '''
+    :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
+    :param fb: faces matrix, here we assume all the shapes have the same connectivity, dim: [n_faces x 3], dtype = torch.long
+    :return face_normals_b: batch of face normals, dim: [batch_size x n_faces x 3]
+            face_areas_b: batch of face areas, dim: [batch_size x n_faces]
+            is_valid_b: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_faces]
 
-def batch_vnrmls(vb, fb):
-    # vb dimensions: [batch_size x n_vertices x3]
-    # fb dimensions: [batch_size x n_faces x3]
-    vn = torch.zeros_like(vb)
-    for i in range(vb.shape[0]):
-        vn[i, :, :] = vnrmls_torch(vb[i, :, :], fb[i, :, :])
-    return vn
+    Warning: In case the normal magnitude is smaller than a threshold, the normal vector is returned without normalization
+    '''
+
+    #calculate xyz coordinates for 1-3 vertices in each triangle
+    v1 = vb[:, f[:, 0], :]  # dim: [batch_size x n_faces x 3]
+    v2 = vb[:, f[:, 1], :]  # dim: [batch_size x n_faces x 3]
+    v3 = vb[:, f[:, 2], :]  # dim: [batch_size x n_faces x 3]
+
+    edge_12 = v2 - v1  # dim: [batch_size x n_faces x 3]
+    edge_23 = v3 - v2  # dim: [batch_size x n_faces x 3]
+
+    face_normals_b = torch.cross(edge_12, edge_23)
+    face_areas_b = torch.norm(face_normals_b, dim = 2, keepdim=True) / 2
+
+    face_normals_b = face_normals_b / (2 * face_areas_b)
+    face_areas_b = face_areas_b.squeeze()
+    is_valid_fnb = face_areas_b > (cfg.NORMAL_MAGNITUDE_THRESH / 2)
+
+    return face_normals_b, face_areas_b, is_valid_fnb
+
+
+
+def batch_vnrmls(vb, f, adjVF):
+    '''
+    :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
+    :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
+    :param adjVF: sparse adjacency matrix beween vertices and faces, dim: [n_vertices x n_faces]
+    :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
+    :return: is_valid: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_vertices]
+    '''
+
+    face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f)
+    is_valid_fnb = is_valid_fnb.unsqueeze(1)
+    face_areas_b = face_areas_b.unsqueeze(1)
+    adjVF = adjVF.unsqueeze(0)
+
+    weights_VF = is_valid_fnb * face_areas_b * adjVF.to_dense() # dim: [batch_size x n_vertices x n_faces]
+    total_weight_v = torch.norm(weights_VF, dim=2, keepdim=True, p=1)
+    weights_VF = weights_VF / total_weight_v
+    total_weight_v = total_weight_v.squeeze()
+    is_valid_vnb = total_weight_v > 0  # check that at least one valid face contributes to the average
+    vnb = weights_VF.bmm(face_normals_b)  # face_normals_b dim: [batch_size x n_faces x 3]
+
+    magnitude = torch.norm(vnb, dim = 2, keepdim=True)
+    vnb = vnb / magnitude
+    is_valid_vnb = is_valid_vnb * (magnitude.squeeze() > cfg.NORMAL_MAGNITUDE_THRESH) # check that the average normal is greater than zero
+
+    return vnb, is_valid_vnb
+
+
+def calc_face_centers(v, f):
+    v1 = v[f[:, 0], :]  # dim: [n_faces x 3]
+    v2 = v[f[:, 1], :]  # dim: [n_faces x 3]
+    v3 = v[f[:, 2], :]  # dim: [n_faces x 3]
+
+    center_x = (1 / 3) * (v1[:, 0] + v2[:, 0] + v3[:, 0])
+    center_y = (1 / 3) * (v1[:, 1] + v2[:, 1] + v3[:, 1])
+    center_z = (1 / 3) * (v1[:, 2] + v2[:, 2] + v3[:, 2])
+
+    face_centers = torch.stack((center_x, center_y, center_z), dim = 1)
+    return face_centers
+
+
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                        PyTorch Singleton Computations - TODO - Migrate this
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def vnrmls_torch(v, f):
+def vnrmls_torch(v, f): # [N x 3]
     a = v[f[:, 0], :]
     b = v[f[:, 1], :]
     c = v[f[:, 2], :]
@@ -217,13 +328,29 @@ def vnrmls_torch(v, f):
 #                                                    Tests
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def test_normals(v, f, n):
+def test_vnormals(v, f, n):
     import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
     fig = plt.figure()
     ax = fig.gca(projection='3d')
-    ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=0.2, antialiased=True)
-    vnn = v + n
-    ax.quiver(v[:, 0], v[:, 1], v[:, 2], vnn[:, 0], vnn[:, 1], vnn[:, 2], length=0.03, normalize=True)
+    ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=1, antialiased=True)
+    ax.quiver(v[:, 0], v[:, 1], v[:, 2], n[:, 0], n[:, 1], n[:, 2], length=0.03, normalize=True)
+    ax.set_aspect('equal', 'box')
+    fig.tight_layout()
+    plt.show()
+
+def test_fnormals(v, f, n):
+    import matplotlib.pyplot as plt
+    from mpl_toolkits.mplot3d import Axes3D
+
+    c = calc_face_centers(v, f)
+
+    fig = plt.figure()
+    ax = fig.gca(projection='3d')
+    ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=1, antialiased=True)
+    ax.quiver(c[:, 0], c[:, 1], c[:, 2], n[:, 0], n[:, 1], n[:, 2], length=0.03, normalize=True)
+    ax.set_aspect('equal', 'box')
+    fig.tight_layout()
     plt.show()
 
 
@@ -255,4 +382,4 @@ def test_normals(v, f, n):
 #
 #     return vn
 
-if __name__ == '__main__': tester()
+if __name__ == '__main__': tester_fnrmls()
