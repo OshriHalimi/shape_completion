@@ -68,6 +68,72 @@ class PartCompiler(Transform):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
+#                                               Test Functions
+# ----------------------------------------------------------------------------------------------------------------------
+
+def test_vnrmls_grad():
+    from dataset.datasets import PointDatasetMenu,InCfg
+    ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
+    samp = ds.sample(num_samples=2, transforms=[Center()]) #dim:
+    batch_v = samp['gt_v'][:,:,:3]
+    batch_f = samp['f']
+    batch_f = batch_f.long()
+    faces = batch_f[0,:,:]
+    N_faces = faces.shape[0]
+    N_vertices = batch_v.shape[1]
+
+    adjacency_VF = calc_adjacency_VF(faces, N_faces, N_vertices)  # This operation can be calculated once for the whole training
+
+    from torch.autograd import gradcheck
+
+    # gradcheck takes a tuple of tensors as input, check if your gradient
+    # evaluated with these tensors are close enough to numerical
+    # approximations and returns True if they all verify this condition.
+    input = (batch_v.requires_grad_(True).double(), faces, adjacency_VF)
+    test = gradcheck(batch_vnrmls, input, eps=1e-6, atol=1e-4, check_sparse_nnz=True)
+    print(test)
+
+
+def test_vnrmls_visually():
+    from dataset.datasets import PointDatasetMenu,InCfg
+    ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
+    samp = ds.sample(num_samples=10, transforms=[Center()]) #dim:
+    batch_v = samp['gt_v'][:,:,:3]
+    batch_f = samp['f']
+    batch_f = batch_f.long()
+    faces = batch_f[0,:,:]
+    N_faces = faces.shape[0]
+    N_vertices = batch_v.shape[1]
+
+    adjacency_VF = calc_adjacency_VF(faces, N_faces, N_vertices)  # This operation can be calculated once for the whole training
+    vertex_normals, is_valid_vnb = batch_vnrmls(batch_v, faces, adjacency_VF)
+    magnitude = torch.norm(vertex_normals, dim = 2)  # Debug: assert the values are equal to 1.000
+
+    v = batch_v[4,:,:]
+    f = faces
+    n = vertex_normals[4,:,:]
+    test_vnormals(v, f, n)
+    print(samp)
+
+def test_fnrmls_visually():
+    from dataset.datasets import PointDatasetMenu,InCfg
+    ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
+    samp = ds.sample(num_samples=10, transforms=[Center()]) #dim:
+    batch_v = samp['gt_v'][:,:,:3]
+    batch_f = samp['f']
+    batch_f = batch_f.long()
+    faces = batch_f[0,:,:]
+
+    face_normals, is_valid_fnb, face_areas_b = batch_fnrmls_fareas(batch_v, faces)
+    magnitude = torch.norm(face_normals, dim=2)  # Debug: assert the values are equal to 1.000
+
+    v = batch_v[4,:,:]
+    f = faces
+    n = face_normals[4,:,:]
+    test_fnormals(v, f, n)
+    print(samp)
+
+# ----------------------------------------------------------------------------------------------------------------------
 #                                               Data Augmentation Transforms
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -104,8 +170,35 @@ class UniformVertexScale(Transform):
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
-#                                           Transform Inner Functions
+#                                           Transform Mesh Functions
 # ----------------------------------------------------------------------------------------------------------------------#
+def calc_adjacency_VF(faces, N_faces, N_vertices):
+    '''
+    :param faces: dim: [N_faces x 3]
+    :param N_faces: number of faces
+    :param N_vertices: number of vertices
+    :return: adjacency_VF: sparse integer adjacenecy matrix between vertices and faces, dim: [N_vertices x N_faces]
+    '''
+    i0 = torch.stack((faces[:,0], torch.arange(N_faces)), dim=1)
+    i1 = torch.stack((faces[:,1], torch.arange(N_faces)), dim=1)
+    i2 = torch.stack((faces[:,2], torch.arange(N_faces)), dim=1)
+    ind = torch.cat((i0, i1, i2), dim = 0)
+    ones_vec = torch.ones([3 * N_faces], dtype=torch.int8)
+    adjacency_VF = torch.sparse.IntTensor(ind.t(), ones_vec, torch.Size([N_vertices, N_faces]))
+    return adjacency_VF
+
+def calc_face_centers(v, f):
+    v1 = v[f[:, 0], :]  # dim: [n_faces x 3]
+    v2 = v[f[:, 1], :]  # dim: [n_faces x 3]
+    v3 = v[f[:, 2], :]  # dim: [n_faces x 3]
+
+    center_x = (1 / 3) * (v1[:, 0] + v2[:, 0] + v3[:, 0])
+    center_y = (1 / 3) * (v1[:, 1] + v2[:, 1] + v3[:, 1])
+    center_z = (1 / 3) * (v1[:, 2] + v2[:, 2] + v3[:, 2])
+
+    face_centers = torch.stack((center_x, center_y, center_z), dim = 1)
+    return face_centers
+
 
 def padded_part_by_mask(mask_vi, v):
     # Pad the mask to length:
@@ -171,60 +264,6 @@ def trunc_to_vertex_subset(v, f, vi):
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                       PyTorch Batch Computations - TODO - Migrate this
 # ----------------------------------------------------------------------------------------------------------------------#
-def tester_vnrmls():
-    from dataset.datasets import PointDatasetMenu,InCfg
-    ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
-    samp = ds.sample(num_samples=10, transforms=[Center()]) #dim:
-    batch_v = samp['gt_v'][:,:,:3]
-    batch_f = samp['f']
-    batch_f = batch_f.long()
-    faces = batch_f[0,:,:]
-    N_faces = faces.shape[0]
-    N_vertices = batch_v.shape[1]
-
-    adjacency_VF = calc_adjacency_VF(faces, N_faces, N_vertices)  # This operation can be calculated once for the whole training
-    vertex_normals, is_valid_vnb = batch_vnrmls(batch_v, faces, adjacency_VF)
-    magnitude = torch.norm(vertex_normals, dim = 2)  # Debug: assert the values are equal to 1.000
-
-    v = batch_v[4,:,:]
-    f = faces
-    n = vertex_normals[4,:,:]
-    test_vnormals(v, f, n)
-    print(samp)
-
-def tester_fnrmls():
-    from dataset.datasets import PointDatasetMenu,InCfg
-    ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
-    samp = ds.sample(num_samples=10, transforms=[Center()]) #dim:
-    batch_v = samp['gt_v'][:,:,:3]
-    batch_f = samp['f']
-    batch_f = batch_f.long()
-    faces = batch_f[0,:,:]
-
-    face_normals, is_valid_fnb, face_areas_b = batch_fnrmls_fareas(batch_v, faces)
-    magnitude = torch.norm(face_normals, dim=2)  # Debug: assert the values are equal to 1.000
-
-    v = batch_v[4,:,:]
-    f = faces
-    n = face_normals[4,:,:]
-    test_fnormals(v, f, n)
-    print(samp)
-
-def calc_adjacency_VF(faces, N_faces, N_vertices):
-    '''
-    :param faces: dim: [N_faces x 3]
-    :param N_faces: number of faces
-    :param N_vertices: number of vertices
-    :return: adjacency_VF: sparse integer adjacenecy matrix between vertices and faces, dim: [N_vertices x N_faces]
-    '''
-    i0 = torch.stack((faces[:,0], torch.arange(N_faces)), dim=1)
-    i1 = torch.stack((faces[:,1], torch.arange(N_faces)), dim=1)
-    i2 = torch.stack((faces[:,2], torch.arange(N_faces)), dim=1)
-    ind = torch.cat((i0, i1, i2), dim = 0)
-    ones_vec = torch.ones([3 * N_faces], dtype=torch.int8)
-    adjacency_VF = torch.sparse.IntTensor(ind.t(), ones_vec, torch.Size([N_vertices, N_faces]))
-    return adjacency_VF
-
 def batch_euclid_dist_mat(vb):
     # vb of dim: [batch_size x nv x 3]
     r = torch.sum(vb ** 2, dim=2, keepdim=True)  # [batch_size  x num_points x 1]
@@ -261,7 +300,7 @@ def batch_fnrmls_fareas(vb, f):
     face_areas_b = torch.norm(face_normals_b, dim = 2, keepdim=True) / 2
 
     face_normals_b = face_normals_b / (2 * face_areas_b)
-    face_areas_b = face_areas_b.squeeze()
+    face_areas_b = face_areas_b.squeeze(2)
     is_valid_fnb = face_areas_b > (cfg.NORMAL_MAGNITUDE_THRESH / 2)
 
     return face_normals_b, face_areas_b, is_valid_fnb
@@ -285,28 +324,15 @@ def batch_vnrmls(vb, f, adjVF):
     weights_VF = is_valid_fnb * face_areas_b * adjVF.to_dense() # dim: [batch_size x n_vertices x n_faces]
     total_weight_v = torch.norm(weights_VF, dim=2, keepdim=True, p=1)
     weights_VF = weights_VF / total_weight_v
-    total_weight_v = total_weight_v.squeeze()
+    total_weight_v = total_weight_v.squeeze(2)
     is_valid_vnb = total_weight_v > 0  # check that at least one valid face contributes to the average
     vnb = weights_VF.bmm(face_normals_b)  # face_normals_b dim: [batch_size x n_faces x 3]
 
     magnitude = torch.norm(vnb, dim = 2, keepdim=True)
     vnb = vnb / magnitude
-    is_valid_vnb = is_valid_vnb * (magnitude.squeeze() > cfg.NORMAL_MAGNITUDE_THRESH) # check that the average normal is greater than zero
+    is_valid_vnb = is_valid_vnb * (magnitude.squeeze(2) > cfg.NORMAL_MAGNITUDE_THRESH) # check that the average normal is greater than zero
 
     return vnb, is_valid_vnb
-
-
-def calc_face_centers(v, f):
-    v1 = v[f[:, 0], :]  # dim: [n_faces x 3]
-    v2 = v[f[:, 1], :]  # dim: [n_faces x 3]
-    v3 = v[f[:, 2], :]  # dim: [n_faces x 3]
-
-    center_x = (1 / 3) * (v1[:, 0] + v2[:, 0] + v3[:, 0])
-    center_y = (1 / 3) * (v1[:, 1] + v2[:, 1] + v3[:, 1])
-    center_z = (1 / 3) * (v1[:, 2] + v2[:, 2] + v3[:, 2])
-
-    face_centers = torch.stack((center_x, center_y, center_z), dim = 1)
-    return face_centers
 
 
 
@@ -382,4 +408,4 @@ def test_fnormals(v, f, n):
 #
 #     return vn
 
-if __name__ == '__main__': tester_fnrmls()
+if __name__ == '__main__': test_vnrmls_grad()
