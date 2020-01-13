@@ -24,8 +24,8 @@ RANDOM_SEED = 2147483647  # datetime.now() For a truly random seed
 # ----------------------------------------------------------------------------------------------------------------------
 
 # Used in abstract.py & datasets.py
-PRIMARY_RESULTS_DIR = Path(__file__).parents[0] / '..' / '..' / 'results'
-PRIMARY_DATA_DIR = Path(__file__).parents[0] / '..' / '..' / 'data'
+PRIMARY_RESULTS_DIR = (Path(__file__).parents[0] / '..' / '..' / 'results').resolve()
+PRIMARY_DATA_DIR = (Path(__file__).parents[0] / '..' / '..' / 'data').resolve()
 SUPPORTED_IN_CHANNELS = (3, 6, 12)
 
 

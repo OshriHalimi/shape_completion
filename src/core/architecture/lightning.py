@@ -7,8 +7,9 @@ from architecture.loss import F2PSMPLLoss
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from copy import deepcopy
+import os.path as osp
 import cfg
-import os
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -20,6 +21,9 @@ class CompletionLightningModel(PytorchNet):
         self.hparams = self.add_model_specific_args(hp).parse_args()
         self.dev = 'cpu' if self.hparams.gpus is None else 'cuda'  # TODO - Insert distributed support
         setattr(self.hparams, 'dev', self.dev)
+        exp_name = getattr(self.hparams, 'exp_name', None)
+        if exp_name is not None and not exp_name:
+            self.hparams.exp_name = 'default_exp'
         self.trainset, self.loss, self.loaders = None, None, None
 
         self._build_model()
@@ -29,7 +33,7 @@ class CompletionLightningModel(PytorchNet):
             self._init_model()
 
     def hyper_params(self):
-        return self.hparams
+        return deepcopy(self.hparams)
 
     def _build_model(self):
         raise NotImplementedError
@@ -125,24 +129,17 @@ class CompletionLightningModel(PytorchNet):
 def train_lightning(nn, fast_dev_run=False):
     hp = nn.hyper_params()
 
-    if not hp.exp_name or hp.exp_name is None:
-        hp.exp_name = 'default_exp'
-    tgt_dir = cfg.PRIMARY_RESULTS_DIR / hp.exp_name
-    tgt_dir /= f'version_{get_exp_version(tgt_dir)}'
-    tgt_dir = tgt_dir.resolve()
     early_stop = EarlyStopping(monitor='avg_val_loss', patience=hp.early_stop_patience, verbose=True, mode='min')
     # Consider min_delta option for EarlyStopping
-    logger = TestTubeLogger(save_dir=tgt_dir, description="BluBluBlu")
-    # log.rank = 0
-    checkpoint = ModelCheckpoint(
-        filepath=tgt_dir / 'checkpoints',  # / 'weights_epoch_{epoch:02d}_vloss_{avg_val_loss:.5f}.ckpt',
-        save_best_only=True, verbose=True,prefix='weight',
-        monitor='avg_val_loss', mode='min', period=1)
+    logger = TestTubeLogger(save_dir=cfg.PRIMARY_RESULTS_DIR, description="BluBluBlu", name=hp.exp_name)
+    checkpoint = ModelCheckpoint(filepath=osp.join(osp.dirname(logger.experiment.log_dir),'checkpoints'),
+                                 save_best_only=True, verbose=True, prefix='weight',
+                                 monitor='avg_val_loss', mode='min', period=1)
 
-    trainer = Trainer(nb_sanity_val_steps=1, gpus=hp.gpus, distributed_backend=hp.distributed_backend,
-                      use_amp=hp.use_16b, fast_dev_run=fast_dev_run, default_save_path=cfg.PRIMARY_RESULTS_DIR,
-                      early_stop_callback=early_stop, checkpoint_callback=checkpoint, max_nb_epochs=hp.n_epoch,
-                      logger=logger)
+    trainer = Trainer(fast_dev_run=fast_dev_run,nb_sanity_val_steps=0,
+                      gpus=hp.gpus, distributed_backend=hp.distributed_backend,use_amp=hp.use_16b,
+                      early_stop_callback=early_stop, checkpoint_callback=checkpoint,logger=logger,
+                      max_nb_epochs=hp.n_epoch)
 
     # More flags to consider:
     # log_gpu_memory = 'min_max' or 'all' # How to log the GPU memory
@@ -179,15 +176,4 @@ def test_lightning(nn):
     # )
 
 
-def get_exp_version(cache_dir):
-    last_version = -1
-    try:
-        for f in os.listdir(cache_dir):
-            if 'version_' in f:
-                file_parts = f.split('_')
-                version = int(file_parts[-1])
-                last_version = max(last_version, version)
-    except:  # No such dir
-        pass
 
-    return last_version + 1

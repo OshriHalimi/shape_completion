@@ -100,6 +100,18 @@ def warn(s, stacklevel=1):
 def assert_is_dir(d):
     assert os.path.isdir(d), f"Directory {d} is invalid"
 
+def get_exp_version(cache_dir):
+    last_version = -1
+    try:
+        for f in os.listdir(cache_dir):
+            if 'version_' in f:
+                file_parts = f.split('_')
+                version = int(file_parts[-1])
+                last_version = max(last_version, version)
+    except:  # No such dir
+        pass
+
+    return last_version + 1
 
 def convert_bytes(num):
     """
