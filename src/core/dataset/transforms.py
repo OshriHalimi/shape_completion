@@ -89,8 +89,8 @@ def test_vnrmls_grad():
     # gradcheck takes a tuple of tensors as input, check if your gradient
     # evaluated with these tensors are close enough to numerical
     # approximations and returns True if they all verify this condition.
-    input = (batch_v.requires_grad_(True).double(), faces, adjacency_VF)
-    test = gradcheck(batch_vnrmls, input, eps=1e-6, atol=1e-4, check_sparse_nnz=True)
+    input = (batch_v.requires_grad_(True).double(), faces)
+    test = gradcheck(batch_vnrmls_2, input, eps=1e-6, atol=1e-4, check_sparse_nnz=True)
     print(test)
 
 
@@ -105,8 +105,8 @@ def test_vnrmls_visually():
     N_faces = faces.shape[0]
     N_vertices = batch_v.shape[1]
 
-    adjacency_VF = calc_adjacency_VF(faces, N_faces, N_vertices)  # This operation can be calculated once for the whole training
-    vertex_normals, is_valid_vnb = batch_vnrmls(batch_v, faces, adjacency_VF)
+    #adjacency_VF = calc_adjacency_VF(faces, N_faces, N_vertices)  # This operation can be calculated once for the whole training
+    vertex_normals, is_valid_vnb = batch_vnrmls_2(batch_v, faces)
     magnitude = torch.norm(vertex_normals, dim = 2)  # Debug: assert the values are equal to 1.000
 
     v = batch_v[4,:,:]
@@ -334,8 +334,36 @@ def batch_vnrmls(vb, f, adjVF):
 
     return vnb, is_valid_vnb
 
+def batch_vnrmls_2(vb, f):
+    '''
+    :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
+    :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
+    :param adjVF: sparse adjacency matrix beween vertices and faces, dim: [n_vertices x n_faces]
+    :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
+    :return: is_valid: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_vertices]
+    '''
 
+    N_faces = f.shape[0]
+    N_batch = vb.shape[0]
 
+    face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f)
+    face_normals_b[~is_valid_fnb,:] = 0  # non valid face normals --> [0, 0, 0]
+    #face_normals_b *= face_areas_b.unsqueeze(2)  # weight each normal with the corresponding face area
+
+    face_normals_b = face_normals_b.repeat(1, 3, 1)  # repeat face normals 3 times along the face dimension
+    f = f.t().contiguous().view(3 * N_faces)  # dim: [n_faces x 3] --> [(3*n_faces)]
+    f = f.expand(N_batch, -1)  # dim: [B x (3*n_faces)]
+    f = f.unsqueeze(2).expand(N_batch, 3 * N_faces, 3)  # dim: [B x (3*n_faces) x 3], last dimension (xyz dimension) is repeated
+
+    # For each vertex, sum all the normals of the adjacent faces (weighted by their areas)
+    vnb = torch.zeros_like(vb)  # dim: [batch_size x n_vertices x 3]
+    vnb = vnb.scatter_add_(1, f, face_normals_b)  # vb[b][f[b,f,xyz][xyz] = face_normals_b[b][f][xyz]
+
+    magnitude = torch.norm(vnb, dim = 2, keepdim=True)
+    vnb = vnb / magnitude
+    is_valid_vnb = magnitude.squeeze(2) > cfg.NORMAL_MAGNITUDE_THRESH  # check the sum of face normals is greater than zero
+
+    return vnb, is_valid_vnb
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                        PyTorch Singleton Computations - TODO - Migrate this
@@ -362,7 +390,6 @@ def test_vnormals(v, f, n):
     ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=1, antialiased=True)
     ax.quiver(v[:, 0], v[:, 1], v[:, 2], n[:, 0], n[:, 1], n[:, 2], length=0.03, normalize=True)
     ax.set_aspect('equal', 'box')
-    fig.tight_layout()
     plt.show()
 
 def test_fnormals(v, f, n):
@@ -376,7 +403,6 @@ def test_fnormals(v, f, n):
     ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=1, antialiased=True)
     ax.quiver(c[:, 0], c[:, 1], c[:, 2], n[:, 0], n[:, 1], n[:, 2], length=0.03, normalize=True)
     ax.set_aspect('equal', 'box')
-    fig.tight_layout()
     plt.show()
 
 
