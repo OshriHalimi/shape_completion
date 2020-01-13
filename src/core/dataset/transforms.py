@@ -338,7 +338,6 @@ def batch_vnrmls_2(vb, f):
     '''
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
     :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
-    :param adjVF: sparse adjacency matrix beween vertices and faces, dim: [n_vertices x n_faces]
     :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
     :return: is_valid: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_vertices]
     '''
