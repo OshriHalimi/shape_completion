@@ -105,14 +105,14 @@ def test_vnrmls_visually():
     N_faces = faces.shape[0]
     N_vertices = batch_v.shape[1]
 
-    #adjacency_VF = calc_adjacency_VF(faces, N_faces, N_vertices)  # This operation can be calculated once for the whole training
-    vertex_normals, is_valid_vnb = batch_vnrmls_2(batch_v, faces)
+    adjacency_VF = calc_adjacency_VF(faces, N_faces, N_vertices)  # This operation can be calculated once for the whole training
+    vertex_normals, is_valid_vnb = batch_vnrmls(batch_v, faces)  # There exist 2 implementations for batch_vnrmls, batch_vnrmls_ uses adjacency_VF while batch_vnrmls doesn'r
     magnitude = torch.norm(vertex_normals, dim = 2)  # Debug: assert the values are equal to 1.000
 
     v = batch_v[4,:,:]
     f = faces
     n = vertex_normals[4,:,:]
-    test_vnormals(v, f, n)
+    show_vnormals(v, f, n)
     print(samp)
 
 def test_fnrmls_visually():
@@ -130,7 +130,7 @@ def test_fnrmls_visually():
     v = batch_v[4,:,:]
     f = faces
     n = face_normals[4,:,:]
-    test_fnormals(v, f, n)
+    show_fnormals(v, f, n)
     print(samp)
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -177,7 +177,7 @@ def calc_adjacency_VF(faces, N_faces, N_vertices):
     :param faces: dim: [N_faces x 3]
     :param N_faces: number of faces
     :param N_vertices: number of vertices
-    :return: adjacency_VF: sparse integer adjacenecy matrix between vertices and faces, dim: [N_vertices x N_faces]
+    :return: adjacency_VF: sparse integer adjacency matrix between vertices and faces, dim: [N_vertices x N_faces]
     '''
     i0 = torch.stack((faces[:,0], torch.arange(N_faces)), dim=1)
     i1 = torch.stack((faces[:,1], torch.arange(N_faces)), dim=1)
@@ -283,7 +283,7 @@ def batch_fnrmls_fareas(vb, f):
     :param fb: faces matrix, here we assume all the shapes have the same connectivity, dim: [n_faces x 3], dtype = torch.long
     :return face_normals_b: batch of face normals, dim: [batch_size x n_faces x 3]
             face_areas_b: batch of face areas, dim: [batch_size x n_faces]
-            is_valid_b: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_faces]
+            is_valid_fnb: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_faces]
 
     Warning: In case the normal magnitude is smaller than a threshold, the normal vector is returned without normalization
     '''
@@ -307,13 +307,13 @@ def batch_fnrmls_fareas(vb, f):
 
 
 
-def batch_vnrmls(vb, f, adjVF):
+def batch_vnrmls_(vb, f, adjVF):
     '''
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
     :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
     :param adjVF: sparse adjacency matrix beween vertices and faces, dim: [n_vertices x n_faces]
     :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
-    :return: is_valid: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_vertices]
+    :return: is_valid_vnb: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_vertices]
     '''
 
     face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f)
@@ -334,12 +334,12 @@ def batch_vnrmls(vb, f, adjVF):
 
     return vnb, is_valid_vnb
 
-def batch_vnrmls_2(vb, f):
+def batch_vnrmls(vb, f):
     '''
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
     :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
     :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
-    :return: is_valid: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_vertices]
+    :return: is_valid_vnb: boolean matrix indicating if the normal is valid, magnitude greater than zero [batch_size x n_vertices]
     '''
 
     N_faces = f.shape[0]
@@ -347,7 +347,7 @@ def batch_vnrmls_2(vb, f):
 
     face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f)
     face_normals_b[~is_valid_fnb,:] = 0  # non valid face normals --> [0, 0, 0]
-    #face_normals_b *= face_areas_b.unsqueeze(2)  # weight each normal with the corresponding face area
+    face_normals_b *= face_areas_b.unsqueeze(2)  # weight each normal with the corresponding face area
 
     face_normals_b = face_normals_b.repeat(1, 3, 1)  # repeat face normals 3 times along the face dimension
     f = f.t().contiguous().view(3 * N_faces)  # dim: [n_faces x 3] --> [(3*n_faces)]
@@ -364,24 +364,12 @@ def batch_vnrmls_2(vb, f):
 
     return vnb, is_valid_vnb
 
-# ----------------------------------------------------------------------------------------------------------------------#
-#                                        PyTorch Singleton Computations - TODO - Migrate this
-# ----------------------------------------------------------------------------------------------------------------------#
-
-def vnrmls_torch(v, f): # [N x 3]
-    a = v[f[:, 0], :]
-    b = v[f[:, 1], :]
-    c = v[f[:, 2], :]
-    fn = F.normalize(torch.cross(b - a, c - a), p=2, dim=1)
-    vn = scatter_add(fn.repeat(3, 1), f, dim=0, dim_size=v.size(0))
-    return F.normalize(vn, p=2, dim=1)  # [nv, 3]
-
 
 # ----------------------------------------------------------------------------------------------------------------------#
-#                                                    Tests
+#                                                    Visualization Functions
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def test_vnormals(v, f, n):
+def show_vnormals(v, f, n):
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
     fig = plt.figure()
@@ -391,7 +379,7 @@ def test_vnormals(v, f, n):
     ax.set_aspect('equal', 'box')
     plt.show()
 
-def test_fnormals(v, f, n):
+def show_fnormals(v, f, n):
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
 
@@ -432,5 +420,15 @@ def test_fnormals(v, f, n):
 #     # vn[self.ref_tri[:, 2], :] = vn[self.ref_tri[:, 2], :] + fn
 #
 #     return vn
+#
+#
+# def vnrmls_torch(v, f): # [N x 3]
+#     a = v[f[:, 0], :]
+#     b = v[f[:, 1], :]
+#     c = v[f[:, 2], :]
+#     fn = F.normalize(torch.cross(b - a, c - a), p=2, dim=1)
+#     vn = scatter_add(fn.repeat(3, 1), f, dim=0, dim_size=v.size(0))
+#     return F.normalize(vn, p=2, dim=1)  # [nv, 3]
 
-if __name__ == '__main__': test_vnrmls_grad()
+
+if __name__ == '__main__': test_vnrmls_visually()

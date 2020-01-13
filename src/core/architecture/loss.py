@@ -54,7 +54,11 @@ class F2PSMPLLoss:
             self.dist_v_ones = torch.ones((1, 1, 1), device=self.device)  # TODO
 
     def compute(self, b, gtrb):
-
+        """
+        :param b: The input batch dictionaryz
+        :param gtrb: The batched ground truth reconstruction of dim: [b x nv x 3]
+        :return:
+        """
         # TODO: Insert support for other out_channels: This codes assumes gtr has 3 input channels
         # Aliasing:
         gtb_xyz = b['gt_v'][:, :, 0:3]
