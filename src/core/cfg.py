@@ -1,13 +1,16 @@
 import numpy as np
 from pathlib import Path
+import torch
 # from datetime import datetime
 # TODO - See if we can get rid of this file
 # ----------------------------------------------------------------------------------------------------------------------
 #                                              COMPUTATION CONFIG
 # ----------------------------------------------------------------------------------------------------------------------
 
+# Use in loss.py & datasets.py
+DEF_CPU_PRECISION = np.float32  # Translates to tensor types as well
+DEF_GPU_PRECISION = torch.float32
 # Used in transforms.py
-DEF_PRECISION = np.float32  # Translates to tensor types as well
 DANGEROUS_MASK_THRESH = 100
 NORMAL_MAGNITUDE_THRESH = 10 ** (-10)
 

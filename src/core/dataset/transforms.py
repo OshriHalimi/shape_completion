@@ -63,7 +63,7 @@ class PartCompiler(Transform):
     def __call__(self, x):
         # Done last, since we might transform the mask
         for (k_part, k_mask, k_full) in self._part_keys:
-            x[k_part] = padded_part_by_mask(x[k_mask][0], x[k_full])
+            x[k_part] = padded_part_by_mask(x[k_mask], x[k_full])
         return x
 
 

@@ -7,6 +7,7 @@ import torch.nn.init as init
 from test_tube import HyperOptArgumentParser
 from architecture.lightning import CompletionLightningModel
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      Full Models 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -36,15 +37,15 @@ class F2PEncoderDecoder(CompletionLightningModel):
                 init.normal_(m.weight, mean=1.0, std=0.02)
                 init.constant_(m.bias, 0)
 
-
     @staticmethod
     # TODO - Not sure if this placement is comfortable
     def add_model_specific_args(parent_parser):
-        p = HyperOptArgumentParser(parents=parent_parser)
+        p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
         p.add_argument('--code_size', default=1024, type=int)
-        p.add_argument('--in_channels', default=3, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--decoder_convl', default=5, type=int)
+        if not parent_parser:  # Name clash with parent
+            p.add_argument('--in_channels', default=3, type=int)
         return p
 
     def forward(self, part, template):
@@ -145,6 +146,8 @@ class CompletionDecoder(nn.Module):
             self.convls.append(nn.Conv1d(self.pnt_code_size // self.CCFG[i], self.pnt_code_size // self.CCFG[i + 1], 1))
             self.bnls.append(nn.BatchNorm1d(self.pnt_code_size // self.CCFG[i + 1]))
         self.convls.append(nn.Conv1d(self.pnt_code_size // self.CCFG[num_convl - 1], self.out_channels, 1))
+        self.convls = nn.ModuleList(self.convls)
+        self.bnls = nn.ModuleList(self.bnls)
 
     def forward(self, x):
 

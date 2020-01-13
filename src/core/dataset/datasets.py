@@ -163,7 +163,7 @@ def test_dataset():
     ds = PointDatasetMenu.get('DFaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=12)
     # ds.data_summary(with_tree=False)
     # ds.validate_dataset()
-    ds.show_sample()
+    # ds.show_sample()
     # print(samp)
     # tl = ds.loader(ids=None,batch_size=2, transforms=[Center()])
     # t1,vl,tsl = ds.split_loaders(split=[0.5,0.4,0.1],s_nums=[100,200,300000],

@@ -39,9 +39,10 @@ default_collate_err_msg_format = (
     "dicts or lists; found {}")
 
 
-def default_collate(batch,rec_level=0):
+def completion_collate(batch, stop=False):
     r"""Puts each data field into a tensor with outer dimension batch size"""
-
+    if stop:
+        return batch
     elem = batch[0]
     elem_type = type(elem)
     if isinstance(elem, torch.Tensor):
@@ -61,7 +62,7 @@ def default_collate(batch,rec_level=0):
             if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
                 raise TypeError(default_collate_err_msg_format.format(elem.dtype))
 
-            return default_collate([torch.as_tensor(b) for b in batch])
+            return completion_collate([torch.as_tensor(b) for b in batch])
         elif elem.shape == ():  # scalars
             return torch.as_tensor(batch)
     elif isinstance(elem, float):
@@ -71,15 +72,20 @@ def default_collate(batch,rec_level=0):
     elif isinstance(elem, string_classes):
         return batch
     elif isinstance(elem, container_abcs.Mapping):
-        # Changes do not allow collating deep lists - either list in list or list in dict
-        return {key: default_collate([d[key] for d in batch],rec_level=1) for key in elem}
-    elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
-        return elem_type(*(default_collate(samples) for samples in zip(*batch)))
-    elif isinstance(elem, container_abcs.Sequence):
-        if rec_level==0:
-            transposed = zip(*batch)
-            return [default_collate(samples,rec_level=1) for samples in transposed]
-        else:
-            return batch
+        # A bit hacky - but works
+        d = {}
+        for k in elem:
+            if k in ['gt_mask_vi', 'tp_mask_vi', 'gt_hi', 'tp_hi']:
+                stop = True
+            else:
+                stop = False
+            d[k] = completion_collate([d[k] for d in batch], stop)
+        return d
 
+        # return {key: default_collate([d[key] for d in batch],rec_level=1) for key in elem}
+    elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
+        return elem_type(*(completion_collate(samples) for samples in zip(*batch)))
+    elif isinstance(elem, container_abcs.Sequence):
+        transposed = zip(*batch)
+        return [completion_collate(samples) for samples in transposed]
     raise TypeError(default_collate_err_msg_format.format(elem_type))

@@ -23,10 +23,12 @@ class F2PSMPLLoss:
         # Take all deciding factors:
         self.in_channels = hparams.in_channels
         self.lambdas = hparams.lambdas
-        self.mask_penalties = hparams.mask_penalties
-        self.dist_v_penalties = hparams.dist_v_penalties
-        self.f = faces
+        self.mask_penalties = list(hparams.mask_penalties)
+        self.dist_v_penalties = list(hparams.dist_v_penalties)
+        self.faces = torch.from_numpy(faces).long().to(device=device)
         self.device = device
+        from cfg import DEF_GPU_PRECISION
+        self.def_prec = DEF_GPU_PRECISION
 
         # Sanity Check - Input Channels:
         if self.lambdas[1] > 0:
@@ -35,7 +37,7 @@ class F2PSMPLLoss:
             assert self.in_channels >= 12, "Only makes sense to compute moment losses with moments available"
 
         # Sanity Check - Destroy dangling mask_penalties/distant_v_penalties
-        for i, lamb in enumerate(self.lambdas[0:3]):  # TODO - Implement 0:4
+        for i, lamb in enumerate(self.lambdas[0:3]):  # TODO - Implement 0:5
             if lamb <= 0:
                 self.mask_penalties[i] = 0
                 self.dist_v_penalties[i] = 0
@@ -44,14 +46,15 @@ class F2PSMPLLoss:
         for i in range(len(self.dist_v_penalties)):
             if 0 < self.dist_v_penalties[i] < 1:
                 warn(f'Found an invalid penalty in the distant vertex arg set: at {i} with val '
-                     f'{self.dist_v_penalties[i]}.\nPlease use 0 or 1 to shut off the method')
+                     f'{self.dist_v_penalties[i]}.\nPlease use 0 or 1 to remove this specific loss compute')
             if 0 < self.mask_penalties[i] < 1:
                 warn(f'Found an invalid penalty in the distant vertex arg set: at {i} with val '
-                     f'{self.mask_penalties[i]}.\nPlease use 0 or 1 to shut off the method')
+                     f'{self.mask_penalties[i]}.\nPlease use 0 or 1 to remove this specific loss compute')
 
         # Micro-Optimization - Reduce movement to the GPU:
         if [p for p in self.dist_v_penalties if p > 1]:  # if using_distant_vertex
-            self.dist_v_ones = torch.ones((1, 1, 1), device=self.device)  # TODO
+            self.dist_v_ones = torch.ones((1, 1, 1), device=self.device,dtype=self.def_prec)  # TODO
+
 
     def compute(self, b, gtrb):
         """
@@ -96,7 +99,7 @@ class F2PSMPLLoss:
         if p <= 1:
             return 1
         b = len(mask_b)
-        w = torch.ones((b, nv, 1))
+        w = torch.ones((b, nv, 1),dtype=self.def_prec)
         for i in range(b):
             w[i, mask_b[i][0], :] = p
         return w.cuda(device=self.device)  # TODO

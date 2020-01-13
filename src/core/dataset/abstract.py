@@ -1,11 +1,11 @@
 from pathlib import Path
 from torch.utils.data import DataLoader
-from dataset.collate import default_collate
+from dataset.collate import completion_collate
 import torch.utils.data
 from abc import ABC  # , abstractmethod
 from torch.utils.data.sampler import SubsetRandomSampler
 from util.gen import banner, convert_bytes, time_me
-from util.container import split_frac,enum_eq
+from util.container import split_frac, enum_eq
 from util.mesh_io import numpy2vtkactor, print_vtkplotter_help
 from vtkplotter import Plotter, Spheres, show
 from pickle import load
@@ -83,13 +83,9 @@ class PointDataset(ABC):
     def report_index_tree(self):
         print(self._hit)
 
-    def faces(self, torch_version=False):
+    def faces(self):
         assert self._f is not None, "Faces property is empty"
-        if torch_version:
-            # GPU doesn't deal well with int32 versions of the data -> That's why we transfer it to long
-            return torch.from_numpy(self._f).long().cuda() #, deepcopy(self._f)
-        else:
-            return deepcopy(self._f)
+        return deepcopy(self._f)
 
     def sample(self, num_samples=10, transforms=None):
         if num_samples > self.num_pnt_clouds():
@@ -118,7 +114,7 @@ class PointDataset(ABC):
 
         train_loader = DataLoader(self._set_to_torch_set(transforms, len(ids)), batch_size=batch_size,
                                   sampler=SubsetRandomSampler(ids), num_workers=n_workers,
-                                  pin_memory=pin_memory, collate_fn=default_collate)
+                                  pin_memory=pin_memory, collate_fn=completion_collate)
         return train_loader
 
     def split_loaders(self, split, s_nums, s_shuffle, s_transform, global_shuffle=False, batch_size=16, device='cuda'):
@@ -272,15 +268,15 @@ class CompletionProjDataset(PointDataset, ABC):
         self._hierarchical_index_to_path = MethodType(getattr(self.__class__, f"_{in_cfg.name.lower()}_path"), self)
         self._path_load = MethodType(getattr(self.__class__, f"_{in_cfg.name.lower()}_load"), self)
 
-        from cfg import DANGEROUS_MASK_THRESH, DEF_PRECISION
+        from cfg import DANGEROUS_MASK_THRESH, DEF_CPU_PRECISION
         self._mask_thresh = DANGEROUS_MASK_THRESH
-        self._def_precision = DEF_PRECISION
+        self._def_precision = DEF_CPU_PRECISION
 
     def _transformation_finalizer(self, transforms):
         # A bit messy
-        keys = [('gt_part','gt_mask_vi','gt_v')]
-        if enum_eq(self._in_cfg,InCfg.PART2PART):
-            keys.append((('tp_part','tp_mask_vi','tp_v')))
+        keys = [('gt_part_v', 'gt_mask_vi', 'gt_v')]
+        if enum_eq(self._in_cfg, InCfg.PART2PART):
+            keys.append((('tp_v', 'tp_mask_vi', 'tp_v'))) # Override tp_v
         transforms.append(PartCompiler(keys))
         return transforms
 
@@ -303,8 +299,7 @@ class CompletionProjDataset(PointDataset, ABC):
         if len(gt_mask_vi) < self._mask_thresh:
             warn(f'Found mask of length {len(gt_mask_vi)} with id: {hi}')
 
-        # We protect the gt_mask_vi with a list, so it will not be directly batched
-        return {'f': self._f, 'gt_hi': hi, 'gt_v': gt_v, 'gt_mask_vi': [gt_mask_vi], 'tp_hi': tp_hi, 'tp_v': tp_v}
+        return {'f': self._f, 'gt_hi': hi, 'gt_v': gt_v, 'gt_mask_vi': gt_mask_vi, 'tp_hi': tp_hi, 'tp_v': tp_v}
 
     def _part2part_path(self, hi):
         fps = self._full2part_path(hi)
@@ -317,7 +312,7 @@ class CompletionProjDataset(PointDataset, ABC):
         tp_mask_vi = self._proj2data(fps[5])
         if len(tp_mask_vi) < self._mask_thresh:
             warn(f'Found mask of length {len(tp_mask_vi)} with id: {comp_d["tp_hi"]}')
-        comp_d['tp_mask_vi'] = [tp_mask_vi]
+        comp_d['tp_mask_vi'] = tp_mask_vi
         return comp_d
 
     def show_sample(self, n_shapes=8, key='gt_part_v', strategy='spheres'):
@@ -337,7 +332,7 @@ class CompletionProjDataset(PointDataset, ABC):
                 v, f = samp[key][i, :, 0:3].numpy(), self._f  # TODO - Add in support for faces loaded from file
             else:
                 v, f = trunc_to_vertex_subset(samp[f'{adder}_v'][i, :, 0:3].numpy(), self._f,
-                                              samp[f'{adder}_mask_vi'][i][0])
+                                              samp[f'{adder}_mask_vi'][i])
 
             if strategy == 'cloud':
                 a = numpy2vtkactor(v, None, clr='w')  # clr=v is cool
