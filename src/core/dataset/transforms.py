@@ -188,6 +188,11 @@ def calc_adjacency_VF(faces, N_faces, N_vertices):
     return adjacency_VF
 
 def calc_face_centers(v, f):
+    '''
+    :param v: vertices (numpy array or tensors), dim: [n_v x 3]
+    :param f: faces (numpy array or tensors), dim: [n_f x 3]
+    :return: face_centers (numpy array or tensors), dim: [n_f x 3]
+    '''
     v1 = v[f[:, 0], :]  # dim: [n_faces x 3]
     v2 = v[f[:, 1], :]  # dim: [n_faces x 3]
     v3 = v[f[:, 2], :]  # dim: [n_faces x 3]
@@ -196,7 +201,7 @@ def calc_face_centers(v, f):
     center_y = (1 / 3) * (v1[:, 1] + v2[:, 1] + v3[:, 1])
     center_z = (1 / 3) * (v1[:, 2] + v2[:, 2] + v3[:, 2])
 
-    face_centers = torch.stack((center_x, center_y, center_z), dim = 1)
+    face_centers = torch.stack((center_x, center_y, center_z), dim = 1) if torch.is_tensor(center_x) else np.stack((center_x, center_y, center_z), axis = 1)
     return face_centers
 
 
@@ -368,8 +373,61 @@ def batch_vnrmls(vb, f):
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                    Visualization Functions
 # ----------------------------------------------------------------------------------------------------------------------#
+def show_vnormals(v, f, n=None):
+    '''
+    :param v: vertices (numpy array or tensors), dim: [n_v x 3]
+    :param f: faces (numpy array or tensors), dim: [n_f x 3]
+    :param n: vertex normals (numpy array or tensors), dim: [n_v x 3]
+    :return: plot mesh with vertex normals
+    '''
+    vertices = v.numpy() if torch.is_tensor(v) else v
+    faces = f.numpy() if torch.is_tensor(f) else f
+    normals = n.numpy() if torch.is_tensor(n) else n
 
-def show_vnormals(v, f, n):
+    import pyvista as pv
+    p = pv.Plotter()
+
+    if n is not None:
+        point_cloud = pv.PolyData(vertices)
+        point_cloud['vectors'] = normals
+        arrows = point_cloud.glyph(orient='vectors', scale=False, factor=0.03, )
+        p.add_mesh(arrows, color=[0, 0, 1])
+
+    faces = np.concatenate((3 * np.ones((f.shape[0], 1)), f), 1)
+    surface = pv.PolyData(vertices, faces)
+    p.add_mesh(surface, color="grey", ambient=0.6, opacity=1, show_edges=True)
+    p.show()
+
+def show_fnormals(v, f, n=None):
+    '''
+    :param v: vertices (numpy array or tensors), dim: [n_v x 3]
+    :param f: faces (numpy array or tensors), dim: [n_f x 3]
+    :param n: face normals (numpy array or tensors), dim: [n_v x 3]
+    :return: plot mesh with face normals
+    '''
+    c = calc_face_centers(v, f)
+
+    centers = c.numpy() if torch.is_tensor(c) else c
+    vertices = v.numpy() if torch.is_tensor(v) else v
+    faces = f.numpy() if torch.is_tensor(f) else f
+    normals = n.numpy() if torch.is_tensor(n) else n
+
+    import pyvista as pv
+    p = pv.Plotter()
+
+    if n is not None:
+        point_cloud = pv.PolyData(centers)
+        point_cloud['vectors'] = normals
+        arrows = point_cloud.glyph(orient='vectors', scale=False, factor=0.03, )
+        p.add_mesh(arrows, color=[0, 0, 1])
+
+    faces = np.concatenate((3 * np.ones((f.shape[0], 1)), f), 1)
+    surface = pv.PolyData(vertices, faces)
+    p.add_mesh(surface, color="grey", ambient=0.6, opacity=1, show_edges=True)
+    p.show()
+
+# matplotlib implementations
+def show_vnormals_(v, f, n):
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
     fig = plt.figure()
@@ -379,7 +437,7 @@ def show_vnormals(v, f, n):
     ax.set_aspect('equal', 'box')
     plt.show()
 
-def show_fnormals(v, f, n):
+def show_fnormals_(v, f, n):
     import matplotlib.pyplot as plt
     from mpl_toolkits.mplot3d import Axes3D
 
@@ -431,4 +489,4 @@ def show_fnormals(v, f, n):
 #     return F.normalize(vn, p=2, dim=1)  # [nv, 3]
 
 
-if __name__ == '__main__': test_vnrmls_visually()
+if __name__ == '__main__': test_fnrmls_visually()
