@@ -64,6 +64,7 @@ class CompletionLightningModel(PytorchNet):
         self.opt = optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         # scheduler = CosineAnnealingLR(optimizer, T_max=10)
         # TODO: Hard coded numbers shouldn't be hidden deeply (especially if they determine a crucial preporty of the experiment: the learning rate). Expose the scheduling parameters in the experiment interface
+        # TODO: Also let's configure in the experiment interface: IF to use scheduling at all
         self.reduce_lr_on_plateau = ReduceLROnPlateau(self.opt, mode='min', factor=0.1,patience=self.hparams.plateau_patience,
                                       cooldown=5,min_lr=1e-6,verbose=True)
         # Options: factor=0.1, patience=10, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0,
