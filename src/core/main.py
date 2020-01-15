@@ -1,12 +1,13 @@
 from util.pytorch_extensions import PytorchNet, set_determinsitic_run
 from dataset.datasets import PointDatasetMenu
-from util.gen import none_or_int, banner, tutorial
+from util.gen import none_or_int, banner, tutorial , set_logging_to_stdout
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
 from architecture.lightning import train_lightning, test_lightning
 from dataset.transforms import *
 from dataset.abstract import InCfg
 
+set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
 
 
@@ -17,22 +18,22 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='',  help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_by', type=str, default='',
-                   help='A partial path for the checkpoint weights. Leave blank to init from scratch')
+    p.add_argument('--exp_name', type=str, default='', help='The experiment name. Leave empty for default')
+    p.add_argument('--resume_version', type=none_or_int, default=0,
+                   help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=bool, default=False,
                    help='If true, saves the completions to a .ply file')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=4, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, 400, 100),
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(20, 20, 20),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=3,
                    help='Number of input channels')
 
     # Train Config:
-    p.add_argument('--n_epoch', type=int, default=1000, help='The number of epochs to train for')
+    p.add_argument('--n_epoch', type=int, default=2, help='The number of epochs to train for')
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
     p.add_argument('--use_tensorboard', type=bool, default=True)
 
@@ -40,8 +41,8 @@ def parser():
     p.add_argument("--weight_decay", type=float, default=0, help="Adam's weight decay - usually use 1e-4")
     p.add_argument("--plateau_patience", type=int, default=5,
                    help="Number of epoches to wait on learning plateau before reducing step size")
-    p.add_argument("--early_stop_patience", type=int, default=3,
-                   help="Number of epoches to wait on learning plateau before reducing step size")
+    p.add_argument("--early_stop_patience", type=int, default=10,
+                   help="Number of epoches to wait on learning plateau before stopping train")
 
     # L2 Losses: Use 0 to ignore, >0 to compute
     p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0, 0, 0, 0),
@@ -75,7 +76,7 @@ def train_main():
                             s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev)
 
     nn.init_data(loaders=ldrs, faces=ds.faces())
-    train_lightning(nn,fast_dev_run=True)
+    train_lightning(nn, fast_dev_run=False)
 
 
 def test_main():
@@ -125,7 +126,7 @@ def dataset_tutorial():
     # s_shuffle and global_shuffle controls the shuffling of the different partitions - see doc inside function
 
     # You can see part of the actual dataset using the vtkplotter function, with strategies 'spheres','mesh' or 'cloud'
-    ds.show_sample(n_shapes=8, key='gt_part_v', strategy='cloud')
+    ds.show_sample(n_shapes=8, key='gt_part', strategy='cloud')
 
 
 @tutorial

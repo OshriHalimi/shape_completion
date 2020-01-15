@@ -71,7 +71,7 @@ class NeuralNet:
             self.best_val_acc = 0
             self.start_epoch = 0
 
-        self.net = self.net.to(self.device)
+        self.net = self.net.to(self.device,non_blocking=True) # MANO - Added non_blocking
 
         # Build SGD Algorithm:
         self.criterion = torch.nn.CrossEntropyLoss()
@@ -127,7 +127,8 @@ class NeuralNet:
         top5_count = [0]  # Add more elements here if you want more ks
         with torch.no_grad():  # TODO - Fix the odd intialize spatial layers bug
             for batch_idx, (inputs, targets) in enumerate(data_gen):
-                inputs, targets = inputs.to(self.device), targets.to(self.device)
+                inputs, targets = inputs.to(self.device,non_blocking=True), targets.to(self.device,non_blocking=True)
+                # MANO - Added non_blocking
                 outputs = self.net(inputs)
                 loss = self.criterion(outputs, targets)
                 test_loss += loss.item()

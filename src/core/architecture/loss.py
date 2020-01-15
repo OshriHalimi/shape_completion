@@ -25,7 +25,7 @@ class F2PSMPLLoss:
         self.lambdas = hparams.lambdas
         self.mask_penalties = list(hparams.mask_penalties)
         self.dist_v_penalties = list(hparams.dist_v_penalties)
-        self.faces = torch.from_numpy(faces).long().to(device=device)
+        self.faces = torch.from_numpy(faces).long().to(device=device,non_blocking=True)
         self.device = device
         from cfg import DEF_GPU_PRECISION
         self.def_prec = DEF_GPU_PRECISION
@@ -64,8 +64,8 @@ class F2PSMPLLoss:
         """
         # TODO: Insert support for other out_channels: This codes assumes gtr has 3 input channels
         # Aliasing:
-        gtb_xyz = b['gt_v'][:, :, 0:3]
-        tpb_xyz = b['tp_v'][:, :, 0:3]
+        gtb_xyz = b['gt'][:, :, 0:3]
+        tpb_xyz = b['tp'][:, :, 0:3]
         mask_vi = b['gt_mask_vi']
         nv = gtrb.shape[1]
 
@@ -77,9 +77,9 @@ class F2PSMPLLoss:
                 if i == 0:  # XYZ
                     loss += self._l2_loss(gtb_xyz, gtrb, lamb=lamb, vertex_mask=w)
                 elif i == 1:  # Normals
-                    loss += self._l2_loss(b['gt_v'][:, :, 3:6], batch_vnrmls(gtrb, self.f), lamb=lamb, vertex_mask=w)
+                    loss += self._l2_loss(b['gt'][:, :, 3:6], batch_vnrmls(gtrb, self.f), lamb=lamb, vertex_mask=w)
                 elif i == 2:  # Moments:
-                    loss += self._l2_loss(b['gt_v'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
+                    loss += self._l2_loss(b['gt'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
                 elif i == 3:  # Euclidean Distance Matrices
                     loss += self._l2_loss(batch_euclid_dist_mat(gtb_xyz), batch_euclid_dist_mat(gtrb), lamb=lamb)
                 elif i == 4:  # Face Areas:

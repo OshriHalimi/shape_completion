@@ -5,6 +5,9 @@ import timeit
 from datetime import timedelta
 import inspect
 from types import FunctionType
+import logging
+import sys
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Pretty Prints
@@ -17,24 +20,52 @@ def banner(text=None, ch='=', length=88):
     print(spaced_text.center(length, ch))
 
 
+# Set logging to both the STDOUT and the File
+def set_logging_to_stdout():
+    root = logging.getLogger()
+    hdlr = root.handlers[0]
+    fmt = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    hdlr.setFormatter(fmt)
+    
+    logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(message)s',
+                        datefmt='%m-%d %H:%M',filename=sys.stdout)
+
+    # root = logging.getLogger()
+    # hdlr = root.handlers[0]
+    # fmt = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    # hdlr.setFormatter(fmt)
+    # logging.info('Danger Will Robinson!')
+    #
+    # root = logging.getLogger()
+    # root.setLevel(logging.DEBUG)
+    # handler = logging.StreamHandler(sys.stdout)
+    # handler.setLevel(logging.DEBUG)
+    # formatter = logging.Formatter('[%(asctime)s] %(message)s')
+    # handler.setFormatter(formatter)
+    # root.addHandler(handler)
+
+
 def tutorial(func):
     def wrapper(*args, **kwargs):
         banner(title(func.__name__))
-        return func(*args,**kwargs)
+        return func(*args, **kwargs)
+
     return wrapper
 
 
 def title(s):
-    s = s.replace('_',' ')
+    s = s.replace('_', ' ')
     s = s.replace('-', ' ')
     s = s.title()
     return s
+
 
 def hms_string(sec_elapsed):
     h = int(sec_elapsed / (60 * 60))
     m = int((sec_elapsed % (60 * 60)) / 60)
     s = sec_elapsed % 60.
     return "{}:{:>02}:{:>05.2f}".format(h, m, s)
+
 
 class BColors:
     HEADER = '\033[95m'
@@ -90,6 +121,8 @@ def print_warning(message, category, filename, lineno, file=None, line=None):
 warnings.showwarning = print_warning
 
 
+# warnings.simplefilter('always', DeprecationWarning)
+
 def warn(s, stacklevel=1):
     warnings.warn(s, stacklevel=stacklevel + 1)
 
@@ -99,6 +132,7 @@ def warn(s, stacklevel=1):
 # ----------------------------------------------------------------------------------------------------------------------
 def assert_is_dir(d):
     assert os.path.isdir(d), f"Directory {d} is invalid"
+
 
 def get_exp_version(cache_dir):
     last_version = -1
@@ -113,6 +147,7 @@ def get_exp_version(cache_dir):
 
     return last_version + 1
 
+
 def convert_bytes(num):
     """
     this function will convert bytes to MB.... GB... etc
@@ -121,6 +156,7 @@ def convert_bytes(num):
         if num < 1024.0:
             return "%3.1f %s" % (num, x)
         num /= 1024.0
+
 
 # def make_directory(name):
 #     result = Path("result")
@@ -197,11 +233,13 @@ def list_class_declared_methods(o):
     # Now remove the intersection
     return only_in_class_methods - parent_methods
 
+
 def list_narrow_class_methods(o):
     # Class Only Methods
     if not inspect.isclass(o):
         o = o.__class__
-    return set(x for x, y in o.__dict__.items() if isinstance(y, (FunctionType,classmethod,staticmethod)))
+    return set(x for x, y in o.__dict__.items() if isinstance(y, (FunctionType, classmethod, staticmethod)))
+
 
 def list_dynasty_class_methods(o):
     # Class + Parent Class Methods
@@ -210,6 +248,7 @@ def list_dynasty_class_methods(o):
     return {func for func in dir(o) if callable(getattr(o, func))}
     # # https://docs.python.org/3/library/inspect.html#inspect.isclass
     # TODO - Many objects inside the class are callable as well - this is a problem. Depends on definition.
+
 
 def list_parent_class_methods(o):
     if not inspect.isclass(o):
@@ -221,10 +260,10 @@ def list_parent_class_methods(o):
         # parent_methods |= list_parent_class_methods(c) # Recursive Tree DFS - Removed
     return parent_methods
 
+
 def func_name():
     import traceback
     return traceback.extract_stack(None, 2)[0][2]
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 #

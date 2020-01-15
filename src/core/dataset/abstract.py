@@ -274,9 +274,9 @@ class CompletionProjDataset(PointDataset, ABC):
 
     def _transformation_finalizer(self, transforms):
         # A bit messy
-        keys = [('gt_part_v', 'gt_mask_vi', 'gt_v')]
+        keys = [('gt_part', 'gt_mask_vi', 'gt')]
         if enum_eq(self._in_cfg, InCfg.PART2PART):
-            keys.append((('tp_v', 'tp_mask_vi', 'tp_v'))) # Override tp_v
+            keys.append((('tp', 'tp_mask_vi', 'tp'))) # Override tp
         transforms.append(PartCompiler(keys))
         return transforms
 
@@ -292,14 +292,14 @@ class CompletionProjDataset(PointDataset, ABC):
         # TODO - Add in support for faces that are loaded from file - by overloading hi2full for example
 
         hi = fps[0]
-        gt_v = self._full2data(fps[1]).astype(self._def_precision)
+        gt = self._full2data(fps[1]).astype(self._def_precision)
         gt_mask_vi = self._proj2data(fps[2])
         tp_hi = fps[3]
-        tp_v = self._full2data(fps[4]).astype(self._def_precision)
+        tp = self._full2data(fps[4]).astype(self._def_precision)
         if len(gt_mask_vi) < self._mask_thresh:
             warn(f'Found mask of length {len(gt_mask_vi)} with id: {hi}')
 
-        return {'f': self._f, 'gt_hi': hi, 'gt_v': gt_v, 'gt_mask_vi': gt_mask_vi, 'tp_hi': tp_hi, 'tp_v': tp_v}
+        return {'f': self._f, 'gt_hi': hi, 'gt': gt, 'gt_mask_vi': gt_mask_vi, 'tp_hi': tp_hi, 'tp': tp}
 
     def _part2part_path(self, hi):
         fps = self._full2part_path(hi)
@@ -315,9 +315,9 @@ class CompletionProjDataset(PointDataset, ABC):
         comp_d['tp_mask_vi'] = tp_mask_vi
         return comp_d
 
-    def show_sample(self, n_shapes=8, key='gt_part_v', strategy='spheres'):
+    def show_sample(self, n_shapes=8, key='gt_part', strategy='spheres'):
 
-        using_full = key in ['gt_v', 'tp_v']
+        using_full = key in ['gt', 'tp']
         # TODO - Remove this by finding the vtk bug - or replacing the whole vtk shit
         assert not (not using_full and strategy == 'mesh'), "Mesh strategy for 'part' gets stuck in vtkplotter"
         fp_fun = self._hi2full_path if using_full else self._hi2proj_path
@@ -327,12 +327,12 @@ class CompletionProjDataset(PointDataset, ABC):
         vp.legendSize = 0.4
         for i in range(n_shapes):  # for each available color map name
 
-            adder = key.split('_')[0]
+            name = key.split('_')[0]
             if using_full:
                 v, f = samp[key][i, :, 0:3].numpy(), self._f  # TODO - Add in support for faces loaded from file
             else:
-                v, f = trunc_to_vertex_subset(samp[f'{adder}_v'][i, :, 0:3].numpy(), self._f,
-                                              samp[f'{adder}_mask_vi'][i])
+                v, f = trunc_to_vertex_subset(samp[name][i, :, 0:3].numpy(), self._f,
+                                              samp[f'{name}_mask_vi'][i])
 
             if strategy == 'cloud':
                 a = numpy2vtkactor(v, None, clr='w')  # clr=v is cool
@@ -341,7 +341,7 @@ class CompletionProjDataset(PointDataset, ABC):
             elif strategy == 'spheres':
                 a = Spheres(v, c='w', r=0.01)  # TODO - compute r with respect to the mesh
 
-            a.legend(f'{key} | {fp_fun(samp[f"{adder}_hi"][i]).name}')
+            a.legend(f'{key} | {fp_fun(samp[f"{name}_hi"][i]).name}')
             vp.show(a, at=i)
 
         print_vtkplotter_help()
@@ -383,7 +383,7 @@ if __name__ == "__main__":
     print(PointDatasetMenu.which())
     ds = PointDatasetMenu.get('AmassValdPyProj', in_cfg=InCfg.FULL2PART, in_channels=3)
     # ds.validate_dataset()
-    ds.show_sample(key='gt_v', strategy='mesh', n_shapes=8)
+    ds.show_sample(key='gt', strategy='mesh', n_shapes=8)
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                     Graveyard

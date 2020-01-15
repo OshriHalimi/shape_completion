@@ -50,7 +50,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
 
     def forward(self, part, template):
         # TODO - Add handling of differently scaled meshes
-        # part, template = b['gt_part_v'],b['tp_v']
+        # part, template = b['gt_part'],b['tp']
         # part, template [bs x nv x 3]
         bs = part.size(0)
         nv = part.size(1)

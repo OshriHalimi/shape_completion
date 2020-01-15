@@ -49,8 +49,8 @@ class AlignInputChannels(Transform):
         self._req_in_channels = req_in_channels
 
     def __call__(self, x):
-        x['gt_v'] = align_in_channels(x['gt_v'], x['f'], self._req_in_channels)
-        x['tp_v'] = align_in_channels(x['tp_v'], x['f'], self._req_in_channels)
+        x['gt'] = align_in_channels(x['gt'], x['f'], self._req_in_channels)
+        x['tp'] = align_in_channels(x['tp'], x['f'], self._req_in_channels)
         # if self._req_in_channels < 6:
         # del x['f'] # Remove this as an optimization
         return x
@@ -75,7 +75,7 @@ def test_vnrmls_grad():
     from dataset.datasets import PointDatasetMenu,InCfg
     ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
     samp = ds.sample(num_samples=2, transforms=[Center()]) #dim:
-    batch_v = samp['gt_v'][:,:,:3]
+    batch_v = samp['gt'][:,:,:3]
     batch_f = samp['f']
     batch_f = batch_f.long()
     faces = batch_f[0,:,:]
@@ -98,7 +98,7 @@ def test_vnrmls_visually():
     from dataset.datasets import PointDatasetMenu,InCfg
     ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
     samp = ds.sample(num_samples=10, transforms=[Center()]) #dim:
-    batch_v = samp['gt_v'][:,:,:3]
+    batch_v = samp['gt'][:,:,:3]
     batch_f = samp['f']
     batch_f = batch_f.long()
     faces = batch_f[0,:,:]
@@ -119,7 +119,7 @@ def test_fnrmls_visually():
     from dataset.datasets import PointDatasetMenu,InCfg
     ds = PointDatasetMenu.get('FaustPyProj',in_channels=12,in_cfg=InCfg.FULL2PART)
     samp = ds.sample(num_samples=10, transforms=[Center()]) #dim:
-    batch_v = samp['gt_v'][:,:,:3]
+    batch_v = samp['gt'][:,:,:3]
     batch_f = samp['f']
     batch_f = batch_f.long()
     faces = batch_f[0,:,:]
@@ -143,7 +143,7 @@ class RandomMaskFlip(Transform):
 
     def __call__(self, x):
         if random.random() < self._prob:
-            nv = x['gt_v'].shape[0]
+            nv = x['gt'].shape[0]
             x['gt_mask_vi'] = flip_mask(nv, x['gt_mask_vi'])
             # TODO: tp mask flips?
         return x
@@ -154,8 +154,8 @@ class Center(Transform):
         self._slicer = slicer
 
     def __call__(self, x):
-        x['gt_v'][:, self._slicer] -= x['gt_v'][:, self._slicer].mean(axis=0, keepdims=True)
-        x['tp_v'][:, self._slicer] -= x['tp_v'][:, self._slicer].mean(axis=0, keepdims=True)
+        x['gt'][:, self._slicer] -= x['gt'][:, self._slicer].mean(axis=0, keepdims=True)
+        x['tp'][:, self._slicer] -= x['tp'][:, self._slicer].mean(axis=0, keepdims=True)
         return x
 
 
@@ -164,8 +164,8 @@ class UniformVertexScale(Transform):
         self._scale = scale
 
     def __call__(self, x):
-        x['gt_v'][:, 0:3] *= self._scale
-        x['tp_v'][:, 0:3] *= self._scale
+        x['gt'][:, 0:3] *= self._scale
+        x['tp'][:, 0:3] *= self._scale
         return x
 
 
