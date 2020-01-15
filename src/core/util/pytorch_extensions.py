@@ -231,6 +231,7 @@ def set_determinsitic_run(seed=None):
 
 
 def worker_init_closure(seed=None):
+    #TODO: What is this function?
     if seed is None:
         # Specific to the ShapeCompletion platform
         from cfg import RANDOM_SEED
@@ -257,7 +258,6 @@ def test():
     import torchvision
     model = torchvision.models.resnet50(False)
     pymodel = PytorchNet.monkeypatch(model)
-    pymodel.identify_system()
 
 
 if __name__ == '__main__':

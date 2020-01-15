@@ -252,6 +252,7 @@ def flip_mask(nv, vi):
 
 
 def trunc_to_vertex_subset(v, f, vi):
+    # TODO: Warning supports only watertight meshes (not scans)
     nv = v.shape[0]
     # Compute new vertices:
     v2 = v[vi, :]

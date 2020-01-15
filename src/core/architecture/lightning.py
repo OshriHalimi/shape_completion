@@ -46,24 +46,38 @@ class CompletionLightningModel(PytorchNet):
 
     def init_data(self, loaders, faces):
         # TODO - loaders as dict ?
-        dev = 'cpu' if self.hparams.gpus is None else 'cuda'
+        dev = self.dev
         self.loaders = loaders
         # This assumes validation,test and train all have the same faces.
         self.loss = F2PSMPLLoss(hparams=self.hparams, faces=faces, device=dev)
+
+        # TODO: what is this line doing?
         if loaders[0] is not None:
             self.val_check_interval = len(loaders[0])
 
         # If you specify an example input, the summary will show input/output for each layer
         # self.example_input_array = torch.rand(5, 28 * 28)
 
+    # override LightningModule method
     def configure_optimizers(self):
+        # TODO: This should be exposed in the experiment interface. Define get_optimizer function that based on hparams returns an optimizer (Adam, SGD etc.).
         self.opt = optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         # scheduler = CosineAnnealingLR(optimizer, T_max=10)
+        # TODO: Hard coded numbers shouldn't be hidden deeply (especially if they determine a crucial preporty of the experiment: the learning rate). Expose the scheduling parameters in the experiment interface
         self.reduce_lr_on_plateau = ReduceLROnPlateau(self.opt, mode='min', factor=0.1,patience=self.hparams.plateau_patience,
                                       cooldown=5,min_lr=1e-6,verbose=True)
         # Options: factor=0.1, patience=10, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0,
         # eps=1e-08
         return [self.opt], [self.reduce_lr_on_plateau]
+
+    def optimizer_step(self, epoch_nb, batch_nb, optimizer, optimizer_i,
+                       second_order_closure=None):
+        self.opt.step()
+        self.opt.zero_grad()
+        #TODO: Based on pytorch documentation the scheduler step should be called after validation
+        #TODO: Also why we use self.val_check_interval instead of performing continuously on self.current_val_loss?
+        if self.trainer.global_step % self.val_check_interval == 0:
+            self.reduce_lr_on_plateau.step(self.current_val_loss)
 
     def training_step(self, b, _):
 
@@ -78,11 +92,13 @@ class CompletionLightningModel(PytorchNet):
     def validation_step(self, b, _):
 
         pred = self.forward(b['gt_part'], b['tp'])
+        # TODO: why not performing unsqueeze() inside loss.compute()?
         return {'val_loss': self.loss.compute(b, pred).unsqueeze(0)}
 
     def validation_end(self, outputs):
         avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         self.current_val_loss = avg_val_loss  # save current val loss state for ReduceLROnPlateau scheduler
+        # TODO: Don't save! perform scheduling here and get rid of self.current_val_loss (unless appears somewhere else). Ref pytorch documentation
         logs = {'avg_val_loss': avg_val_loss}
         return {"avg_val_loss": avg_val_loss,
                 "progress_bar": logs,
@@ -90,21 +106,17 @@ class CompletionLightningModel(PytorchNet):
 
     def test_step(self, b, _):
         pred = self.forward(b['gt_part'], b['tp'])
+        # TODO: why not performing unsqueeze() inside loss.compute()?
         return {"test_loss": self.loss.compute(b, pred).unsqueeze(0)}
 
     def test_end(self, outputs):
+        # TODO: save test results
         avg_test_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         logs = {'avg_test_loss': avg_test_loss}
         return {"avg_test_loss": avg_test_loss,
                 "progress_bar": logs,
                 "log": logs}
 
-    def optimizer_step(self, epoch_nb, batch_nb, optimizer, optimizer_i,
-                       second_order_closure=None):
-        self.opt.step()
-        self.opt.zero_grad()
-        if self.trainer.global_step % self.val_check_interval == 0:
-            self.reduce_lr_on_plateau.step(self.current_val_loss)
 
     @pl.data_loader
     def train_dataloader(self):

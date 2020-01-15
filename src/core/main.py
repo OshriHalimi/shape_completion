@@ -22,7 +22,7 @@ def parser():
     p.add_argument('--resume_version', type=none_or_int, default=0,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=bool, default=False,
-                   help='If true, saves the completions to a .ply file')
+                   help='Test flag. If true, saves the completions to a .ply file')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
