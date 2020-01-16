@@ -27,6 +27,7 @@ NORMAL_MAGNITUDE_THRESH = 10 ** (-6) # The minimal norm allowed for vertex norma
 DEF_LR_SCHED_COOLDOWN = 5 # Number of epoches to wait after reducing the step-size. Works only if LR sched is enabled
 DEF_MINIMAL_LR = 1e-6 # The smallest learning step allowed with LR sched. Works only if LR sched is enabled
 NON_BLOCKING = True # Transfer to GPU in a non-blocking method
+REPORT_LOSS_PER_BATCH = False # If True - will output train loss to logger on every batch. Otherwise - on every epoch
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               PATH CONFIG
 # ----------------------------------------------------------------------------------------------------------------------

@@ -108,7 +108,7 @@ class PointDataset(ABC):
         if device == 'cpu-single':
             n_workers = 0
         else:
-            n_workers = determine_worker_num(batch_size)
+            n_workers = determine_worker_num(len(ids),batch_size)
 
         # if self.use_ddp:
         #     train_sampler = DistributedSampler(dataset)
@@ -249,12 +249,16 @@ def exact_num_loader_obj(loader):
     return len(loader.dataset)
 
 
-def determine_worker_num(batch_size):
-    cpu_cnt = psutil.cpu_count(logical=False)
-    if batch_size < cpu_cnt:
-        return batch_size
+def determine_worker_num(num_examples,batch_size):
+    num_batch_runs = int(num_examples/batch_size)
+    if num_batch_runs < 10: # Very small amount of runs
+        return 0
     else:
-        return cpu_cnt
+        cpu_cnt = psutil.cpu_count(logical=False)
+        if batch_size < cpu_cnt:
+            return int(batch_size/2)
+        else:
+            return int(cpu_cnt /2)
 
 
 # ----------------------------------------------------------------------------------------------------------------------

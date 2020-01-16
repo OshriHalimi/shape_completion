@@ -6,7 +6,6 @@ import os
 import sys
 import warnings
 import logging
-
 import torch
 import torch.distributed as dist
 import torch.multiprocessing as mp
@@ -91,6 +90,7 @@ class Trainer(TrainerIOMixin,
             num_sanity_val_steps=5,
             truncated_bptt_steps=None,
             resume_from_checkpoint=None,
+            report_loss_per_batch=False
     ):
         """
 
@@ -128,7 +128,7 @@ class Trainer(TrainerIOMixin,
         :param str amp_level: Check nvidia docs for level
         :param int num_sanity_val_steps: How many val steps before a full train loop.
         :param int truncated_bptt_steps: Enables multiple backward passes for each batch.
-
+        :param bool report_loss_per_batch: MANO ADDED
         .. warning:: Following arguments become deprecated and they will be removed in v0.8.0:
             - `gradient_clip`,
             - `nb_gpu_nodes`,
@@ -139,6 +139,7 @@ class Trainer(TrainerIOMixin,
 
         """
         # Transfer params
+        self.report_loss_per_batch = report_loss_per_batch # MANO
         if nb_gpu_nodes is not None:  # Backward compatibility
             warnings.warn("`nb_gpu_nodes` has renamed to `num_nodes` since v0.5.0"
                           " and will be removed in v0.8.0", DeprecationWarning)
@@ -198,7 +199,8 @@ class Trainer(TrainerIOMixin,
         # training bookeeping
         self.total_batch_idx = 0
         self.running_loss = []
-        self.avg_loss = 0
+        import numpy
+        self.avg_loss = numpy.Inf # Mano
         self.batch_idx = 0
         self.tqdm_metrics = {}
         self.callback_metrics = {}

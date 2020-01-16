@@ -55,34 +55,31 @@ class CompletionLightningModel(PytorchNet):
                 break  # This assumes validation,test and train all have the same faces.
         self.loss = F2PSMPLLoss(hparams=self.hparams, faces=faces, device=self.dev)
 
-
         # If you specify an example input, the summary will show input/output for each layer
         # self.example_input_array = torch.rand(5, 28 * 28)
 
     def configure_optimizers(self):
-        opt = optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
+        self.opt = optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
         if self.hparams.plateau_patience is not None:
             # sched = CosineAnnealingLR(optimizer, T_max=10)
             from cfg import DEF_LR_SCHED_COOLDOWN, DEF_MINIMAL_LR
-            sched = ReduceLROnPlateau(opt, mode='min', patience=self.hparams.plateau_patience,
-                                      cooldown=DEF_LR_SCHED_COOLDOWN, min_lr=DEF_MINIMAL_LR, verbose=True)
+            sched = ReduceLROnPlateau(self.opt, mode='min', patience=self.hparams.plateau_patience,
+                                      cooldown=DEF_LR_SCHED_COOLDOWN, eps=DEF_MINIMAL_LR, verbose=True)
             # Options: factor=0.1, patience=10, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0,
             # min_lr=0, eps=1e-08
-            return [opt], [sched]
+            return [self.opt], [sched]
         else:
-            return [opt]
-
+            return [self.opt]
 
     def training_step(self, b, _):
 
         pred = self.forward(b['gt_part'], b['tp'])
         loss_val = self.loss.compute(b, pred).unsqueeze(0)
-
-        tensorboard_logs = {'train_loss': loss_val}
+        lr = self.learning_rate(self.opt)
         return {
             'loss': loss_val,
-            # 'progress_bar': tqdm_dict,
-            'log': tensorboard_logs # Must be all Tensors
+            'progress_bar': {'lr': lr},
+            'log': {'loss': loss_val, 'lr': lr}  # todo - Must be all Tensors ?
         }
 
     def validation_step(self, b, _):
@@ -130,6 +127,7 @@ class CompletionLightningModel(PytorchNet):
 
 def train_lightning(nn, fast_dev_run=False):
     banner('Network Init')
+    nn.identify_system()
     hp = nn.hyper_params()
     early_stop = EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience, verbose=1, mode='min')
     # Consider min_delta option for EarlyStopping
@@ -140,11 +138,12 @@ def train_lightning(nn, fast_dev_run=False):
                                  save_top_k=0, verbose=True, prefix='weight',
                                  monitor='val_loss', mode='min', period=1)
 
+    from cfg import REPORT_LOSS_PER_BATCH
     # NOTE: Setting logger=False can vastly improve IO bottleneck. See Issue #581
     trainer = Trainer(fast_dev_run=fast_dev_run, num_sanity_val_steps=0, weights_summary=None,
                       gpus=hp.gpus, distributed_backend=hp.distributed_backend, use_amp=hp.use_16b,
                       early_stop_callback=early_stop, checkpoint_callback=checkpoint, logger=logger,
-                      min_epochs=hp.force_train_epoches)
+                      min_epochs=hp.force_train_epoches, report_loss_per_batch=REPORT_LOSS_PER_BATCH)
 
     # More flags to consider:
     # log_gpu_memory = 'min_max' or 'all' # How to log the GPU memory

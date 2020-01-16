@@ -27,7 +27,7 @@ def parser():
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=5, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(500, 100, 100),
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(50, 50, 50),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=3,
                    help='Number of input channels')
@@ -75,7 +75,7 @@ def train_main():
 
     # Init loaders and faces:
     ds = PointDatasetMenu.get('FaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=hp.in_channels)
-    ldrs = ds.split_loaders(split=[0.5, 0.4, 0.1], s_nums=hp.counts,
+    ldrs = ds.split_loaders(split=[0.7, 0.1, 0.2], s_nums=hp.counts,
                             s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev)
 
     nn.init_data(loaders=ldrs)

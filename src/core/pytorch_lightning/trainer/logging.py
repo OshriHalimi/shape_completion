@@ -49,7 +49,7 @@ class TrainerLoggingMixin(ABC):
 
     def add_tqdm_metrics(self, metrics):
         for k, v in metrics.items():
-            if type(v) is torch.Tensor:
+            if isinstance(v,torch.Tensor):
                 v = v.item()
 
             self.tqdm_metrics[k] = v

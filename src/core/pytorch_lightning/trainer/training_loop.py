@@ -155,7 +155,7 @@ When this flag is enabled each batch is split into sequences of size truncated_b
 import inspect
 from abc import ABC, abstractmethod
 import warnings
-
+import torch
 import numpy as np
 
 from pytorch_lightning.utilities.debugging import MisconfigurationException
@@ -211,6 +211,7 @@ class TrainerTrainLoopMixin(ABC):
         self.training_tqdm_dict = None
         self.get_train_dataloader = None
         self.reduce_lr_on_plateau_scheduler = None
+        self.report_loss_per_batch = None
 
     @property
     def max_nb_epochs(self):
@@ -421,6 +422,8 @@ class TrainerTrainLoopMixin(ABC):
             if early_stop_epoch or self.fast_dev_run:
                 break
 
+        if not self.report_loss_per_batch:  # MANO
+            self.avg_loss = self.batch_loss_value.item() / len(self.get_train_dataloader())
         # epoch end hook
         if self.is_function_implemented('on_epoch_end'):
             model = self.get_model()
@@ -508,7 +511,10 @@ class TrainerTrainLoopMixin(ABC):
                     self.print_nan_gradients()
 
                 # track total loss for logging (avoid mem leaks)
-                self.batch_loss_value += loss.item()
+                if self.report_loss_per_batch:
+                    self.batch_loss_value += loss.item()
+                else:
+                    self.batch_loss_value += loss
 
                 # gradient update with accumulated gradients
                 if (self.batch_idx + 1) % self.accumulate_grad_batches == 0:
@@ -530,9 +536,10 @@ class TrainerTrainLoopMixin(ABC):
                                          optimizer, opt_idx, optimizer_closure)
 
                     # calculate running loss for display
-                    self.running_loss.append(self.batch_loss_value)
-                    self.batch_loss_value = 0
-                    self.avg_loss = np.mean(self.running_loss[-100:])
+                    if self.report_loss_per_batch: # MANO
+                        self.running_loss.append(self.batch_loss_value)
+                        self.batch_loss_value = 0
+                        self.avg_loss = np.mean(self.running_loss[-100:])
 
         # activate batch end hook
         if self.is_function_implemented('on_batch_end'):

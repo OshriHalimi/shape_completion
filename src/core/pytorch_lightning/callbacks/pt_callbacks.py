@@ -146,7 +146,7 @@ class EarlyStopping(Callback):
 
     def on_train_end(self, logs=None):
         if self.stopped_epoch > 0 and self.verbose > 0:
-            logging.info(f'Epoch {self.stopped_epoch + 1:05d}: early stopping')
+            logging.info(f'NOTE: Did not improve criterion for over {self.patience} epochs - STOPPING TRAIN')  # MANO
 
 
 class ModelCheckpoint(Callback):
@@ -192,9 +192,9 @@ class ModelCheckpoint(Callback):
                  mode='auto', period=1, prefix=''):
         super(ModelCheckpoint, self).__init__()
         if (
-            save_top_k and
-            os.path.isdir(filepath) and
-            len(os.listdir(filepath)) > 0
+                save_top_k and
+                os.path.isdir(filepath) and
+                len(os.listdir(filepath)) > 0
         ):
             warnings.warn(
                 f"Checkpoint directory {filepath} exists and is not empty with save_top_k != 0."
@@ -361,7 +361,6 @@ class GradientAccumulationScheduler(Callback):
             if epoch >= self.epochs[i]:
                 trainer.accumulate_grad_batches = self.scheduling.get(self.epochs[i])
                 break
-
 
 # if __name__ == '__main__':
 #     c = EarlyStopping(min_delta=0.9, patience=2, verbose=True)

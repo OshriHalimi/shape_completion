@@ -97,6 +97,11 @@ class PytorchNet(LightningModule):
         for i, weights in enumerate(list(self.parameters())):
             print(f'Layer {i} :: weight shape: {list(weights.size())}')
 
+    def learning_rate(self,opt):
+        # TODO - only suits a model-uniform learning rate
+        # See: https://discuss.pytorch.org/t/print-current-learning-rate-of-the-adam-optimizer/15204/9
+        return opt.param_groups[0]['lr']
+
     def summary(self, x_shape=None, batch_size=-1, print_it=True):
         def register_hook(mod):
 
@@ -211,6 +216,7 @@ class PytorchNet(LightningModule):
         return in_shape
 
 
+
 def set_determinsitic_run(seed=None):
     if seed is None:
         # Specific to the ShapeCompletion platform
@@ -228,7 +234,6 @@ def set_determinsitic_run(seed=None):
     torch.backends.cudnn.benchmark = True
     # Might be best to turn off benchmark for deterministic results:
     # https://discuss.pytorch.org/t/what-is-the-differenc-between-cudnn-deterministic-and-cudnn-benchmark/38054
-
 
 def worker_init_closure(seed=None):
     #TODO: What is this function?
