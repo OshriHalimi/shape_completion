@@ -19,7 +19,7 @@ def parser():
     # Check-pointing
     # TODO - Don't forget to change me!
     p.add_argument('--exp_name', type=str, default='', help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_version', type=none_or_int, default=0,
+    p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=bool, default=False,
                    help='Test flag. If true, saves the completions to a .ply file')
@@ -246,7 +246,7 @@ def tensorboard_tutorial():
 def view_tensorboard_logs():
     import os
     import pytorch_lightning as pl
-    pl.logging.info(f'View tensorboard logs by running\ntensorboard --logdir D:/shape_completion/src/core/lightning_logs/version_3/tf')
+    pl.logging.info(f'View tensorboard logs by running\ntensorboard --logdir PRIMARY_RESULTS_DIR')
     pl.logging.info('and going to http://localhost:6006 on your browser')
 
-if __name__ == '__main__': view_tensorboard_logs()
+if __name__ == '__main__': train_main()

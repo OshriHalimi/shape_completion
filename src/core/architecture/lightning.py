@@ -77,10 +77,12 @@ class CompletionLightningModel(PytorchNet):
 
         pred = self.forward(b['gt_part'], b['tp'])
         loss_val = self.loss.compute(b, pred).unsqueeze(0)
+
+        tensorboard_logs = {'train_loss': loss_val}
         return {
             'loss': loss_val,
             # 'progress_bar': tqdm_dict,
-            'log': {'loss': loss_val}  # Must be all Tensors
+            'log': tensorboard_logs # Must be all Tensors
         }
 
     def validation_step(self, b, _):
@@ -92,10 +94,11 @@ class CompletionLightningModel(PytorchNet):
         avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         self.current_val_loss = avg_val_loss  # save current val loss state for ReduceLROnPlateau scheduler
         # TODO: Don't save! perform scheduling here and get rid of self.current_val_loss (unless appears somewhere else). Ref pytorch documentation
-        logs = {'val_loss': avg_val_loss}
+
+        tensorboard_logs = {'val_loss': avg_val_loss}
         return {"val_loss": avg_val_loss,
-                "progress_bar": logs,
-                "log": logs}
+                "progress_bar": tensorboard_logs,
+                "log": tensorboard_logs}
 
     def test_step(self, b, _):
         pred = self.forward(b['gt_part'], b['tp'])
@@ -103,10 +106,10 @@ class CompletionLightningModel(PytorchNet):
 
     def test_end(self, outputs):
         avg_test_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-        logs = {'test_loss': avg_test_loss}
+        tensorboard_logs = {'test_loss': avg_test_loss}
         return {"test_loss": avg_test_loss,
-                "progress_bar": logs,
-                "log": logs}
+                "progress_bar": tensorboard_logs,
+                "log": tensorboard_logs}
 
     @pl.data_loader
     def train_dataloader(self):
