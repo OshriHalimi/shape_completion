@@ -55,6 +55,7 @@ class CompletionLightningModel(PytorchNet):
                 break  # This assumes validation,test and train all have the same faces.
         self.loss = F2PSMPLLoss(hparams=self.hparams, faces=faces, device=self.dev)
 
+
         # If you specify an example input, the summary will show input/output for each layer
         # self.example_input_array = torch.rand(5, 28 * 28)
 
@@ -71,6 +72,7 @@ class CompletionLightningModel(PytorchNet):
         else:
             return [opt]
 
+
     def training_step(self, b, _):
 
         pred = self.forward(b['gt_part'], b['tp'])
@@ -84,7 +86,6 @@ class CompletionLightningModel(PytorchNet):
     def validation_step(self, b, _):
 
         pred = self.forward(b['gt_part'], b['tp'])
-        # TODO: why not performing unsqueeze() inside loss.compute()?
         return {'val_loss': self.loss.compute(b, pred).unsqueeze(0)}
 
     def validation_end(self, outputs):
@@ -98,11 +99,9 @@ class CompletionLightningModel(PytorchNet):
 
     def test_step(self, b, _):
         pred = self.forward(b['gt_part'], b['tp'])
-        # TODO: why not performing unsqueeze() inside loss.compute()?
         return {"test_loss": self.loss.compute(b, pred).unsqueeze(0)}
 
     def test_end(self, outputs):
-        # TODO: save test results
         avg_test_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
         logs = {'test_loss': avg_test_loss}
         return {"test_loss": avg_test_loss,

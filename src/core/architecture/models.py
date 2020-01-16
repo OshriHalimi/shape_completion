@@ -103,14 +103,6 @@ class PointNetFeatures(nn.Module):
         self.bn2 = nn.BatchNorm1d(128)
         self.bn3 = nn.BatchNorm1d(self.code_size)
 
-        # self.trans = trans
-        # self.stn = STN3d()
-        # if self.trans:
-        #    trans = self.stn(x)  # OH: batch transformation; [B x 3 x 3].
-        #    # OH: In practice the point cloud is rotated by the transpose of trans
-        #    x = x.transpose(2, 1)  # OH: [B x 3 x n] --> [B x n x 3]
-        #    x = torch.bmm(x, trans)  # OH: batch matrix-matrix product
-        #    x = x.transpose(2, 1).contiguous()  # OH: [B x n x 3] --> [B x 3 x n]
 
     def forward(self, x):
 
@@ -163,35 +155,7 @@ class CompletionDecoder(nn.Module):
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                          Graveyard
 # ----------------------------------------------------------------------------------------------------------------------
-class STN3d(nn.Module):  # OH: An alignment network T-Net (Probably)
-    def __init__(self):
-        super(STN3d, self).__init__()
-        self.conv1 = torch.nn.Conv1d(3, 64, 1)
-        self.conv2 = torch.nn.Conv1d(64, 128, 1)
-        self.conv3 = torch.nn.Conv1d(128, 1024, 1)
-        self.fc1 = nn.Linear(1024, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 1)
 
-    def forward(self, x):  # OH: input is a batch of point clouds, output is a batch of 3x3 rotation matrix
-        x = F.relu(self.conv1(x))
-        x = F.relu(self.conv2(x))
-        x = F.relu(self.conv3(x))
-        x, _ = torch.max(x, 2)
-        x = x.view(-1, 1024)
-
-        x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x = self.fc3(x)
-        x = x % (2 * np.pi)
-        x = torch.squeeze(x)
-        r = torch.eye(3).expand(x.shape[0], 3, 3).clone()
-        r[:, 0, 0] = torch.cos(x)
-        r[:, 0, 2] = -torch.sin(x)
-        r[:, 2, 0] = torch.sin(x)
-        r[:, 2, 2] = torch.cos(x)
-        r = r.contiguous().cuda()
-        return r
 
 
 if __name__ == "__main__":
