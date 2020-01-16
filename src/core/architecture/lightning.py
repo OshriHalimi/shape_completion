@@ -137,8 +137,8 @@ class CompletionLightningModel(PytorchNet):
 
 
 def train_lightning(nn, fast_dev_run=False):
+    banner('Network Init')
     hp = nn.hyper_params()
-
     early_stop = EarlyStopping(monitor='avg_val_loss', patience=hp.early_stop_patience, verbose=1, mode='min')
     # Consider min_delta option for EarlyStopping
     logger = TestTubeLogger(save_dir=cfg.PRIMARY_RESULTS_DIR, description=f"{hp.exp_name} Experiment",

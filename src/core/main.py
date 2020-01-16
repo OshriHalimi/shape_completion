@@ -109,8 +109,8 @@ def dataset_tutorial():
     # You can also request a summary printout with:
     ds.data_summary(with_tree=False)  # Don't print out the tree again
     # For models with a single set of faces (SMPL or SMLR for example) you can request the face set directly:
-    banner('Face Tensor')
-    print(ds.faces(torch_version=False))
+    banner('Face Array')
+    print(ds.faces())
     # You can ask for a random sample of the data, under your needed transformations:
     banner('Data sample')
     print(ds.sample(num_samples=1, transforms=[Center()]))

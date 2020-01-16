@@ -205,7 +205,7 @@ class TrainerDDPMixin(ABC):
                 'or distributed_backend=ddp2'
             raise MisconfigurationException(w)
 
-        logging.info(f'gpu available: {torch.cuda.is_available()}, used: {self.on_gpu}')
+        logging.info(f'GPU Available: {torch.cuda.is_available()} | Using GPU: {self.on_gpu}') # MANO
 
     def configure_slurm_ddp(self, num_gpu_nodes):
         self.is_slurm_managing_tasks = False
@@ -253,7 +253,7 @@ class TrainerDDPMixin(ABC):
                 gpu_str = ','.join([str(x) for x in data_parallel_device_ids])
                 os.environ["CUDA_VISIBLE_DEVICES"] = gpu_str
 
-        logging.info(f'VISIBLE GPUS: {os.environ["CUDA_VISIBLE_DEVICES"]}')
+        logging.info(f'Visible GPU IDs: [{os.environ["CUDA_VISIBLE_DEVICES"]}]') #MANO
 
     def ddp_train(self, gpu_idx, model):
         """

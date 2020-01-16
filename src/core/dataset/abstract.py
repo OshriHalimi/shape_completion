@@ -221,6 +221,8 @@ class PointDatasetLoaderBridge(torch.utils.data.Dataset):
     def __init__(self, ds_inst, transforms, loader_len):
         self._ds_inst = ds_inst
         self._transforms = transforms
+        # todo - attach dataset to Compose if dataset is SMPL - for immediate access to the faces() in transforms
+        # It's faster - but requires thought if faces is unique
         self._loader_len = loader_len
 
     def __len__(self):

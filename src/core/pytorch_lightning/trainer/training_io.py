@@ -202,7 +202,7 @@ class TrainerIOMixin(ABC):
         if last_ckpt_name is not None:
             last_ckpt_path = os.path.join(self.checkpoint_callback.filepath, last_ckpt_name)
             self.restore(last_ckpt_path, self.on_gpu)
-            logging.info(f'model and trainer restored from checkpoint: {last_ckpt_path}')
+            logging.info(f'Model & Trainer restored from checkpoint: {last_ckpt_path}') #MANO
             did_restore = True
 
         return did_restore

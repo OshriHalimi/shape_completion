@@ -12,7 +12,7 @@ import sys
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Pretty Prints
 # ----------------------------------------------------------------------------------------------------------------------
-def banner(text=None, ch='=', length=88):
+def banner(text=None, ch='=', length=100):
     if text is not None:
         spaced_text = ' %s ' % text
     else:
@@ -22,13 +22,15 @@ def banner(text=None, ch='=', length=88):
 
 # Set logging to both the STDOUT and the File
 def set_logging_to_stdout():
+    # logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(message)s', stream=sys.stdout)
     root = logging.getLogger()
     hdlr = root.handlers[0]
-    fmt = logging.Formatter('%(name)-12s: %(levelname)-8s %(message)s')
+    fmt = logging.Formatter('[%(asctime)s] %(message)s') # ,'%x %X.%f'
     hdlr.setFormatter(fmt)
+    hdlr.stream = sys.stdout
+
     
-    logging.basicConfig(level=logging.DEBUG, format='[%(asctime)s] %(message)s',
-                        datefmt='%m-%d %H:%M',filename=sys.stdout)
+
 
     # root = logging.getLogger()
     # hdlr = root.handlers[0]
