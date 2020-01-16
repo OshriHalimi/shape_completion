@@ -17,6 +17,7 @@ from tqdm import tqdm
 from types import MethodType
 import time
 import psutil
+from timeit import default_timer as timer
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -270,9 +271,9 @@ class CompletionProjDataset(PointDataset, ABC):
         self._hierarchical_index_to_path = MethodType(getattr(self.__class__, f"_{in_cfg.name.lower()}_path"), self)
         self._path_load = MethodType(getattr(self.__class__, f"_{in_cfg.name.lower()}_load"), self)
 
-        from cfg import DANGEROUS_MASK_THRESH, DEF_CPU_PRECISION
+        from cfg import DANGEROUS_MASK_THRESH, DEF_COMPUTE_PRECISION
         self._mask_thresh = DANGEROUS_MASK_THRESH
-        self._def_precision = DEF_CPU_PRECISION
+        self._def_precision = getattr(np,DEF_COMPUTE_PRECISION)
 
     def _transformation_finalizer(self, transforms):
         # A bit messy

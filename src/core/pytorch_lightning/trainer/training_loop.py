@@ -314,7 +314,7 @@ class TrainerTrainLoopMixin(ABC):
                 # for iterable train loader, the progress bar never ends
                 num_iterations = None
             else:
-                num_iterations = self.total_batches
+                num_iterations =  self.num_training_batches # self.total_batches MANO
 
             # reset progress bar
             # .reset() doesn't work on disabled progress bar so we should check

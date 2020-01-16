@@ -25,10 +25,11 @@ class F2PSMPLLoss:
         self.lambdas = hparams.lambdas
         self.mask_penalties = list(hparams.mask_penalties)
         self.dist_v_penalties = list(hparams.dist_v_penalties)
-        self.faces = torch.from_numpy(faces).long().to(device=device,non_blocking=True)
+        assert faces is not None, "No valid faces found"
+        from cfg import DEF_COMPUTE_PRECISION, NON_BLOCKING
+        self.faces = torch.from_numpy(faces).long().to(device=device,non_blocking=NON_BLOCKING)
         self.device = device
-        from cfg import DEF_GPU_PRECISION
-        self.def_prec = DEF_GPU_PRECISION
+        self.def_prec = getattr(torch,DEF_COMPUTE_PRECISION)
 
         # Sanity Check - Input Channels:
         if self.lambdas[1] > 0:

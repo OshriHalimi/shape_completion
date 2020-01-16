@@ -366,6 +366,8 @@ class TrainerDPMixin(ABC):
         self.single_gpu = None
         self.root_gpu = None
         self.amp_level = None
+        from cfg import NON_BLOCKING # MANO
+        self.blocking = NON_BLOCKING
 
     @abstractmethod
     def run_pretrain_routine(self, model):
@@ -401,7 +403,7 @@ class TrainerDPMixin(ABC):
             return batch.cuda(gpu_id)
 
         elif callable(getattr(batch, 'to', None)):
-            return batch.to(torch.device('cuda', gpu_id),non_blocking=True) # MANO - Added non_blocking option
+            return batch.to(torch.device('cuda', gpu_id),non_blocking=self.blocking) # MANO - Added non_blocking option
 
         # when list
         elif isinstance(batch, list):

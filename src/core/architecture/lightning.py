@@ -9,6 +9,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 from copy import deepcopy
+from util.gen import time_me
 import os.path as osp
 import cfg
 
@@ -20,8 +21,7 @@ class CompletionLightningModel(PytorchNet):
     def __init__(self, hp=()):
         super().__init__()
         self.hparams = self.add_model_specific_args(hp).parse_args()
-        self.dev = 'cpu' if self.hparams.gpus is None else 'cuda'  # TODO - Insert distributed support
-        # torch.device('cuda', gpu_id)
+        self.dev = 'cpu' if self.hparams.gpus is None else 'cuda'  # TODO - support with torch.device('cuda', gpu_id)
         setattr(self.hparams, 'dev', self.dev)
         exp_name = getattr(self.hparams, 'exp_name', None)
         if exp_name is not None and not exp_name:
@@ -41,44 +41,35 @@ class CompletionLightningModel(PytorchNet):
     def _init_model(self):
         raise NotImplementedError
 
+    @time_me
     def forward(self, part, template):
         raise NotImplementedError
 
-    def init_data(self, loaders, faces):
-        # TODO - loaders as dict ?
-        dev = self.dev
+    def init_data(self, loaders):
+        # TODO - Add support for multiple Loaders for Train/Test/Validation?
         self.loaders = loaders
-        # This assumes validation,test and train all have the same faces.
-        self.loss = F2PSMPLLoss(hparams=self.hparams, faces=faces, device=dev)
-
-        # TODO: what is this line doing?
-        if loaders[0] is not None:
-            self.val_check_interval = len(loaders[0])
+        faces = None
+        for ldr in loaders:
+            if ldr is not None:
+                faces = ldr.dataset._ds_inst.faces()
+                break  # This assumes validation,test and train all have the same faces.
+        self.loss = F2PSMPLLoss(hparams=self.hparams, faces=faces, device=self.dev)
 
         # If you specify an example input, the summary will show input/output for each layer
         # self.example_input_array = torch.rand(5, 28 * 28)
 
-    # override LightningModule method
     def configure_optimizers(self):
-        # TODO: This should be exposed in the experiment interface. Define get_optimizer function that based on hparams returns an optimizer (Adam, SGD etc.).
-        self.opt = optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
-        # scheduler = CosineAnnealingLR(optimizer, T_max=10)
-        # TODO: Hard coded numbers shouldn't be hidden deeply (especially if they determine a crucial preporty of the experiment: the learning rate). Expose the scheduling parameters in the experiment interface
-        # TODO: Also let's configure in the experiment interface: IF to use scheduling at all
-        self.reduce_lr_on_plateau = ReduceLROnPlateau(self.opt, mode='min', factor=0.1,patience=self.hparams.plateau_patience,
-                                      cooldown=5,min_lr=1e-6,verbose=True)
-        # Options: factor=0.1, patience=10, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0,
-        # eps=1e-08
-        return [self.opt], [self.reduce_lr_on_plateau]
-
-    def optimizer_step(self, epoch_nb, batch_nb, optimizer, optimizer_i,
-                       second_order_closure=None):
-        self.opt.step()
-        self.opt.zero_grad()
-        #TODO: Based on pytorch documentation the scheduler step should be called after validation
-        #TODO: Also why we use self.val_check_interval instead of performing continuously on self.current_val_loss?
-        if self.trainer.global_step % self.val_check_interval == 0:
-            self.reduce_lr_on_plateau.step(self.current_val_loss)
+        opt = optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
+        if self.hparams.plateau_patience is not None:
+            # sched = CosineAnnealingLR(optimizer, T_max=10)
+            from cfg import DEF_LR_SCHED_COOLDOWN, DEF_MINIMAL_LR
+            sched = ReduceLROnPlateau(opt, mode='min', patience=self.hparams.plateau_patience,
+                                      cooldown=DEF_LR_SCHED_COOLDOWN, min_lr=DEF_MINIMAL_LR, verbose=True)
+            # Options: factor=0.1, patience=10, verbose=False, threshold=0.0001, threshold_mode='rel', cooldown=0,
+            # min_lr=0, eps=1e-08
+            return [opt], [sched]
+        else:
+            return [opt]
 
     def training_step(self, b, _):
 
@@ -87,7 +78,7 @@ class CompletionLightningModel(PytorchNet):
         return {
             'loss': loss_val,
             # 'progress_bar': tqdm_dict,
-            'log': {'train_loss': loss_val}  # Must be all Tensors
+            'log': {'loss': loss_val}  # Must be all Tensors
         }
 
     def validation_step(self, b, _):
@@ -100,8 +91,8 @@ class CompletionLightningModel(PytorchNet):
         avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
         self.current_val_loss = avg_val_loss  # save current val loss state for ReduceLROnPlateau scheduler
         # TODO: Don't save! perform scheduling here and get rid of self.current_val_loss (unless appears somewhere else). Ref pytorch documentation
-        logs = {'avg_val_loss': avg_val_loss}
-        return {"avg_val_loss": avg_val_loss,
+        logs = {'val_loss': avg_val_loss}
+        return {"val_loss": avg_val_loss,
                 "progress_bar": logs,
                 "log": logs}
 
@@ -113,11 +104,10 @@ class CompletionLightningModel(PytorchNet):
     def test_end(self, outputs):
         # TODO: save test results
         avg_test_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-        logs = {'avg_test_loss': avg_test_loss}
-        return {"avg_test_loss": avg_test_loss,
+        logs = {'test_loss': avg_test_loss}
+        return {"test_loss": avg_test_loss,
                 "progress_bar": logs,
                 "log": logs}
-
 
     @pl.data_loader
     def train_dataloader(self):
@@ -139,20 +129,20 @@ class CompletionLightningModel(PytorchNet):
 def train_lightning(nn, fast_dev_run=False):
     banner('Network Init')
     hp = nn.hyper_params()
-    early_stop = EarlyStopping(monitor='avg_val_loss', patience=hp.early_stop_patience, verbose=1, mode='min')
+    early_stop = EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience, verbose=1, mode='min')
     # Consider min_delta option for EarlyStopping
     logger = TestTubeLogger(save_dir=cfg.PRIMARY_RESULTS_DIR, description=f"{hp.exp_name} Experiment",
                             name=hp.exp_name, version=hp.resume_version)
     # Support for resume_by:
     checkpoint = ModelCheckpoint(filepath=osp.join(osp.dirname(logger.experiment.log_dir), 'checkpoints'),
                                  save_top_k=0, verbose=True, prefix='weight',
-                                 monitor='avg_val_loss', mode='min', period=1)
+                                 monitor='val_loss', mode='min', period=1)
 
     # NOTE: Setting logger=False can vastly improve IO bottleneck. See Issue #581
     trainer = Trainer(fast_dev_run=fast_dev_run, num_sanity_val_steps=0, weights_summary=None,
                       gpus=hp.gpus, distributed_backend=hp.distributed_backend, use_amp=hp.use_16b,
                       early_stop_callback=early_stop, checkpoint_callback=checkpoint, logger=logger,
-                      max_epochs=hp.n_epoch)
+                      min_epochs=hp.force_train_epoches)
 
     # More flags to consider:
     # log_gpu_memory = 'min_max' or 'all' # How to log the GPU memory

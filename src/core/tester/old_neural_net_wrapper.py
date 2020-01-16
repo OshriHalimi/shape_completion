@@ -70,8 +70,8 @@ class NeuralNet:
         else:
             self.best_val_acc = 0
             self.start_epoch = 0
-
-        self.net = self.net.to(self.device,non_blocking=True) # MANO - Added non_blocking
+        from cfg import NON_BLOCKING
+        self.net = self.net.to(self.device,non_blocking=NON_BLOCKING) # MANO - Added non_blocking
 
         # Build SGD Algorithm:
         self.criterion = torch.nn.CrossEntropyLoss()

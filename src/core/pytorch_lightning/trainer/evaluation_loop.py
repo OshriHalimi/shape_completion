@@ -240,7 +240,7 @@ class TrainerEvaluationLoopMixin(ABC):
                     self.test_progress_bar.update(1)
                 else:
                     self.val_progress_bar.update(1)
-                    self.main_progress_bar.update(1)
+                    # self.main_progress_bar.update(1) MANO
             outputs.append(dl_outputs)
 
         eval_results = {}

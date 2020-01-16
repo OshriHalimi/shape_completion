@@ -6,7 +6,7 @@ import numpy as np
 import torch.nn.init as init
 from test_tube import HyperOptArgumentParser
 from architecture.lightning import CompletionLightningModel
-
+from timeit import default_timer as timer
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      Full Models 
@@ -49,6 +49,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
         return p
 
     def forward(self, part, template):
+        # start = timer()
         # TODO - Add handling of differently scaled meshes
         # part, template = b['gt_part'],b['tp']
         # part, template [bs x nv x 3]
@@ -70,7 +71,10 @@ class F2PEncoderDecoder(CompletionLightningModel):
 
         # [b x (3 + 2*code_size) x nv]
         y = torch.cat((template, part_code, template_code), 1).contiguous()
-        return self.decoder(y).transpose(2, 1)  # TODO - get rid of this transpose
+        y = self.decoder(y).transpose(2, 1)  # TODO - get rid of this transpose
+        # end = timer()
+        # print(end-start)
+        return y
 
 
 # ----------------------------------------------------------------------------------------------------------------------

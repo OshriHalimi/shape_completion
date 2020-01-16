@@ -26,21 +26,22 @@ def parser():
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
-    p.add_argument('--batch_size', type=int, default=4, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(20, 20, 20),
+    p.add_argument('--batch_size', type=int, default=5, help='SGD batch size')
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(500, 100, 100),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=3,
                    help='Number of input channels')
 
     # Train Config:
-    p.add_argument('--n_epoch', type=int, default=2, help='The number of epochs to train for')
+    p.add_argument('--force_train_epoches', type=int, default=1,
+                   help="Force train for this amount. Usually we'd early stop using the callback. Use 1 to disable")
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
     p.add_argument('--use_tensorboard', type=bool, default=True)
 
     # Optimizer
     p.add_argument("--weight_decay", type=float, default=0, help="Adam's weight decay - usually use 1e-4")
-    p.add_argument("--plateau_patience", type=int, default=5,
-                   help="Number of epoches to wait on learning plateau before reducing step size")
+    p.add_argument("--plateau_patience", type=none_or_int, default=5,
+                   help="Number of epoches to wait on learning plateau before reducing step size. Use None to shut off")
     p.add_argument("--early_stop_patience", type=int, default=10,
                    help="Number of epoches to wait on learning plateau before stopping train")
 
@@ -75,7 +76,7 @@ def train_main():
     ldrs = ds.split_loaders(split=[0.5, 0.4, 0.1], s_nums=hp.counts,
                             s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev)
 
-    nn.init_data(loaders=ldrs, faces=ds.faces())
+    nn.init_data(loaders=ldrs)
     train_lightning(nn, fast_dev_run=False)
 
 
@@ -85,7 +86,7 @@ def test_main():
     hp = nn.hyper_params()
     ds = PointDatasetMenu.get('DFaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=hp.in_channels)
     test_ldr = ds.loader(ids=range(1000), transforms=None, batch_size=hp.batch_size, device=hp.dev)
-    nn.init_data(loaders=[None, None, test_ldr], faces=ds.faces())
+    nn.init_data(loaders=[None, None, test_ldr])
     test_lightning(nn)
 
 
