@@ -79,7 +79,7 @@ class CompletionLightningModel(PytorchNet):
         return {
             'loss': loss_val,
             'progress_bar': {'lr': lr},
-            'log': {'loss': loss_val, 'lr': lr}  # todo - Must be all Tensors ?
+            'log': {'train_loss': loss_val, 'lr': lr}  # todo - Must be all Tensors ?
         }
 
     def validation_step(self, b, _):
