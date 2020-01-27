@@ -62,7 +62,7 @@ def parser():
 
     # Visualization
     p.add_argument('--use_tensorboard', type=bool, default=True)  # TODO - Not in use
-    p.add_argument('--mesh_frequency', type=int, default=1000)  # The meshes are logged and visualized every mesh_frequency steps
+    p.add_argument('--mesh_frequency', type=int, default=None)  # The meshes are logged and visualized every mesh_frequency steps
     return [p]
 
 

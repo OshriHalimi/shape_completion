@@ -131,8 +131,9 @@ class CompletionLightningModel(PytorchNet):
         loss = self.loss.compute(b, pred).unsqueeze(0)
         logs = {'loss': loss}
 
-        if self.global_step % self.hparams.mesh_frequency == 0:
-            self.logger.experiment.add_mesh(f"mesh_{self.global_step}", vertices=b['tp'][0, :, :].unsqueeze(0))
+        if self.hparams.mesh_frequency is not None:
+            if self.global_step % self.hparams.mesh_frequency == 0:
+                self.logger.experiment.add_mesh(f"mesh_{self.global_step}", vertices=b['tp'][0, :, :].unsqueeze(0))
 
         return {
             'loss': loss,  # Must use 'loss' instead of 'train_loss' due to lightning framework
