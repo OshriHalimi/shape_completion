@@ -1,14 +1,15 @@
+from torch.utils.data import Dataset
 from pathlib import Path
-from torch.utils.data import DataLoader
 from dataset.collate import completion_collate
 from collections import Sequence
 from abc import ABC  # , abstractmethod
 from torch.utils.data.sampler import SubsetRandomSampler
 from util.torch_data_ext import determine_worker_num, ReconstructableDataLoader
-from util.gen import banner, convert_bytes, time_me
+from util.gen import warn, banner, convert_bytes, time_me
 from util.container import split_frac, enum_eq
-from util.mesh_io import numpy2vtkactor, print_vtkplotter_help
-from vtkplotter import Plotter, Spheres, show
+from util.mesh_visuals import numpy2vtkactor, print_vtkplotter_help
+from util.mesh_compute import trunc_to_vertex_subset
+from vtkplotter import Plotter, Spheres
 from pickle import load
 from copy import deepcopy
 from dataset.transforms import *
@@ -99,7 +100,6 @@ class PointDataset(ABC):
         # return [attempt_squeeze(next(ldr_it)) for _ in range(num_samples)]
 
     def _loader(self, ids=None, transforms=None, batch_size=16, device='cuda'):
-        # TODO - Consider adding support for num objects + split
         # TODO - Add distributed support here. What does num_workers need to be?
         if ids is None:
             ids = range(self.num_pnt_clouds())
@@ -242,7 +242,7 @@ class PointDataset(ABC):
 #
 # ----------------------------------------------------------------------------------------------------------------------
 
-class PointDatasetLoaderBridge(torch.utils.data.Dataset):
+class PointDatasetLoaderBridge(Dataset):
     # Note - This class is pretty hacky.
     # Note that changes to Dataset will be seen in any loader derived from it before
     # This should be taken into account when decimating the Dataset index
@@ -285,7 +285,7 @@ class CompletionProjDataset(PointDataset, ABC):
         # A bit messy
         keys = [('gt_part', 'gt_mask_vi', 'gt')]
         if enum_eq(self._in_cfg, InCfg.PART2PART):
-            keys.append((('tp', 'tp_mask_vi', 'tp')))  # Override tp
+            keys.append(('tp', 'tp_mask_vi', 'tp'))  # Override tp
         transforms.append(PartCompiler(keys))
         return transforms
 
@@ -349,6 +349,8 @@ class CompletionProjDataset(PointDataset, ABC):
                 a = numpy2vtkactor(v, f, clr='gold')
             elif strategy == 'spheres':
                 a = Spheres(v, c='w', r=0.01)  # TODO - compute r with respect to the mesh
+            else:
+                raise NotImplementedError
 
             a.legend(f'{key} | {fp_fun(samp[f"{name}_hi"][i]).name}')
             vp.show(a, at=i)
@@ -380,16 +382,6 @@ class SMPLCompletionProjDataset(CompletionProjDataset, ABC):
         with open(self._data_dir / 'SMPL_face.pkl', "rb") as f_file:
             self._f = load(f_file)
 
-
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
-
-if __name__ == "__main__":
-    from dataset.datasets import PointDatasetMenu
-    from dataset.index import HierarchicalIndexTree
-
-    print(PointDatasetMenu.which())
-    ds = PointDatasetMenu.get('AmassValdPyProj', in_cfg=InCfg.FULL2PART, in_channels=3)
-    # ds.validate_dataset()
-    ds.show_sample(key='gt', strategy='mesh', n_shapes=8)
