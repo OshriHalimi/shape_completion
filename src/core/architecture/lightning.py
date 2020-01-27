@@ -30,7 +30,7 @@ def extend_hyper_params(hp, hp_data_tables):
         setattr(hp, k, v)
 
     # Experiment:
-    if hp.exp_name is None or hp.exp_name:
+    if hp.exp_name is None or not hp.exp_name:
         hp.exp_name = 'default_exp'
 
     return hp
