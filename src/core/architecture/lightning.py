@@ -128,10 +128,10 @@ class CompletionLightningModel(PytorchNet):
 
     def training_step(self, b, _):
         pred = self.forward(b['gt_part'], b['tp'])
-        loss_val = self.loss.compute(b, pred).unsqueeze(0)
+        loss = self.loss.compute(b, pred).unsqueeze(0)
         return {
-            'loss': loss_val,  # Must use 'loss' instead of 'train_loss' due to lightning framework
-            'log': {'loss': loss_val}
+            'loss': loss,  # Must use 'loss' instead of 'train_loss' due to lightning framework
+            'log': {'loss': loss}
         }
 
     def validation_step(self, b, _):
