@@ -374,6 +374,28 @@ def batch_vnrmls(vb, f):
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                    Visualization Functions
 # ----------------------------------------------------------------------------------------------------------------------#
+def show_point_cloud(v, n=None, grid_on=True):
+    '''
+    :param v: vertices (numpy array or tensors), dim: [n_v x 3]
+    :param n (optional): vertex normals (numpy array or tensors), dim: [n_v x 3]
+    :return: plot point cloud with vertex normals (if provided)
+    '''
+    vertices = v.numpy() if torch.is_tensor(v) else v
+    normals = n.numpy() if torch.is_tensor(n) else n
+
+    import pyvista as pv
+    p = pv.Plotter()
+    point_cloud = pv.PolyData(vertices)
+    p.add_mesh(point_cloud, color=[0, 1, 0])
+    if n is not None:
+            point_cloud['vectors'] = normals
+            arrows = point_cloud.glyph(orient='vectors', scale=False, factor=0.03, )
+            p.add_mesh(arrows, color=[0, 0, 1])
+    if grid_on:
+        p.show_grid()
+    p.show()
+
+
 def show_vnormals(v, f, n=None):
     '''
     :param v: vertices (numpy array or tensors), dim: [n_v x 3]
@@ -490,4 +512,4 @@ def show_fnormals_(v, f, n):
 #     return F.normalize(vn, p=2, dim=1)  # [nv, 3]
 
 
-if __name__ == '__main__': test_fnrmls_visually()
+if __name__ == '__main__': test_vnrmls_visually()

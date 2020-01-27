@@ -72,14 +72,17 @@ class CompletionLightningModel(PytorchNet):
             return [self.opt]
 
     def training_step(self, b, _):
-
+        from dataset.transforms import show_point_cloud
         pred = self.forward(b['gt_part'], b['tp'])
-        loss_val = self.loss.compute(b, pred).unsqueeze(0)
+        show_point_cloud(b['gt_part'][0].cpu())
+        show_point_cloud(b['tp'][0].cpu())
+        loss_train = self.loss.compute(b, pred).unsqueeze(0)
         lr = self.learning_rate(self.opt)
+        tensorboard_logs = {'train_loss': loss_train, 'learning_rate': lr}
         return {
-            'loss': loss_val,
+            'loss': loss_train,
             'progress_bar': {'lr': lr},
-            'log': {'train_loss': loss_val, 'lr': lr}  # todo - Must be all Tensors ?
+            'log':  tensorboard_logs # todo - Must be all Tensors ?
         }
 
     def validation_step(self, b, _):

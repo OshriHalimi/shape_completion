@@ -40,15 +40,15 @@ def parser():
 
     # Optimizer
     p.add_argument("--weight_decay", type=float, default=0, help="Adam's weight decay - usually use 1e-4")
-    p.add_argument("--plateau_patience", type=none_or_int, default=5,
+    p.add_argument("--plateau_patience", type=none_or_int, default=None,
                    help="Number of epoches to wait on learning plateau before reducing step size. Use None to shut off")
-    p.add_argument("--early_stop_patience", type=int, default=10,
+    p.add_argument("--early_stop_patience", type=int, default=100,
                    help="Number of epoches to wait on learning plateau before stopping train")
 
     # L2 Losses: Use 0 to ignore, >0 to compute
     p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas] loss multiplication modifiers')
-    # Loss Modifiers: # TODO - Implement for Euclid Maps as well.
+    # Loss Modifiers: # TODO - Implement for Euclid Maps & Face Areas as well.
     p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0),
                    help='[XYZ,Normal,Moments] increased weight on mask vertices. Use val <= 1 to disable')
     p.add_argument('--dist_v_penalties', nargs=3, type=float, default=(0, 0, 0),
