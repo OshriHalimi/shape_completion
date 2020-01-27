@@ -18,24 +18,27 @@ from util.gen import warn
 #                                                   Loss Helpers
 # ----------------------------------------------------------------------------------------------------------------------
 class F2PSMPLLoss:
-    def __init__(self, hparams, faces, device):
+    def __init__(self, hp, faces):
+        # TODO - Might be a problem here when used on multiple GPUs, seeing we hard-code the device
+        # Copy over from the hyper-params - Remove ties to the container
+        self.lambdas = hp.lambdas
+        self.mask_penalties = list(hp.mask_penalties)
+        self.dist_v_penalties = list(hp.dist_v_penalties)
 
-        # Take all deciding factors:
-        self.in_channels = hparams.in_channels
-        self.lambdas = hparams.lambdas
-        self.mask_penalties = list(hparams.mask_penalties)
-        self.dist_v_penalties = list(hparams.dist_v_penalties)
+        # For CUDA:
+        self.dev = hp.dev
+        self.non_blocking = hp.NON_BLOCKING
+        self.def_prec = getattr(torch,hp.DEF_COMPUTE_PRECISION)
+
+        # Handle Faces:
         assert faces is not None, "No valid faces found"
-        from cfg import DEF_COMPUTE_PRECISION, NON_BLOCKING
-        self.faces = torch.from_numpy(faces).long().to(device=device,non_blocking=NON_BLOCKING)
-        self.device = device
-        self.def_prec = getattr(torch,DEF_COMPUTE_PRECISION)
+        self.f = torch.from_numpy(faces).long().to(device=self.dev, non_blocking=self.non_blocking)
 
         # Sanity Check - Input Channels:
         if self.lambdas[1] > 0:
-            assert self.in_channels >= 6, "Only makes sense to compute normal losses with normals available"
+            assert hp.in_channels >= 6, "Only makes sense to compute normal losses with normals available"
         if self.lambdas[2] > 0:
-            assert self.in_channels >= 12, "Only makes sense to compute moment losses with moments available"
+            assert hp.in_channels >= 12, "Only makes sense to compute moment losses with moments available"
 
         # Sanity Check - Destroy dangling mask_penalties/distant_v_penalties
         for i, lamb in enumerate(self.lambdas[0:3]):  # TODO - Implement 0:5
@@ -54,7 +57,7 @@ class F2PSMPLLoss:
 
         # Micro-Optimization - Reduce movement to the GPU:
         if [p for p in self.dist_v_penalties if p > 1]:  # if using_distant_vertex
-            self.dist_v_ones = torch.ones((1, 1, 1), device=self.device,dtype=self.def_prec)  # TODO
+            self.dist_v_ones = torch.ones((1, 1, 1), device=self.dev, dtype=self.def_prec)  # TODO
 
 
     def compute(self, b, gtrb):
@@ -70,7 +73,7 @@ class F2PSMPLLoss:
         mask_vi = b['gt_mask_vi']
         nv = gtrb.shape[1]
 
-        loss = torch.zeros((1), device=self.device)
+        loss = torch.zeros((1), device=self.dev,dtype=self.def_prec)
         for i, lamb in enumerate(self.lambdas):
             if lamb > 0:
                 w = self._mask_penalty_weight(mask_b=mask_vi, nv=nv, p=self.mask_penalties[i]) * \
@@ -103,7 +106,7 @@ class F2PSMPLLoss:
         w = torch.ones((b, nv, 1),dtype=self.def_prec)
         for i in range(b):
             w[i, mask_b[i][0], :] = p
-        return w.cuda(device=self.device)  # TODO
+        return w.cuda(device=self.dev,non_blocking=self.non_blocking)  # TODO
 
     def _distant_vertex_weight(self, gtb_xyz, tpb_xyz, p):
         """

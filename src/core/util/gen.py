@@ -267,6 +267,17 @@ def func_name():
     import traceback
     return traceback.extract_stack(None, 2)[0][2]
 
+
+def get_book_variable_module_name(module_name):
+    from importlib import import_module
+    from types import ModuleType #,ClassType
+    module = import_module(module_name)
+    return {k: v for k, v in module.__dict__.items() if
+            not (k.startswith('__') or k.startswith('_'))
+            and not isinstance(v,ModuleType)}
+            # and not isinstance(v,ClassType)}
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------

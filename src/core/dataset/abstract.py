@@ -1,9 +1,10 @@
 from pathlib import Path
 from torch.utils.data import DataLoader
 from dataset.collate import completion_collate
-import torch.utils.data
+from collections import Sequence
 from abc import ABC  # , abstractmethod
 from torch.utils.data.sampler import SubsetRandomSampler
+from util.torch_data_ext import determine_worker_num, ReconstructableDataLoader
 from util.gen import banner, convert_bytes, time_me
 from util.container import split_frac, enum_eq
 from util.mesh_io import numpy2vtkactor, print_vtkplotter_help
@@ -16,7 +17,6 @@ import sys
 from tqdm import tqdm
 from types import MethodType
 import time
-import psutil
 from timeit import default_timer as timer
 
 
@@ -44,6 +44,8 @@ class PointDataset(ABC):
         assert self._data_dir.is_dir(), f"Data directory of {self.name()} is invalid: \nCould not find {self._data_dir}"
         self._data_dir = self._data_dir.resolve()
 
+        # Dirty and hacky - Shouldn't be here, but it is the simplest.
+        self._in_cfg = None
         # Basic Dataset Info
         self._hit = self._construct_hit()
 
@@ -92,36 +94,39 @@ class PointDataset(ABC):
         if num_samples > self.num_pnt_clouds():
             warn(f"Requested {num_samples} samples when dataset only holds {self.num_pnt_clouds()}. "
                  f"Returning the latter")
-        ldr = self.loader(ids=None, transforms=transforms, batch_size=num_samples, device='cpu-single')
+        ldr = self._loader(ids=None, transforms=transforms, batch_size=num_samples, device='cpu-single')
         return next(iter(ldr))
         # return [attempt_squeeze(next(ldr_it)) for _ in range(num_samples)]
 
-    def loader(self, ids=None, transforms=None, batch_size=16, device='cuda'):
+    def _loader(self, ids=None, transforms=None, batch_size=16, device='cuda'):
         # TODO - Consider adding support for num objects + split
         # TODO - Add distributed support here. What does num_workers need to be?
         if ids is None:
             ids = range(self.num_pnt_clouds())
         assert len(ids) > 0, "Found loader with no data samples inside"
-        device = device.lower()
+
+        device = str(device).split(':')[0]  # Compatible for both strings & pytorch devs
         assert device in ['cuda', 'cpu', 'cpu-single']
         pin_memory = (device == 'cuda')
         if device == 'cpu-single':
             n_workers = 0
         else:
-            n_workers = determine_worker_num(len(ids),batch_size)
+            n_workers = determine_worker_num(len(ids), batch_size)
 
         # if self.use_ddp:
         #     train_sampler = DistributedSampler(dataset)
 
-        train_loader = DataLoader(self._set_to_torch_set(transforms, len(ids)), batch_size=batch_size,
-                                  sampler=SubsetRandomSampler(ids), num_workers=n_workers,
-                                  pin_memory=pin_memory, collate_fn=completion_collate)
+        train_loader = ReconstructableDataLoader(self._set_to_torch_set(transforms, len(ids)), batch_size=batch_size,
+                                                 sampler=SubsetRandomSampler(ids), num_workers=n_workers,
+                                                 pin_memory=pin_memory, collate_fn=completion_collate)
         return train_loader
 
-    def split_loaders(self, split, s_nums, s_shuffle, s_transform, global_shuffle=False, batch_size=16, device='cuda'):
+    def split_loaders(self, s_nums=None, s_shuffle=True, s_transform=(Center(),), split=(1,),
+                      global_shuffle=False, batch_size=16, device='cuda'):
         """
         # s for split
-        :param split: A list of fracs summing to 1: e.g.: [0.9,0.1] or [0.8,0.15,0.05]
+        :param split: A list of fracs summing to 1: e.g.: [0.9,0.1] or [0.8,0.15,0.05]. Don't specify anything for a
+        single loader
         :param s_nums: A list of integers: e.g. [1000,50] or [1000,5000,None] - The number of objects to take from each
         range split. If None, it will take the maximal number possible
         :param s_shuffle: A list of booleans: If s_shuffle[i]==True, the ith split will be shuffled before truncations
@@ -129,11 +134,20 @@ class PointDataset(ABC):
         :param s_transform: A list - s_transforms[i] is the transforms for the ith split
         :param global_shuffle: If True, shuffles the entire set before split
         :param batch_size: Integer > 0
-        :param device: 'cuda' or 'cpu' or 'cpu-single'
+        :param device: 'cuda' or 'cpu' or 'cpu-single' or pytorch device
         :return: A list of (loaders,num_samples)
         """
-
+        # Handle inpput arguments:
+        if not isinstance(s_shuffle, Sequence):
+            s_shuffle = [s_shuffle]
+        if not isinstance(s_nums, Sequence):
+            s_nums = [s_nums]
+        if s_transform is None:
+            s_transform = []
+            # Transforms must be a list, all others are non-Sequence
         assert sum(split) == 1, "Split fracs must sum to 1"
+
+        # Logic:
         ids = list(range(self.num_pnt_clouds()))
         if global_shuffle:
             np.random.shuffle(ids)  # Mixes up the whole set
@@ -152,7 +166,20 @@ class PointDataset(ABC):
             if do_shuffle:
                 np.random.shuffle(set_ids)  # Truncated sets may now hold different ids
             set_ids = set_ids[:eff_set_size]  # Truncate
-            loaders.append(self.loader(ids=set_ids, transforms=transforms, batch_size=batch_size, device=device))
+            recon_stats = {
+                'dataset_name': self.name(),
+                'batch_size': batch_size,
+                'split': split,
+                'id_in_split': i,
+                'set_size': eff_set_size,
+                'transforms': str(transforms),
+                'global_shuffle': global_shuffle,
+                'partition_shuffle': do_shuffle}
+            if self._in_cfg is not None:
+                recon_stats['in_cfg'] = self._in_cfg.name
+            ldr = self._loader(ids=set_ids, transforms=transforms, batch_size=batch_size, device=device)
+            ldr.init_recon_table(recon_stats)
+            loaders.append(ldr)
 
         if n_parts == 1:
             loaders = loaders[0]
@@ -239,31 +266,6 @@ class PointDatasetLoaderBridge(torch.utils.data.Dataset):
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
-
-def loader_ids(loader):
-    return list(loader.batch_sampler.sampler.indices)
-
-
-def exact_num_loader_obj(loader):
-    # This is more exact than len(loader)*batch_size - Seeing we don't round up the last batch to batch_size
-    return len(loader.dataset)
-
-
-def determine_worker_num(num_examples,batch_size):
-    num_batch_runs = int(num_examples/batch_size)
-    if num_batch_runs < 10: # Very small amount of runs
-        return 0
-    else:
-        cpu_cnt = psutil.cpu_count(logical=False)
-        if batch_size < cpu_cnt:
-            return int(batch_size/2)
-        else:
-            return int(cpu_cnt /2)
-
-
-# ----------------------------------------------------------------------------------------------------------------------
-#
-# ----------------------------------------------------------------------------------------------------------------------
 class CompletionProjDataset(PointDataset, ABC):
     def __init__(self, data_dir_override, cls, shape, in_channels, disk_space_bytes, in_cfg):
         super().__init__(data_dir_override=data_dir_override, cls=cls, shape=shape,
@@ -277,13 +279,13 @@ class CompletionProjDataset(PointDataset, ABC):
 
         from cfg import DANGEROUS_MASK_THRESH, DEF_COMPUTE_PRECISION
         self._mask_thresh = DANGEROUS_MASK_THRESH
-        self._def_precision = getattr(np,DEF_COMPUTE_PRECISION)
+        self._def_precision = getattr(np, DEF_COMPUTE_PRECISION)
 
     def _transformation_finalizer(self, transforms):
         # A bit messy
         keys = [('gt_part', 'gt_mask_vi', 'gt')]
         if enum_eq(self._in_cfg, InCfg.PART2PART):
-            keys.append((('tp', 'tp_mask_vi', 'tp'))) # Override tp
+            keys.append((('tp', 'tp_mask_vi', 'tp')))  # Override tp
         transforms.append(PartCompiler(keys))
         return transforms
 
@@ -298,15 +300,15 @@ class CompletionProjDataset(PointDataset, ABC):
     def _full2part_load(self, fps):
         # TODO - Add in support for faces that are loaded from file - by overloading hi2full for example
 
-        hi = fps[0]
+        gt_hi = fps[0]
         gt = self._full2data(fps[1]).astype(self._def_precision)
         gt_mask_vi = self._proj2data(fps[2])
         tp_hi = fps[3]
         tp = self._full2data(fps[4]).astype(self._def_precision)
         if len(gt_mask_vi) < self._mask_thresh:
-            warn(f'Found mask of length {len(gt_mask_vi)} with id: {hi}')
+            warn(f'Found mask of length {len(gt_mask_vi)} with id: {gt_hi}')
 
-        return {'f': self._f, 'gt_hi': hi, 'gt': gt, 'gt_mask_vi': gt_mask_vi, 'tp_hi': tp_hi, 'tp': tp}
+        return {'f': self._f, 'gt_hi': gt_hi, 'gt': gt, 'gt_mask_vi': gt_mask_vi, 'tp_hi': tp_hi, 'tp': tp}
 
     def _part2part_path(self, hi):
         fps = self._full2part_path(hi)
@@ -391,16 +393,3 @@ if __name__ == "__main__":
     ds = PointDatasetMenu.get('AmassValdPyProj', in_cfg=InCfg.FULL2PART, in_channels=3)
     # ds.validate_dataset()
     ds.show_sample(key='gt', strategy='mesh', n_shapes=8)
-
-# ----------------------------------------------------------------------------------------------------------------------
-#                                                     Graveyard
-# ----------------------------------------------------------------------------------------------------------------------
-# euc_dist = np.mean((template - gt) ** 2)
-#
-# if self.filtering > 0:
-#     if self.use_same_subject == True:
-#         while np.random.rand() > (euc_dist / self.filtering):
-#             subject_id_full, subject_id_part, pose_id_full, pose_id_part, mask_id = self.translate_index()
-#             template = self.read_off(subject_id_full, pose_id_full)
-#             gt = self.read_off(subject_id_part, pose_id_part)
-#             euc_dist = np.mean((template - gt) ** 2)

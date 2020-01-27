@@ -57,17 +57,22 @@ def read_off(fp):
 #                                                   WRITE
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def write_off(fp, v, f):
+def write_off(fp, v, f=None):
+    if f is None:
+        f = []
     str_v = [f"{vv[0]} {vv[1]} {vv[2]}\n" for vv in v]
     str_f = [f"3 {ff[0]} {ff[1]} {ff[2]}\n" for ff in f]
     with open(fp, 'w') as meshfile:
         meshfile.write(f'OFF\n{len(str_v)} {len(str_f)} 0\n{"".join(str_v)}{"".join(str_f)}')
 
 
-def write_obj(fp, v, f):
+def write_obj(fp, v, f=None):
+    if f is None:
+        f = []
+    else:
+        f += 1 # Faces are 1-based, not 0-based in obj files
     str_v = [f"v {vv[0]} {vv[1]} {vv[2]}\n" for vv in v]
-    # Faces are 1-based, not 0-based in obj files
-    str_f = [f"f {ff[0]} {ff[1]} {ff[2]}\n" for ff in f + 1]
+    str_f = [f"f {ff[0]} {ff[1]} {ff[2]}\n" for ff in f]
     with open(fp, 'w') as meshfile:
         meshfile.write(f'{"".join(str_v)}{"".join(str_f)}')
 
@@ -122,16 +127,16 @@ def print_vtkplotter_help():
 #                                                   TODO - Integrate
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def write_ply(output_file, vertices, indices, normals, colors):
-    str_vertices = ["{} {} {}".format(v[0], v[1], v[2]) for v in vertices]
-    str_indices = ["3 {} {} {}\n".format(i[0], i[1], i[2]) for i in indices]
-    str_normals = ["{} {} {}".format(n[0], n[1], n[2]) for n in normals]
+def write_ply(fp, v, f, n, clrs):
+    str_vertices = ["{} {} {}".format(v[0], v[1], v[2]) for v in v]
+    str_indices = ["3 {} {} {}\n".format(i[0], i[1], i[2]) for i in f]
+    str_normals = ["{} {} {}".format(n[0], n[1], n[2]) for n in n]
     # no transparency, alpha = 255
-    str_colors = ["{} {} {}".format(c[0], c[1], c[2]) for c in colors]
+    str_colors = ["{} {} {}".format(c[0], c[1], c[2]) for c in clrs]
 
-    str_vertices = ["{} {} {}\n".format(str_vertices[i], str_normals[i], str_colors[i]) for i in range(len(vertices))]
+    str_vertices = ["{} {} {}\n".format(str_vertices[i], str_normals[i], str_colors[i]) for i in range(len(v))]
 
-    with open(output_file, "w") as meshfile:
+    with open(fp, "w") as meshfile:
         meshfile.write('''ply
 format ascii 1.0
 comment VCGLIB generated

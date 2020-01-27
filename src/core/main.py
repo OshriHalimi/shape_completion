@@ -1,6 +1,6 @@
-from util.pytorch_extensions import PytorchNet, set_determinsitic_run
+from util.torch_ext import PytorchNet, set_determinsitic_run
 from dataset.datasets import PointDatasetMenu
-from util.gen import none_or_int, banner, tutorial , set_logging_to_stdout
+from util.gen import none_or_int, banner, tutorial, set_logging_to_stdout
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
 from architecture.lightning import train_lightning, test_lightning
@@ -21,8 +21,8 @@ def parser():
     p.add_argument('--exp_name', type=str, default='', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
-    p.add_argument('--save_completions', type=bool, default=False,
-                   help='Test flag. If true, saves the completions to a .ply file')
+    p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
+                   help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f)')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
@@ -36,7 +36,7 @@ def parser():
     p.add_argument('--force_train_epoches', type=int, default=1,
                    help="Force train for this amount. Usually we'd early stop using the callback. Use 1 to disable")
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
-    p.add_argument('--use_tensorboard', type=bool, default=True)
+    p.add_argument('--use_tensorboard', type=bool, default=True)  # TODO - Not in use
 
     # Optimizer
     p.add_argument("--weight_decay", type=float, default=0, help="Adam's weight decay - usually use 1e-4")
@@ -44,6 +44,7 @@ def parser():
                    help="Number of epoches to wait on learning plateau before reducing step size. Use None to shut off")
     p.add_argument("--early_stop_patience", type=int, default=100,
                    help="Number of epoches to wait on learning plateau before stopping train")
+    # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
     # L2 Losses: Use 0 to ignore, >0 to compute
     p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0, 0, 0, 0),
@@ -57,10 +58,8 @@ def parser():
     # Computation
     p.add_argument('--gpus', type=none_or_int, default=-1, help='Use -1 to use all available. Use None to run on CPU')
     p.add_argument('--distributed_backend', type=str, default='dp',
-                   help='supports three options dp, ddp, ddp2')  # TODO - ddp2,ddp Unsupported
-    p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Unsupported
-
-    # Architecture
+                   help='supports three options dp, ddp, ddp2')  # TODO - ddp2,ddp Untested
+    p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
     return [p]
 
@@ -84,10 +83,11 @@ def train_main():
 
 def test_main():
     # Decide Model:
+    # TODO - Fix this
     nn = F2PEncoderDecoder(parser())
     hp = nn.hyper_params()
     ds = PointDatasetMenu.get('DFaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=hp.in_channels)
-    test_ldr = ds.loader(ids=range(1000), transforms=None, batch_size=hp.batch_size, device=hp.dev)
+    test_ldr = ds._loader(ids=range(1000), transforms=None, batch_size=hp.batch_size, device=hp.dev)
     nn.init_data(loaders=[None, None, test_ldr])
     test_lightning(nn)
 
@@ -97,6 +97,7 @@ def test_main():
 # ----------------------------------------------------------------------------------------------------------------------
 @tutorial
 def dataset_tutorial():
+    # TODO - Fix Tutorial
     # Use the menu to see which datasets are implemented
     print(PointDatasetMenu.which())
     ds = PointDatasetMenu.get('FaustPyProj')  # This will fail if you don't have the data on disk
@@ -119,7 +120,7 @@ def dataset_tutorial():
     print(ds.sample(num_samples=1, transforms=[Center()]))
     # You can also ask for a simple loader, given by the ids you'd like to see.
     # Pass ids = None to index the entire dataset, form point_cloud = 0 to point_cloud = num_point_clouds -1
-    my_loader = ds.loader(ids=None, transforms=[Center()], batch_size=16, device='cpu-single')
+    my_loader = ds._loader(ids=None, transforms=[Center()], batch_size=16, device='cpu-single')
 
     # To receive train/validation splits or train/validation/test splits use:
     my_loaders = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=[800, 100, 100],
@@ -134,12 +135,13 @@ def dataset_tutorial():
 
 @tutorial
 def pytorch_net_tutorial():
+    # TODO - Fix Tutorial
     # What is it? PyTorchNet is a derived class of LightningModule, allowing for extended operations on it
     # Let's see some of them:
 
     nn = F2PEncoderDecoder()  # Remember that F2PEncoderDecoder is a subclass of PytorchNet
     nn.identify_system()  # Outputs the specs of the current system - Useful for identifying existing GPUs
-    nn.summary(x_shape=(5,6890,3))
+    nn.summary(x_shape=(5, 6890, 3))
     banner('General Net Info')
     print(f'On GPU = {nn.ongpu()}')  # Whether the system is on the GPU or not. Will print False
     target_input_size = ((6890, 3), (6890, 3))
@@ -159,4 +161,5 @@ def pytorch_net_tutorial():
     py_nn.summary(x_shape=(3, 28, 28), batch_size=64)
 
 
-if __name__ == '__main__': train_main()
+if __name__ == '__main__':
+    train_main()

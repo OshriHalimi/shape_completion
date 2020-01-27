@@ -215,7 +215,9 @@ class PytorchNet(LightningModule):
         warn(f'Experimental input size prediction : {in_shape}')
         return in_shape
 
-
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                   Standalone Functions
+# ----------------------------------------------------------------------------------------------------------------------
 
 def set_determinsitic_run(seed=None):
     if seed is None:
@@ -258,12 +260,11 @@ def worker_init_closure(seed=None):
 #         print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
 #         print('Cached:   ', round(torch.cuda.memory_cached(0) / 1024 ** 3, 1), 'GB')
 
-def test():
-    import torch
-    import torchvision
-    model = torchvision.models.resnet50(False)
-    pymodel = PytorchNet.monkeypatch(model)
 
 
 if __name__ == '__main__':
-    test()
+    import torch
+    import torchvision
+
+    model = torchvision.models.resnet50(False)
+    pymodel = PytorchNet.monkeypatch(model)

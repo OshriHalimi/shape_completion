@@ -109,8 +109,8 @@ class HierarchicalIndexTree:
             for multindex in flat_hit:
                 acc_list[0].append(tot_obj_cnt)
                 acc_list[1].append(multindex[0:len(multindex) - 1])
-                tot_obj_cnt += multindex[
-                    -1]  # Increase the accumulation by the last member in multilevel index tree - the object cnt
+                tot_obj_cnt += multindex[-1]
+                # Increase the accumulation by the last member in multilevel index tree - the object cnt
             return acc_list, tot_obj_cnt
 
     @staticmethod

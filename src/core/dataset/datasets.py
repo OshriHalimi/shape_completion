@@ -165,10 +165,9 @@ def test_dataset():
     # ds.validate_dataset()
     # ds.show_sample()
     # print(samp)
-    # tl = ds.loader(ids=None,batch_size=2, transforms=[Center()])
     # t1,vl,tsl = ds.split_loaders(split=[0.5,0.4,0.1],s_nums=[100,200,300000],
     # s_shuffle=[True]*3,s_transform=[Center()]*3,global_shuffle=True)
-    tl = ds.split_loaders(split=[1], s_nums=[None] , s_shuffle=[True] , s_transform=[Center()],device='cpu-single',batch_size=5)
+    tl = ds.split_loaders(s_nums=None , s_shuffle=True , s_transform=[Center()],device='cpu-single',batch_size=5)
     #
     # # ids = get_loader_ids(tl)
     from timeit import default_timer as timer
