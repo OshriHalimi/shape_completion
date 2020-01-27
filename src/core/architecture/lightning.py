@@ -74,8 +74,6 @@ class CompletionLightningModel(PytorchNet):
     def training_step(self, b, _):
         from dataset.transforms import show_point_cloud
         pred = self.forward(b['gt_part'], b['tp'])
-        show_point_cloud(b['gt_part'][0].cpu())
-        show_point_cloud(b['tp'][0].cpu())
         loss_train = self.loss.compute(b, pred).unsqueeze(0)
         lr = self.learning_rate(self.opt)
         tensorboard_logs = {'train_loss': loss_train, 'learning_rate': lr}
@@ -131,6 +129,7 @@ class CompletionLightningModel(PytorchNet):
 def train_lightning(nn, fast_dev_run=False):
     banner('Network Init')
     nn.identify_system()
+    nn.summary(x_shape=((6890,3),(6890,3)))
     hp = nn.hyper_params()
     early_stop = EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience, verbose=1, mode='min')
     # Consider min_delta option for EarlyStopping

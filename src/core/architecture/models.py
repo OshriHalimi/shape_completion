@@ -32,7 +32,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
     def _init_model(self):
         for m in self.modules():
             if isinstance(m, nn.Conv1d):
-                init.normal_(m.weight, mean=1.0, std=0.02)
+                init.normal_(m.weight, mean=0, std=0.02)
             elif isinstance(m, nn.BatchNorm1d):
                 init.normal_(m.weight, mean=1.0, std=0.02)
                 init.constant_(m.bias, 0)
@@ -122,34 +122,44 @@ class PointNetFeatures(nn.Module):
 
 
 class CompletionDecoder(nn.Module):
-    CCFG = [1, 1, 2, 4, 8, 16, 16]  # Enlarge this if you need more
-
     # Input: Point code for each point: [b x pnt_code_size x nv]
     # Where pnt_code_size == 3 + 2*shape_code
     # Output: predicted coordinates for each point, after the deformation [B x 3 x nv]
     def __init__(self, pnt_code_size, out_channels, num_convl):
+        self.point_code_size = pnt_code_size
+        self.num_output_channels = out_channels
         super().__init__()
+        self.conv1 = torch.nn.Conv1d(self.point_code_size, self.point_code_size, 1)
+        self.conv2 = torch.nn.Conv1d(self.point_code_size, self.point_code_size // 2, 1)
+        self.conv3 = torch.nn.Conv1d(self.point_code_size // 2, self.point_code_size // 4, 1)
+        self.conv4 = torch.nn.Conv1d(self.point_code_size // 4, self.point_code_size // 8, 1)
+        self.conv5 = torch.nn.Conv1d(self.point_code_size // 8, self.point_code_size // 16, 1)
+        self.conv6 = torch.nn.Conv1d(self.point_code_size // 16, self.point_code_size // 16, 1)
+        self.conv7 = torch.nn.Conv1d(self.point_code_size // 16, self.point_code_size // 16, 1)
+        self.conv8 = torch.nn.Conv1d(self.point_code_size // 16, self.point_code_size // 16, 1)
+        self.conv9 = torch.nn.Conv1d(self.point_code_size // 16, self.num_output_channels, 1)  # OH: decoder output layer
 
-        self.pnt_code_size = pnt_code_size
-        self.out_channels = out_channels
-        if num_convl > len(self.CCFG):
-            raise NotImplementedError("Please enlarge the Conv Config vector")
-
-        self.thl = nn.Tanh()
-        self.convls = []
-        self.bnls = []
-        for i in range(num_convl - 1):
-            self.convls.append(nn.Conv1d(self.pnt_code_size // self.CCFG[i], self.pnt_code_size // self.CCFG[i + 1], 1))
-            self.bnls.append(nn.BatchNorm1d(self.pnt_code_size // self.CCFG[i + 1]))
-        self.convls.append(nn.Conv1d(self.pnt_code_size // self.CCFG[num_convl - 1], self.out_channels, 1))
-        self.convls = nn.ModuleList(self.convls)
-        self.bnls = nn.ModuleList(self.bnls)
+        self.th = nn.Tanh()
+        self.bn1 = torch.nn.BatchNorm1d(self.point_code_size)
+        self.bn2 = torch.nn.BatchNorm1d(self.point_code_size // 2)
+        self.bn3 = torch.nn.BatchNorm1d(self.point_code_size // 4)
+        self.bn4 = torch.nn.BatchNorm1d(self.point_code_size // 8)
+        self.bn5 = torch.nn.BatchNorm1d(self.point_code_size // 16)
+        self.bn6 = torch.nn.BatchNorm1d(self.point_code_size // 16)
+        self.bn7 = torch.nn.BatchNorm1d(self.point_code_size // 16)
+        self.bn8 = torch.nn.BatchNorm1d(self.point_code_size // 16)
 
     def forward(self, x):
-
-        for convl, bnl in zip(self.convls[:-1], self.bnls):
-            x = F.relu(bnl(convl(x)))
-        return 2 * self.thl(self.convls[-1](x))  # TODO - Why is there a 2 here?
+        x = F.relu(self.bn1(self.conv1(x)))
+        x = F.relu(self.bn2(self.conv2(x)))
+        x = F.relu(self.bn3(self.conv3(x)))
+        x = F.relu(self.bn4(self.conv4(x)))
+        x = F.relu(self.bn5(self.conv5(x)))
+        x = F.relu(self.bn6(self.conv6(x)))
+        x = F.relu(self.bn7(self.conv7(x)))
+        x = F.relu(self.bn8(self.conv8(x)))
+        x = 2 * self.th(self.conv9(x))
+        return x
 
 
 # ----------------------------------------------------------------------------------------------------------------------

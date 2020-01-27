@@ -26,8 +26,8 @@ def parser():
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
-    p.add_argument('--batch_size', type=int, default=5, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(50, 50, 50),
+    p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=3,
                    help='Number of input channels')
@@ -75,7 +75,7 @@ def train_main():
 
     # Init loaders and faces:
     ds = PointDatasetMenu.get('FaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=hp.in_channels)
-    ldrs = ds.split_loaders(split=[0.7, 0.1, 0.2], s_nums=hp.counts,
+    ldrs = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts,
                             s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev)
 
     nn.init_data(loaders=ldrs)
@@ -122,7 +122,7 @@ def dataset_tutorial():
     my_loader = ds.loader(ids=None, transforms=[Center()], batch_size=16, device='cpu-single')
 
     # To receive train/validation splits or train/validation/test splits use:
-    my_loaders = ds.split_loaders(split=[0.5, 0.4, 0.1], s_nums=[100, 200, 300],
+    my_loaders = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=[800, 100, 100],
                                   s_shuffle=[True] * 3, s_transform=[Center()] * 3, global_shuffle=True)
     # You'll receive len(split) dataloaders, where each part i is split[i]*num_point_clouds size. From this split,
     # s_nums[i] will be taken for the dataloader, and transformed by s_transform[i].
@@ -139,7 +139,7 @@ def pytorch_net_tutorial():
 
     nn = F2PEncoderDecoder()  # Remember that F2PEncoderDecoder is a subclass of PytorchNet
     nn.identify_system()  # Outputs the specs of the current system - Useful for identifying existing GPUs
-
+    nn.summary(x_shape=(5,6890,3))
     banner('General Net Info')
     print(f'On GPU = {nn.ongpu()}')  # Whether the system is on the GPU or not. Will print False
     target_input_size = ((6890, 3), (6890, 3))
