@@ -55,8 +55,8 @@ def train_lightning(nn, fast_dev_run=False):
     weights_summary = 'full', 'top' , None
     accumulate_grad_batches = 1
     """
-    # banner('Training Phase')
-    # trainer.fit(nn)
+    banner('Training Phase')
+    trainer.fit(nn)
     banner('Testing Phase')
     trainer.test(nn)
 
@@ -129,9 +129,14 @@ class CompletionLightningModel(PytorchNet):
     def training_step(self, b, _):
         pred = self.forward(b['gt_part'], b['tp'])
         loss = self.loss.compute(b, pred).unsqueeze(0)
+        logs = {'loss': loss}
+
+        if self.global_step % self.hparams.mesh_frequency == 0:
+            self.logger.experiment.add_mesh(f"mesh_{self.global_step}", vertices=b['tp'][0, :, :].unsqueeze(0))
+
         return {
             'loss': loss,  # Must use 'loss' instead of 'train_loss' due to lightning framework
-            'log': {'loss': loss}
+            'log': logs
         }
 
     def validation_step(self, b, _):

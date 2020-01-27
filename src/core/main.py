@@ -36,7 +36,6 @@ def parser():
     p.add_argument('--force_train_epoches', type=int, default=1,
                    help="Force train for this amount. Usually we'd early stop using the callback. Use 1 to disable")
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
-    p.add_argument('--use_tensorboard', type=bool, default=True)  # TODO - Not in use
 
     # Optimizer
     p.add_argument("--weight_decay", type=float, default=0, help="Adam's weight decay - usually use 1e-4")
@@ -61,6 +60,9 @@ def parser():
                    help='supports three options dp, ddp, ddp2')  # TODO - ddp2,ddp Untested
     p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
+    # Visualization
+    p.add_argument('--use_tensorboard', type=bool, default=True)  # TODO - Not in use
+    p.add_argument('--mesh_frequency', type=int, default=1000)  # The meshes are logged and visualized every mesh_frequency steps
     return [p]
 
 
@@ -161,5 +163,4 @@ def pytorch_net_tutorial():
     py_nn.summary(x_shape=(3, 28, 28), batch_size=64)
 
 
-if __name__ == '__main__':
-    train_main()
+if __name__ == '__main__': train_main()
