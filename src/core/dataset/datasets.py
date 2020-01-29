@@ -163,21 +163,21 @@ def test_dataset():
     ds = PointDatasetMenu.get('DFaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=12)
     # ds.data_summary(with_tree=False)
     # ds.validate_dataset()
-    # ds.show_sample()
+    ds.show_sample(strategy='mesh')
     # print(samp)
     # t1,vl,tsl = ds.split_loaders(split=[0.5,0.4,0.1],s_nums=[100,200,300000],
-    # s_shuffle=[True]*3,s_transform=[Center()]*3,global_shuffle=True)
-    tl = ds.split_loaders(s_nums=None , s_shuffle=True , s_transform=[Center()],device='cpu-single',batch_size=5)
-    #
-    # # ids = get_loader_ids(tl)
-    from timeit import default_timer as timer
-    start = timer()
-    for obj in tl:
-        obj['gt'].to('cuda')
-        obj['tp'].to('cuda')
-        end = timer()
-        print(f'Load & Transfer Time: {end - start}')
-        start = end
+    # # s_shuffle=[True]*3,s_transform=[Center()]*3,global_shuffle=True)
+    # tl = ds.split_loaders(s_nums=None , s_shuffle=True , s_transform=[Center()],device='cpu-single',batch_size=5)
+    # #
+    # # # ids = get_loader_ids(tl)
+    # from timeit import default_timer as timer
+    # start = timer()
+    # for obj in tl:
+    #     obj['gt'].to('cuda')
+    #     obj['tp'].to('cuda')
+    #     end = timer()
+    #     print(f'Load & Transfer Time: {end - start}')
+    #     start = end
 
     # (trainl, num_train), (validl, num_valid) = ds.testloader()
 

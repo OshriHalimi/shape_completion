@@ -7,9 +7,7 @@ from torch.utils.data.sampler import SubsetRandomSampler
 from util.torch_data_ext import determine_worker_num, ReconstructableDataLoader
 from util.gen import warn, banner, convert_bytes, time_me
 from util.container import split_frac, enum_eq
-from util.mesh_visuals import numpy2vtkactor, print_vtkplotter_help
 from util.mesh_compute import trunc_to_vertex_subset
-from vtkplotter import Plotter, Spheres
 from pickle import load
 from copy import deepcopy
 from dataset.transforms import *
@@ -325,40 +323,30 @@ class CompletionProjDataset(PointDataset, ABC):
         return comp_d
 
     def show_sample(self, n_shapes=8, key='gt_part', strategy='spheres'):
-
+        from util.mesh_visuals import plot_mesh_montage
+        assert strategy in ['spheres', 'mesh', 'cloud']
         using_full = key in ['gt', 'tp']
-        # TODO - Remove this by finding the vtk bug - or replacing the whole vtk shit
-        assert not (not using_full and strategy == 'mesh'), "Mesh strategy for 'part' gets stuck in vtkplotter"
+        # assert not (not using_full and strategy == 'mesh'), "Mesh strategy for 'part' gets stuck in vtkplotter"
         fp_fun = self._hi2full_path if using_full else self._hi2proj_path
+        samp = self.sample(n_shapes)
 
-        samp = self.sample(num_samples=n_shapes, transforms=None)
-        vp = Plotter(N=n_shapes, axes=0)  # ,size="full"
-        vp.legendSize = 0.4
-        for i in range(n_shapes):  # for each available color map name
+        origin = key.split('_')[0]
+        labelb = [f'{key} | {fp_fun(samp[f"{origin}_hi"][i]).name}' for i in range(n_shapes)]
+        vb = samp[key][:, :, 0:3].numpy()
 
-            name = key.split('_')[0]
+        if strategy == 'mesh':
             if using_full:
-                v, f = samp[key][i, :, 0:3].numpy(), self._f  # TODO - Add in support for faces loaded from file
+                fb = self._f
             else:
-                v, f = trunc_to_vertex_subset(samp[name][i, :, 0:3].numpy(), self._f,
-                                              samp[f'{name}_mask_vi'][i])
+                # TODO - Should we change the vertices as well?
+                fb = [trunc_to_vertex_subset(vb[i], self._f, samp[f'{origin}_mask_vi'][i])[1] for i in range(n_shapes)]
+        else:
+            fb = None
 
-            if strategy == 'cloud':
-                a = numpy2vtkactor(v, None, clr='w')  # clr=v is cool
-            elif strategy == 'mesh':
-                a = numpy2vtkactor(v, f, clr='gold')
-            elif strategy == 'spheres':
-                a = Spheres(v, c='w', r=0.01)  # TODO - compute r with respect to the mesh
-            else:
-                raise NotImplementedError
+        plot_mesh_montage(vb=vb, fb=fb, labelb=labelb, spheres_on=(strategy == 'spheres'),smooth_shade_on=True)
 
-            a.legend(f'{key} | {fp_fun(samp[f"{name}_hi"][i]).name}')
-            vp.show(a, at=i)
+        # @abstractmethod
 
-        print_vtkplotter_help()
-        vp.show(interactive=1)
-
-    # @abstractmethod
     def _hi2proj_path(self, hi):
         raise NotImplementedError
 

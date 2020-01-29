@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 from util.datascience import normr, index_sparse
-from util.mesh_visuals import show_vnormals, show_fnormals
 import cfg
 
 
@@ -35,13 +34,14 @@ def face_barycenters(v, f):
     v2 = v[f[:, 1], :]  # dim: [n_faces x 3]
     v3 = v[f[:, 2], :]  # dim: [n_faces x 3]
 
-    center_x = (1 / 3) * (v1[:, 0] + v2[:, 0] + v3[:, 0])
-    center_y = (1 / 3) * (v1[:, 1] + v2[:, 1] + v3[:, 1])
-    center_z = (1 / 3) * (v1[:, 2] + v2[:, 2] + v3[:, 2])
+    center_x = v1[:, 0] + v2[:, 0] + v3[:, 0]
+    center_y = v1[:, 1] + v2[:, 1] + v3[:, 1]
+    center_z = v1[:, 2] + v2[:, 2] + v3[:, 2]
 
-    face_centers = torch.stack((center_x, center_y, center_z), dim=1) if torch.is_tensor(center_x) \
+    centers = torch.stack((center_x, center_y, center_z), dim=1) if torch.is_tensor(center_x) \
         else np.stack((center_x, center_y, center_z), axis=1)
-    return face_centers
+    centers = (1 / 3) * centers  # Faster to do it here than for each center
+    return centers
 
 
 def padded_part_by_mask(mask_vi, v):
@@ -51,18 +51,29 @@ def padded_part_by_mask(mask_vi, v):
     return v[mask_vi_padded, :]
 
 
-def vnrmls(v, f):
-    # NOTE - Vertices unreferenced by faces will be zero
+def fnrmls(v, f, normalized=True):
+    # TODO - Deprecated if proven slow vs the other versions
+    a = v[f[:, 0], :]
+    b = v[f[:, 1], :]
+    c = v[f[:, 2], :]
+    fn = np.cross(b - a, c - a)
+    if normalized:
+        fn = normr(fn)
+    return fn
+
+
+def vnrmls(v, f, normalized=True):
+    # TODO - Deprecated if proven slow vs the other versions
+    # NOTE - Vertex normals unreferenced by faces will be zero
     if f is None:
         raise NotImplementedError  # TODO - Add in computation for scans, without faces - either with pcnormals/
     else:
-        a = v[f[:, 0], :]
-        b = v[f[:, 1], :]
-        c = v[f[:, 2], :]
-        fn = np.cross(b - a, c - a)
+        fn = fnrmls(v, f, normalized=False)
         matrix = index_sparse(v.shape[0], f)
         vn = matrix.dot(fn)
-        return normr(vn)
+        if normalized:
+            vn = normr(vn)
+        return vn
 
 
 def moments(v):
@@ -233,6 +244,7 @@ def test_vnrmls_grad():
 
 
 def test_vnrmls_visually():
+    from util.mesh_visuals import show_vnormals
     from dataset.datasets import PointDatasetMenu, InCfg
     from dataset.transforms import Center
     ds = PointDatasetMenu.get('FaustPyProj', in_channels=12, in_cfg=InCfg.FULL2PART)
@@ -252,6 +264,7 @@ def test_vnrmls_visually():
 
 
 def test_fnrmls_visually():
+    from util.mesh_visuals import show_fnormals
     from dataset.datasets import PointDatasetMenu, InCfg
     from dataset.transforms import Center
     ds = PointDatasetMenu.get('FaustPyProj', in_channels=12, in_cfg=InCfg.FULL2PART)
