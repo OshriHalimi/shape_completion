@@ -322,7 +322,7 @@ class CompletionProjDataset(PointDataset, ABC):
         comp_d['tp_mask_vi'] = tp_mask_vi
         return comp_d
 
-    def show_sample(self, n_shapes=8, key='gt_part', strategy='spheres'):
+    def show_sample(self, n_shapes=8, key='gt_part', strategy='spheres', with_vnormals=False, *args, **kwargs):
         from util.mesh_visuals import plot_mesh_montage
         assert strategy in ['spheres', 'mesh', 'cloud']
         using_full = key in ['gt', 'tp']
@@ -333,6 +333,10 @@ class CompletionProjDataset(PointDataset, ABC):
         origin = key.split('_')[0]
         labelb = [f'{key} | {fp_fun(samp[f"{origin}_hi"][i]).name}' for i in range(n_shapes)]
         vb = samp[key][:, :, 0:3].numpy()
+        if with_vnormals: # TODO - add intergration for gt_part
+            nb = samp[key][:, :, 3:6].numpy()
+        else:
+            nb = None
 
         if strategy == 'mesh':
             if using_full:
@@ -343,7 +347,8 @@ class CompletionProjDataset(PointDataset, ABC):
         else:
             fb = None
 
-        plot_mesh_montage(vb=vb, fb=fb, labelb=labelb, spheres_on=(strategy == 'spheres'),smooth_shade_on=True)
+        plot_mesh_montage(vb=vb, fb=fb,nb=nb, labelb=labelb, spheres_on=(strategy == 'spheres'),
+                          *args,**kwargs)
 
         # @abstractmethod
 
