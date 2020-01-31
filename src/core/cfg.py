@@ -4,6 +4,7 @@ import pathlib
 r = reconstruction
 b = batch
 v = vertex
+d = dict / dir 
 s = string or split 
 vn = vertex normals
 f = face
@@ -34,6 +35,7 @@ DEF_MINIMAL_LR = 1e-6 # The smallest learning step allowed with LR sched. Works 
 NON_BLOCKING = True # Transfer to GPU in a non-blocking method
 REPORT_LOSS_PER_BATCH = False # If True - will output train loss to logger on every batch. Otherwise - on every epoch
 MAX_EPOCHS = 1000
+N_MESH_SETS = 2 # Parallel plot will plot 8 meshes for each mesh set - 4 from train, 4 from vald
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               PATH CONFIG
 # ----------------------------------------------------------------------------------------------------------------------
@@ -47,4 +49,14 @@ PRIMARY_DATA_DIR = (pathlib.Path(__file__).parents[0] / '..' / '..' / 'data').re
 SUPPORTED_IN_CHANNELS = (3, 6, 12) # The possible supported input channels - either 3, 6 or 12
 DANGEROUS_MASK_THRESH = 100 # The minimal length allowed for mask vertex indices.
 
+# ----------------------------------------------------------------------------------------------------------------------
+#                                               VISUALIZATION CONFIG
+# ----------------------------------------------------------------------------------------------------------------------
+# TODO - Check why in mesh method + tensor colors, colors are interpolated onto the faces.
+VIS_METHOD = 'spheres' # spheres,cloud,mesh  - Choose how to display the meshes
+VIS_CMAP = 'summer' # https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
+# We use two colors: one for the mask verts [Right end of the spectrum] and one for the rest [Left end of the spectrum].
+VIS_SHOW_GRID = False # Visualzie with grid?
+VIS_SMOOTH_SHADING = False # Smooth out the mesh before visualization?  Applicable only for 'mesh' method
+VIS_SHOW_EDGES = False # Visualize with edges? Applicable only for 'mesh' method
 

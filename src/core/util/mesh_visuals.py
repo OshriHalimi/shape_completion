@@ -2,7 +2,10 @@ import torch
 import numpy as np
 import pyvista as pv
 import math
-from util.mesh_compute import face_barycenters
+import cfg
+from util.mesh_compute import face_barycenters, mask_indicator
+from multiprocessing import Process, Manager
+from copy import deepcopy
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -26,7 +29,7 @@ def plot_mesh(*args, **kwargs):
     """
     pv.set_plot_theme("document")  # White background
     p = pv.Plotter()
-    _append_mesh_to_plotter(p, *args, **kwargs)
+    _append_mesh(p, *args, **kwargs)
     p.show()
 
 
@@ -57,8 +60,8 @@ def plot_mesh_montage(vb, fb=None, nb=None, labelb=None, spheres_on=True, grid_o
         n = nb if nb is None else nb[i]
         label = labelb if labelb is None else labelb[i]
         p.subplot(r[i], c[i])
-        _append_mesh_to_plotter(p, v=vb[i], f=f, n=n, label=label, spheres_on=spheres_on, grid_on=grid_on,
-                                clr=clr, normal_clr=normal_clr, smooth_shade_on=smooth_shade_on, show_edges=show_edges)
+        _append_mesh(p, v=vb[i], f=f, n=n, label=label, spheres_on=spheres_on, grid_on=grid_on,
+                     clr=clr, normal_clr=normal_clr, smooth_shade_on=smooth_shade_on, show_edges=show_edges)
 
     p.link_views()
     p.show()
@@ -68,8 +71,8 @@ def plot_mesh_montage(vb, fb=None, nb=None, labelb=None, spheres_on=True, grid_o
 #                                                    Helper Functions
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def _append_mesh_to_plotter(p, v, f=None, n=None, spheres_on=True, grid_on=False, clr='lightcoral',
-                            normal_clr='lightblue', label=None, smooth_shade_on=False, show_edges=False):
+def _append_mesh(p, v, f=None, n=None, spheres_on=True, grid_on=False, clr='lightcoral',
+                 normal_clr='lightblue', label=None, smooth_shade_on=False, show_edges=False, cmap=None):
     # Align arrays:
     v = v.numpy() if torch.is_tensor(v) else v
     f = f.numpy() if torch.is_tensor(f) else f
@@ -91,12 +94,14 @@ def _append_mesh_to_plotter(p, v, f=None, n=None, spheres_on=True, grid_on=False
     if isinstance(clr, str) or len(clr) == 3:
         color = clr
         scalars = None
+        clr_str = clr
     else:
         color = None
+        clr_str = 'w'
         scalars = clr
 
         # Add the meshes to the plotter:
-    p.add_mesh(pnt_cloud, smooth_shading=smooth_shade_on, scalars=scalars, color=color,
+    p.add_mesh(pnt_cloud, smooth_shading=smooth_shade_on, scalars=scalars, color=color, cmap=cmap,
                show_edges=show_edges,  # For full mesh visuals - ignored on point cloud plots
                render_points_as_spheres=spheres_on, point_size=point_size)  # For sphere visuals - ignored on full mesh
 
@@ -118,76 +123,117 @@ def _append_mesh_to_plotter(p, v, f=None, n=None, spheres_on=True, grid_on=False
     # Book-keeping:
     if label is not None and label:
         siz = 0.25
-        p.add_legend(labels=[(label, clr)], size=[siz, siz / 3])
+        p.add_legend(labels=[(label, clr_str)], size=[siz, siz / 3])
     if grid_on:
         p.show_grid()
 
 
-# shrink globe in the background
-def shrink():
-    import pyvista as pv
-    from pyvista import examples
-    import signal
-    globe = examples.load_globe()
-    globe.point_arrays['scalars'] = np.random.rand(globe.n_points)
-    globe.set_active_scalars('scalars')
-
-    plotter = pv.Plotter()
-    plotter.add_mesh(globe, lighting=False, show_edges=True, texture=True, scalars='scalars')
-    plotter.view_isometric()
-
-    def handler(signum, frame):
-        print('Signal handler called with signal', signum)
-        plotter.update_scalars(np.random.rand(globe.n_points))
-
-    # Set the signal handler and a 5-second alarm
-    signal.signal(signal.SIGFPE, handler)
-
-    plotter.show()
-
-
 # ----------------------------------------------------------------------------------------------------------------------#
-#                                                   Tester
+#                                               Parallel Plot suite
 # ----------------------------------------------------------------------------------------------------------------------#
 
-import multiprocessing
-import time
-from pyvista import examples
-from datetime import datetime
+class ParallelPlotter(Process):
+    from cfg import VIS_CMAP, VIS_METHOD, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, N_MESH_SETS, VIS_SHOW_GRID
 
-class Consumer(multiprocessing.Process):
-
-    def __init__(self, task_queue):
+    def __init__(self, shared_dict, faces, n_v):
         super().__init__()
-        self.task_queue = task_queue
+        # self.daemon = True
+        # TODO - Add in plot config
+        self.sd = shared_dict
+        self.last_plotted_epoch = -1
+
+        # Book-keeping:
+        self.train_d, self.vfacesal_d = None, None
+        self.n_v = n_v
+        self.f = faces if self.VIS_METHOD == 'mesh' else None
+
+        self.kwargs = {'smooth_shade_on': self.VIS_SMOOTH_SHADING, 'show_edges': self.VIS_SHOW_EDGES,
+                       'spheres_on': (self.VIS_METHOD == 'spheres'), 'cmap': self.VIS_CMAP,
+                       'grid_on': self.VIS_SHOW_GRID}
 
     def run(self):
-        proc_name = self.name
-        while True:
-            next_task = self.task_queue.get()
-            if next_task is None:
-                # Poison pill means shutdown
-                print(f'Exiting {proc_name}')
-                self.task_queue.task_done()
+        # Init on consumer side:
+        pv.set_plot_theme("document")
+        while 1:
+            try:
+                if self.sd['poison']:
+                    print(f'Pipe poison detected. Exiting plotting supervisor')
+                    break
+            except (BrokenPipeError, EOFError):  # Missing parent
+                print(f'Producer missing. Exiting plotting supervisor')
                 break
-            print('Handling next task')
-            answer = next_task()
-            self.task_queue.task_done()
+
+            current_epoch = self.sd['epoch']
+            # if current_epoch == self.last_plotted_epoch:
+            #     print(f'\nWarning: geometry for epoch {current_epoch} was already plotted')
+            if current_epoch != self.last_plotted_epoch:
+                # print(f'\nPlotting geometry for epoch {current_epoch}')
+                self.last_plotted_epoch = current_epoch
+                self.read_data()
+            self.plot_data()
+
+    # Meant to be called by the consumer
+    def read_data(self):
+        self.train_d, self.val_d = deepcopy(self.sd['data'])
+
+    # Meant to be called by the consumer
+    def plot_data(self):
+
+        p = pv.Plotter(shape=(2 * self.N_MESH_SETS, 4), title=f'Visualization for Epoch {self.last_plotted_epoch}')
+        for di, (d, set_name) in enumerate(zip([self.train_d, self.val_d], ['Train', 'Vald'])):
+            for i in range(self.N_MESH_SETS):
+                subplt_row_id = i + di * self.N_MESH_SETS
+                mask_ind = mask_indicator(self.n_v, d['gt_mask_vi'][i])
+                gtrb = d['gtrb'][i].squeeze()
+                gt = d['gt'][i].squeeze()
+                tp = d['tp'][i].squeeze()
+
+                # TODO - Add support for normals & P2P
+                p.subplot(subplt_row_id, 0)  # GT Reconstructed with colored mask
+                _append_mesh(p, v=gtrb, f=self.f, clr=mask_ind, label=f'{set_name} Reconstruction {i}', **self.kwargs)
+                p.subplot(subplt_row_id, 1)  # GT with colored mask
+                _append_mesh(p, v=gt, f=self.f, clr=mask_ind, label=f'{set_name} GT {i}', **self.kwargs)
+                p.subplot(subplt_row_id, 2)  # TP with colored mask
+                _append_mesh(p, v=tp, f=self.f, clr=mask_ind, label=f'{set_name} TP {i}', **self.kwargs)
+                p.subplot(subplt_row_id, 3)  # GT Reconstructed + Part
+                _append_mesh(p, v=gtrb, f=self.f, clr=mask_ind, **self.kwargs)
+                # TODO - Remove hard coded 'r'. Do we want to enable part as mesh?
+                _append_mesh(p, v=gt[mask_ind, :], f=None, clr='r', label=f'{set_name} Part + Recon {i}', **self.kwargs)
+
+        # p.link_views()
+        p.show()
+
+    @staticmethod
+    def initialize(faces, n_verts):
+        shared_dict = Manager().dict()
+        shared_dict['epoch'] = -1
+        shared_dict['poison'] = False
+        p = ParallelPlotter(shared_dict, faces, n_verts)
+        return p
+
+    # Meant to be called by the producer
+    def push(self, new_epoch, new_data):
+        # new_data = (train_dict,vald_dict)
+        old_epoch = self.sd['epoch']
+        assert new_epoch != old_epoch
+
+        # Update shared data (possibly before process starts)
+        self.sd['data'] = new_data
+        self.sd['epoch'] = new_epoch
+
+        if old_epoch == 0:  # First push
+            self.start()
+
+    # Meant to be called by the producer
+    def finalize(self):
+        self.sd['poison'] = True
+        print('Workload completed - Please exit plotter to complete execution')
+        self.join()
 
 
-class Task():
-    def __call__(self):
-        globe = examples.load_globe()
-        globe.point_arrays['scalars'] = np.random.rand(globe.n_points)
-        globe.set_active_scalars('scalars')
-
-        plotter = pv.Plotter()
-        plotter.add_mesh(globe, lighting=False, show_edges=True, texture=True, scalars='scalars')
-        plotter.view_isometric()
-
-        print(f'started plotting {datetime.now()}')
-        plotter.show()
-
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                                    Test Suite
+# ----------------------------------------------------------------------------------------------------------------------#
 
 def vis_tester():
     from dataset.datasets import PointDatasetMenu, InCfg
@@ -200,30 +246,24 @@ def vis_tester():
     # # plot_mesh(v=vv, spheres_on=True, clr=vv)
     # plot_mesh_montage(samp['gt'][:, :, :3], ff)
     # plot_mesh_montage(samp['gt'][:, :, :3])
-# ---------------------------------------------
+
 
 if __name__ == '__main__':
-    # Establish communication queues
-    vis_tester()
-    # tasks = multiprocessing.JoinableQueue()
-    #
-    # c = Consumer(tasks)
-    # c.start()
-    #
-    # # Enqueue jobs
-    # num_jobs = 3
-    # for i in range(num_jobs):
-    #     tasks.put(Task())
-    #
-    # # Add a poison pill for each consumer
-    # tasks.put(None)
-    #
-    # # Wait for all of the tasks to finish
-    # tasks.join()
+    from time import sleep
 
+    p = ParallelPlotter.initialize()
+
+    for i in range(1, 2):
+        p.push(new_data=i, new_epoch=i)
+        sleep(2)
+
+    # p.finalize()
 # ----------------------------------------------------------------------------------------------------------------------#
-#                                                   GRAVEYARD - VISDOM
+#                                                   GRAVEYARD - Matplotlib
 # ----------------------------------------------------------------------------------------------------------------------#
+# if self.hparams.mesh_frequency is not None:
+#     if self.global_step % self.hparams.mesh_frequency == 0:
+#         self.logger.experiment.add_mesh(f"mesh_{self.global_step}", vertices=b['tp'][0, :, :].unsqueeze(0))
 # def show_vnormals_matplot(v, f, n):
 #     import matplotlib.pyplot as plt
 #     from mpl_toolkits.mplot3d import Axes3D
@@ -292,9 +332,7 @@ if __name__ == '__main__':
 # |----------------------------------------------------------|
 # | Check out documentation at:  https://vtkplotter.embl.es  |
 #  ==========================================================""")
-# ----------------------------------------------------------------------------------------------------------------------#
-#                                                   VTK Platform
-# ----------------------------------------------------------------------------------------------------------------------#
+
 #     def show_sample(self, n_shapes=8, key='gt_part', strategy='spheres'):
 #
 #         using_full = key in ['gt', 'tp']

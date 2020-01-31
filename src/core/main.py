@@ -21,13 +21,13 @@ def parser():
     p.add_argument('--exp_name', type=str, default='', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
-    p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
+    p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=0,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f)')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
-    p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
+    p.add_argument('--batch_size', type=int, default=5, help='SGD batch size')
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(10, 10, 10),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=3,
                    help='Number of input channels')
@@ -61,9 +61,10 @@ def parser():
     p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
     # Visualization
-    p.add_argument('--use_tensorboard', type=bool, default=True)  # TODO - Not in use
-    p.add_argument('--mesh_frequency', type=int, default=None)
-    # The meshes are logged and visualized every mesh_frequency steps
+    p.add_argument('--use_tensorboard', type=bool, default=True,  # TODO - Not in use
+                   help='Whether to log information to tensorboard or not')
+    p.add_argument('--use_parallel_plotter', type=bool, default=True,
+                   help='Whether to plot mesh sets while training or not')
     return [p]
 
 

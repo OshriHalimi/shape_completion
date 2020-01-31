@@ -7,8 +7,9 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 
+from util.mesh_visuals import ParallelPlotter
 from util.torch_ext import PytorchNet
-from util.gen import banner, get_book_variable_module_name, time_me
+from util.gen import banner, all_variables_by_module_name, time_me
 from util.container import first
 from util.mesh_io import write_obj
 from copy import deepcopy
@@ -26,7 +27,7 @@ def extend_hyper_params(hp, hp_data_tables):
         setattr(hp, k, v)
 
     # Config Variables
-    for k, v in get_book_variable_module_name('cfg').items():  # Only import non-class/module types
+    for k, v in all_variables_by_module_name('cfg').items():  # Only import non-class/module types
         setattr(hp, k, v)
 
     # Experiment:
@@ -88,6 +89,7 @@ class CompletionLightningModel(PytorchNet):
         self.opt, self.loss, self.loaders = None, None, None
         self.early_stop, self.checkpoint, self.tb_logger = None, None, None
         self.completions_dp, self.exp_dp, self.f = None, None, None
+        self.train_plotter_cache, self.n_v = None, None
 
         self._build_model()  # Must be done after the setting of hparams
         if hp and self.hparams.resume_version is None:
@@ -126,23 +128,27 @@ class CompletionLightningModel(PytorchNet):
         else:
             return [self.opt]
 
-    def training_step(self, b, _):
+    def training_step(self, b, batch_idx):
         pred = self.forward(b['gt_part'], b['tp'])
         loss = self.loss.compute(b, pred).unsqueeze(0)
         logs = {'loss': loss}
 
-        if self.hparams.mesh_frequency is not None:
-            if self.global_step % self.hparams.mesh_frequency == 0:
-                self.logger.experiment.add_mesh(f"mesh_{self.global_step}", vertices=b['tp'][0, :, :].unsqueeze(0))
+        if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
+            self.train_plotter_cache = self._prepare_plotter_dict(b, pred)  # New tensors, without grad
 
         return {
             'loss': loss,  # Must use 'loss' instead of 'train_loss' due to lightning framework
             'log': logs
         }
 
-    def validation_step(self, b, _):
+    def validation_step(self, b, batch_idx):
 
         pred = self.forward(b['gt_part'], b['tp'])
+
+        if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
+            new_data = (self.train_plotter_cache, self._prepare_plotter_dict(b, pred))
+            self.plt.push(new_data=new_data, new_epoch=self.current_epoch)
+
         return {'val_loss': self.loss.compute(b, pred).unsqueeze(0)}
 
     def validation_end(self, outputs):
@@ -158,7 +164,7 @@ class CompletionLightningModel(PytorchNet):
 
         gtrb = self.forward(b['gt_part'], b['tp'])
         if self.hparams.save_completions > 0:
-            self.save_completions_by_batch(gtrb, b['gt_hi'], b['tp_hi'])
+            self._save_completions_by_batch(gtrb, b['gt_hi'], b['tp_hi'])
 
         return {"test_loss": self.loss.compute(b, gtrb).unsqueeze(0)}
 
@@ -169,7 +175,19 @@ class CompletionLightningModel(PytorchNet):
                 "progress_bar": logs,
                 "log": logs}
 
-    def save_completions_by_batch(self, gtrb, gt_hi_b, tp_hi_b):
+    def _prepare_plotter_dict(self, b, gtrb):
+
+        # TODO - Support normals
+        max_b_idx = self.hparams.N_MESH_SETS
+
+        return {'gt': b['gt'].detach().cpu().numpy()[:max_b_idx,:,:3],
+                'tp': b['tp'].detach().cpu().numpy()[:max_b_idx,:,:3],
+                'gtrb': gtrb.detach().cpu().numpy()[:max_b_idx],
+                'gt_hi': b['gt_hi'][:max_b_idx],
+                'tp_hi': b['tp_hi'][:max_b_idx],
+                'gt_mask_vi': b['gt_mask_vi'][:max_b_idx]}
+
+    def _save_completions_by_batch(self, gtrb, gt_hi_b, tp_hi_b):
         gtrb = gtrb.cpu().numpy()
         for i, (gt_hi, tp_hi) in enumerate(zip(gt_hi_b, tp_hi_b)):
             gt_hi = '_'.join(str(x) for x in gt_hi)
@@ -177,9 +195,6 @@ class CompletionLightningModel(PytorchNet):
             gtr_v = gtrb[i, :, :3]
             fp = self.completions_dp / f'{self.test_ds_name}_gthi_{gt_hi}_tphi_{tp_hi}_res.obj'
             write_obj(fp, gtr_v, self.f)
-
-    def hyper_params(self):
-        return deepcopy(self.hparams)
 
     def _init_trainer_collaterals(self):
 
@@ -195,13 +210,25 @@ class CompletionLightningModel(PytorchNet):
             self.test_ds_name = self.hparams.test_ds['dataset_name']
             self.completions_dp = self.exp_dp / f'{self.test_ds_name}_completions'
             self.completions_dp.mkdir(parents=True, exist_ok=True)
-            if hp.save_completions == 2:  # With faces
-                self.f = first(self.loaders, lambda x: x is not None).dataset._ds_inst.faces()
+
+        if hp.save_completions == 2 or hp.use_parallel_plotter:  # With faces
+            ldr = first(self.loaders, lambda x: x is not None)
+            self.f = ldr.dataset._ds_inst.faces() # Hard assumption - all meshes have the same number of vertices
+            self.n_v = ldr.dataset._ds_inst.shape()[0]
+
+        # Support for parallel plotter:
+        if hp.use_parallel_plotter:
+            self.plt = ParallelPlotter.initialize(faces=self.f,n_verts = self.n_v)
+            assert self.hparams.N_MESH_SETS <= self.hparams.batch_size, \
+                f"Parallel plotter needs a batch size of at least N_MESH_SETS={self.hparams.N_MESH_SETS}"
 
         self.checkpoint = ModelCheckpoint(filepath=self.exp_dp / 'checkpoints', save_top_k=0,
                                           verbose=True, prefix='weight', monitor='val_loss', mode='min', period=1)
 
         # self.example_input_array = torch.rand(5, 28 * 28) # Used by weight summary to show in/out for each layer
+
+    def hyper_params(self):
+        return deepcopy(self.hparams)
 
     @pl.data_loader
     def train_dataloader(self):

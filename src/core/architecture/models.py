@@ -148,7 +148,7 @@ class CompletionDecoder(nn.Module):
 
         for convl, bnl in zip(self.convls[:-1], self.bnls):
             x = F.relu(bnl(convl(x)))
-        return 2 * self.thl(self.convls[-1](x))  # TODO - Why is there a 2 here?
+        return 2 * self.thl(self.convls[-1](x))  # TODO - Fix this constant - we need a global scale
 
 
 # ----------------------------------------------------------------------------------------------------------------------

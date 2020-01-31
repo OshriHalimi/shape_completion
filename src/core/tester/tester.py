@@ -1,5 +1,5 @@
 import numpy as np
-import open3d as o3d
+# import open3d as o3d
 
 
 class Parent:
@@ -104,8 +104,23 @@ def voxels():
     print("")
 
 
+def teste2():
+    first_list = [
+        {'manager': 'manager1', 'template_id': '12345', 'template_title': 'Template Title1'},
+        {'manager': 'manager2', 'template_id': '12346', 'template_title': 'Template Title2'},
+        {'manager': 'manager23', 'template_id': '12345', 'template_title': 'Template Title1'}]
+
+    counts = {}
+    for d in first_list:
+        key = (d['template_id'], d['template_title'])
+        counts[key] = counts.get(key, 0) + 1
+
+    second_list = [{'template_id': k[0], 'template_title': k[1], 'counts': v} for k, v in counts.items()]
+    print(second_list)
+
+
 # -----------------------------------------------------------------------------------------------------------------------
 #
 # -----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    tester()
+    teste2()

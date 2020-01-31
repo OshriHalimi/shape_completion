@@ -1,5 +1,5 @@
 import torch
-from dataset.transforms import batch_euclid_dist_mat, batch_vnrmls, batch_moments
+from util.mesh_compute import batch_euclid_dist_mat, batch_vnrmls, batch_moments
 from util.gen import warn
 
 

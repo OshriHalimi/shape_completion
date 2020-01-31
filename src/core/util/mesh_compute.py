@@ -82,9 +82,13 @@ def moments(v):
 
 
 def flip_mask(nv, vi):
-    indicator = np.ones((nv,))
-    indicator[vi] = 0
-    return np.where(indicator == 1)[0]
+    indicator = mask_indicator(nv,vi)
+    return np.where(indicator == 0)[0]
+
+def mask_indicator(nv,vi):
+    indicator = np.zeros((nv,),dtype=bool)
+    indicator[vi] = 1
+    return indicator
 
 
 def trunc_to_vertex_subset(v, f, vi):

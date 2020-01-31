@@ -7,6 +7,7 @@ import inspect
 from types import FunctionType
 import logging
 import sys
+from functools import wraps
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -48,6 +49,7 @@ def set_logging_to_stdout():
 
 
 def tutorial(func):
+    @wraps(func)
     def wrapper(*args, **kwargs):
         banner(title(func.__name__))
         return func(*args, **kwargs)
@@ -81,10 +83,11 @@ class BColors:
 
 
 # Decorator to time functions
-def time_me(method):
+def time_me(func):
+    @wraps(func)
     def timed(*args, **kw):
         ts = timeit.default_timer()
-        result = method(*args, **kw)
+        result = func(*args, **kw)
         te = timeit.default_timer()
         # This snippet here allows extraction of the timing:
         # Snippet:
@@ -95,7 +98,7 @@ def time_me(method):
         # logtime_data = {}
         # ret_val = some_func_with_decorator(log_time=logtime_data)
         # else:
-        print(f'{method.__name__} compute time :: {str(timedelta(seconds=te - ts))}')
+        print(f'{func.__name__} compute time :: {str(timedelta(seconds=te - ts))}')
         return result
 
     return timed
@@ -268,7 +271,7 @@ def func_name():
     return traceback.extract_stack(None, 2)[0][2]
 
 
-def get_book_variable_module_name(module_name):
+def all_variables_by_module_name(module_name):
     from importlib import import_module
     from types import ModuleType #,ClassType
     module = import_module(module_name)
