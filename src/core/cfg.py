@@ -25,8 +25,9 @@ You can also concatenate - gtrb = Ground Truth Reconstruction Batched
 # TIP: Use CTRL + SHIFT + f in PyCharm to detect where these are used in the system
 
 RANDOM_SEED = 2147483647  # The global random seed. Use datetime.now() For a truly random seed
-#TODO: there is bug in DEF_COMPUTE_PRECISION: changing to float64 results in a crash
 DEF_COMPUTE_PRECISION = 'float32' # Default computation precision used through out the entire system
+# Options are: float64,float32 or float16. PyTorch defaults to float32. VTK does not work with float16 [Can be fixed]
+
 NORMAL_MAGNITUDE_THRESH = 10 ** (-6) # The minimal norm allowed for vertex normals to decide that they are too small
 
 # Hyper parameters that were removed from main.py

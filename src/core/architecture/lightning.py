@@ -111,6 +111,8 @@ class CompletionLightningModel(PytorchNet):
             hp_data_tables[assignment] = None if ldr is None else ldr.recon_table()
 
         self.hparams = extend_hyper_params(self.hparams, hp_data_tables)
+        # TODO: move this call
+        self.type(dst_type=getattr(torch,self.hparams.DEF_COMPUTE_PRECISION))
         self._init_trainer_collaterals()
 
     def configure_optimizers(self):
