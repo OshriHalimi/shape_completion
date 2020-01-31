@@ -97,7 +97,7 @@ class PytorchNet(LightningModule):
         for i, weights in enumerate(list(self.parameters())):
             print(f'Layer {i} :: weight shape: {list(weights.size())}')
 
-    def learning_rate(self,opt):
+    def learning_rate(self, opt):
         # TODO - only suits a model-uniform learning rate
         # See: https://discuss.pytorch.org/t/print-current-learning-rate-of-the-adam-optimizer/15204/9
         return opt.param_groups[0]['lr']
@@ -215,6 +215,7 @@ class PytorchNet(LightningModule):
         warn(f'Experimental input size prediction : {in_shape}')
         return in_shape
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Standalone Functions
 # ----------------------------------------------------------------------------------------------------------------------
@@ -237,8 +238,9 @@ def set_determinsitic_run(seed=None):
     # Might be best to turn off benchmark for deterministic results:
     # https://discuss.pytorch.org/t/what-is-the-differenc-between-cudnn-deterministic-and-cudnn-benchmark/38054
 
+
 def worker_init_closure(seed=None):
-    #TODO: What is this function?
+    # TODO: What is this function?
     if seed is None:
         # Specific to the ShapeCompletion platform
         from cfg import RANDOM_SEED
@@ -252,6 +254,7 @@ def worker_init_closure(seed=None):
 
     return worker_init_fn
 
+
 # TODO - Consider completing this
 # def memory():
 #     if device.type == 'cuda':
@@ -259,7 +262,6 @@ def worker_init_closure(seed=None):
 #         print('Memory Usage:')
 #         print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
 #         print('Cached:   ', round(torch.cuda.memory_cached(0) / 1024 ** 3, 1), 'GB')
-
 
 
 if __name__ == '__main__':

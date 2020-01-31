@@ -53,7 +53,6 @@ DANGEROUS_MASK_THRESH = 100 # The minimal length allowed for mask vertex indices
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               VISUALIZATION CONFIG
 # ----------------------------------------------------------------------------------------------------------------------
-# TODO - Check why in mesh method + tensor colors, colors are interpolated onto the faces.
 VIS_METHOD = 'spheres' # spheres,cloud,mesh  - Choose how to display the meshes
 VIS_CMAP = 'summer' # https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
 # We use two colors: one for the mask verts [Right end of the spectrum] and one for the rest [Left end of the spectrum].

@@ -2,7 +2,6 @@ import torch
 import numpy as np
 import pyvista as pv
 import math
-import cfg
 from util.mesh_compute import face_barycenters, mask_indicator
 from multiprocessing import Process, Manager
 from copy import deepcopy
@@ -11,6 +10,7 @@ from copy import deepcopy
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                    Visualization Functions
 # ----------------------------------------------------------------------------------------------------------------------#
+# noinspection PyIncorrectDocstring
 def plot_mesh(*args, **kwargs):
     """
     :param v: tensor - A numpy or torch [nv x 3] vertex tensor
@@ -33,6 +33,7 @@ def plot_mesh(*args, **kwargs):
     p.show()
 
 
+# noinspection PyIncorrectDocstring
 def plot_mesh_montage(vb, fb=None, nb=None, labelb=None, spheres_on=True, grid_on=False, clr='lightcoral',
                       normal_clr='lightblue', smooth_shade_on=False, show_edges=False):
     """
@@ -111,6 +112,7 @@ def _append_mesh(p, v, f=None, n=None, spheres_on=True, grid_on=False, clr='ligh
             assert f is not None and n.shape[0] == f.shape[0]  # Faces are required for compute
             pnt_cloud = pv.PolyData(face_barycenters(v, f))
         pnt_cloud['normals'] = n
+        # noinspection PyTypeChecker
         arrows = pnt_cloud.glyph(orient='normals', scale=False, factor=0.03)
         if isinstance(normal_clr, str) or len(normal_clr) == 3:
             color = normal_clr
@@ -137,13 +139,11 @@ class ParallelPlotter(Process):
 
     def __init__(self, shared_dict, faces, n_v):
         super().__init__()
-        # self.daemon = True
-        # TODO - Add in plot config
         self.sd = shared_dict
         self.last_plotted_epoch = -1
 
         # Book-keeping:
-        self.train_d, self.vfacesal_d = None, None
+        self.train_d, self.val_d = None, None
         self.n_v = n_v
         self.f = faces if self.VIS_METHOD == 'mesh' else None
 
@@ -164,16 +164,18 @@ class ParallelPlotter(Process):
                 break
 
             current_epoch = self.sd['epoch']
-            # if current_epoch == self.last_plotted_epoch:
-            #     print(f'\nWarning: geometry for epoch {current_epoch} was already plotted')
             if current_epoch != self.last_plotted_epoch:
-                # print(f'\nPlotting geometry for epoch {current_epoch}')
                 self.last_plotted_epoch = current_epoch
                 self.read_data()
             self.plot_data()
 
     # Meant to be called by the consumer
     def read_data(self):
+        # Update version with one single read
+        # Slight problem of atomicity here - with respect to current_epoch. Data may have changed in the meantime -
+        # but it is still new data, so no real problem. May be resolved with lock = manager.Lock() before every update->
+        # lock.acquire() / lock.release(), but this will be problematic for the main process - which we want to optimize
+
         self.train_d, self.val_d = deepcopy(self.sd['data'])
 
     # Meant to be called by the consumer
@@ -189,6 +191,7 @@ class ParallelPlotter(Process):
                 tp = d['tp'][i].squeeze()
 
                 # TODO - Add support for normals & P2P
+                # TODO - Check why in mesh method + tensor colors, colors are interpolated onto the faces.
                 p.subplot(subplt_row_id, 0)  # GT Reconstructed with colored mask
                 _append_mesh(p, v=gtrb, f=self.f, clr=mask_ind, label=f'{set_name} Reconstruction {i}', **self.kwargs)
                 p.subplot(subplt_row_id, 1)  # GT with colored mask
@@ -235,9 +238,9 @@ class ParallelPlotter(Process):
 #                                                    Test Suite
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def vis_tester():
+def visuals_tester():
     from dataset.datasets import PointDatasetMenu, InCfg
-    from util.mesh_compute import vnrmls, fnrmls
+    from util.mesh_compute import vnrmls  # , fnrmls
     ds = PointDatasetMenu.get('FaustPyProj', in_channels=6, in_cfg=InCfg.FULL2PART)
     samp = ds.sample(15)  # dim:
     vv = samp['gt'][0, :, :3]
@@ -249,153 +252,4 @@ def vis_tester():
 
 
 if __name__ == '__main__':
-    from time import sleep
-
-    p = ParallelPlotter.initialize()
-
-    for i in range(1, 2):
-        p.push(new_data=i, new_epoch=i)
-        sleep(2)
-
-    # p.finalize()
-# ----------------------------------------------------------------------------------------------------------------------#
-#                                                   GRAVEYARD - Matplotlib
-# ----------------------------------------------------------------------------------------------------------------------#
-# if self.hparams.mesh_frequency is not None:
-#     if self.global_step % self.hparams.mesh_frequency == 0:
-#         self.logger.experiment.add_mesh(f"mesh_{self.global_step}", vertices=b['tp'][0, :, :].unsqueeze(0))
-# def show_vnormals_matplot(v, f, n):
-#     import matplotlib.pyplot as plt
-#     from mpl_toolkits.mplot3d import Axes3D
-#     fig = plt.figure()
-#     ax = fig.gca(projection='3d')
-#     ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=1, antialiased=True)
-#     ax.quiver(v[:, 0], v[:, 1], v[:, 2], n[:, 0], n[:, 1], n[:, 2], length=0.03, normalize=True)
-#     ax.set_aspect('equal', 'box')
-#     plt.show()
-#
-#
-# def show_fnormals_matplot(v, f, n):
-#     import matplotlib.pyplot as plt
-#     from mpl_toolkits.mplot3d import Axes3D
-#
-#     c = face_barycenters(v, f)
-#     fig = plt.figure()
-#     ax = fig.gca(projection='3d')
-#     ax.plot_trisurf(v[:, 0], v[:, 1], v[:, 2], triangles=f, linewidth=1, antialiased=True)
-#     ax.quiver(c[:, 0], c[:, 1], c[:, 2], n[:, 0], n[:, 1], n[:, 2], length=0.03, normalize=True)
-#     ax.set_aspect('equal', 'box')
-#     plt.show()
-#
-# # ----------------------------------------------------------------------------------------------------------------------#
-# #                                                   VTK Platform
-# # ----------------------------------------------------------------------------------------------------------------------#
-# from vtkplotter.actors import Actor
-# from vtkplotter.utils import buildPolyData
-# def numpy2vtkactor(v, f, clr='gold'):
-#     return Actor(buildPolyData(v, f, ), computeNormals=False, c=clr)  # Normals are in C++ - Can't extract them
-#
-#
-# def print_vtkplotter_help():
-#     print("""
-# ==========================================================
-# | Press: i     print info about selected object            |
-# |        m     minimise opacity of selected mesh           |
-# |        .,    reduce/increase opacity                     |
-# |        /     maximize opacity                            |
-# |        w/s   toggle wireframe/solid style                |
-# |        p/P   change point size of vertices               |
-# |        l     toggle edges line visibility                |
-# |        x     toggle mesh visibility                      |
-# |        X     invoke a cutter widget tool                 |
-# |        1-3   change mesh color                           |
-# |        4     use scalars as colors, if present           |
-# |        5     change background color                     |
-# |        0-9   (on keypad) change axes style               |
-# |        k     cycle available lighting styles             |
-# |        K     cycle available shading styles              |
-# |        o/O   add/remove light to scene and rotate it     |
-# |        n     show surface mesh normals                   |
-# |        a     toggle interaction to Actor Mode            |
-# |        j     toggle interaction to Joystick Mode         |
-# |        r     reset camera position                       |
-# |        C     print current camera info                   |
-# |        S     save a screenshot                           |
-# |        E     export rendering window to numpy file       |
-# |        q     return control to python script             |
-# |        Esc   close the rendering window and continue     |
-# |        F1    abort execution and exit python kernel      |
-# | Mouse: Left-click    rotate scene / pick actors          |
-# |        Middle-click  pan scene                           |
-# |        Right-click   zoom scene in or out                |
-# |        Cntrl-click   rotate scene perpendicularly        |
-# |----------------------------------------------------------|
-# | Check out documentation at:  https://vtkplotter.embl.es  |
-#  ==========================================================""")
-
-#     def show_sample(self, n_shapes=8, key='gt_part', strategy='spheres'):
-#
-#         using_full = key in ['gt', 'tp']
-#         # TODO - Remove this by finding the vtk bug - or replacing the whole vtk shit
-#         assert not (not using_full and strategy == 'mesh'), "Mesh strategy for 'part' gets stuck in vtkplotter"
-#         fp_fun = self._hi2full_path if using_full else self._hi2proj_path
-#
-#         samp = self.sample(num_samples=n_shapes, transforms=None)
-#         vp = Plotter(N=n_shapes, axes=0)  # ,size="full"
-#         vp.legendSize = 0.4
-#         for i in range(n_shapes):  # for each available color map name
-#
-#             name = key.split('_')[0]
-#             if using_full:
-#                 v, f = samp[key][i, :, 0:3].numpy(), self._f  # TODO - Add in support for faces loaded from file
-#             else:
-#                 v, f = trunc_to_vertex_subset(samp[name][i, :, 0:3].numpy(), self._f,
-#                                               samp[f'{name}_mask_vi'][i])
-#
-#             if strategy == 'cloud':
-#                 a = numpy2vtkactor(v, None, clr='w')  # clr=v is cool
-#             elif strategy == 'mesh':
-#                 a = numpy2vtkactor(v, f, clr='gold')
-#             elif strategy == 'spheres':
-#                 a = Spheres(v, c='w', r=0.01)  # TODO - compute r with respect to the mesh
-#             else:
-#                 raise NotImplementedError
-#
-#             a.legend(f'{key} | {fp_fun(samp[f"{name}_hi"][i]).name}')
-#             vp.show(a, at=i)
-#
-#         print_vtkplotter_help()
-#         vp.show(interactive=1)
-# ----------------------------------------------------------------------------------------------------------------------#
-#                                                   Wisdom Platform
-# ----------------------------------------------------------------------------------------------------------------------#
-#       if opt.use_visdom:
-#         vis = visdom.Visdom(port=8888, env=opt.save_path)
-#             # VIZUALIZE
-#             if opt.use_visdom and i % 100 == 0:
-#                 vis.scatter(X=part[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Part',
-#                             opts=dict(title="Train_Part", markersize=2, ), )
-#                 vis.scatter(X=template[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Template',
-#                             opts=dict(title="Train_Template", markersize=2, ), )
-#                 vis.scatter(X=gt_rec[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_output',
-#                             opts=dict(title="Train_output", markersize=2, ), )
-#                 vis.scatter(X=gt[0, :3, :].transpose(1, 0).contiguous().data.cpu(), win='Train_Ground_Truth',
-#                             opts=dict(title="Train_Ground_Truth", markersize=2, ), )
-#             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
-#                      Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val))),
-#                      win='Faust loss',
-#                      opts=dict(title="Faust loss", legend=["Train loss", "Faust Validation loss", ]))
-#             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val)))),
-#                      Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val)))),
-#                      win='"Faust log loss',
-#                      opts=dict(title="Faust log loss", legend=["Train loss", "Faust Validation loss", ]))
-#
-#             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
-#                      Y=np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass))),
-#                      win='AMASS loss',
-#                      opts=dict(title="AMASS loss", legend=["Train loss", "Validation loss", "Validation loss amass"]))
-#             vis.line(X=np.column_stack((np.arange(len(Loss_curve_train)), np.arange(len(Loss_curve_val_amass)))),
-#                      Y=np.log(np.column_stack((np.array(Loss_curve_train), np.array(Loss_curve_val_amass)))),
-#                      win='AMASS log loss',
-#                      opts=dict(title="AMASS log loss", legend=["Train loss", "Faust Validation loss", ]))
-#
+    visuals_tester()
