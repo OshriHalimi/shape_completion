@@ -10,6 +10,9 @@ from dataset.abstract import InCfg
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
 
+#TODO: It seems the addition of the visualizer introduced a bug in training process: Training loss decreases differently after the change, validation error starts from much higher value and stays high
+#TODO: There is a bug in visualization scale
+#TODO: There is bug in the saved meshes
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Main Arguments
@@ -27,7 +30,7 @@ def parser():
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=2, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(10, 10, 10),
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=3,
                    help='Number of input channels')
@@ -65,6 +68,7 @@ def parser():
                    help='Whether to log information to tensorboard or not')
     p.add_argument('--use_parallel_plotter', type=bool, default=True,
                    help='Whether to plot mesh sets while training or not')
+    # TODO: Expose Plotter control parameters here
     return [p]
 
 
