@@ -176,11 +176,14 @@ def shortcuts_tutorial():
     d = dict / dir 
     s = string or split 
     vn = vertex normals
-    f = face
+    n_v = num vertices
+    f = face / file
+    n_f = num faces 
     fn = face normals 
     gt = ground truth
     tp = template
     i = index 
+    p = path 
     fp = file path 
     dp = directory path 
     hp = hyper parameters 
