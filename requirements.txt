@@ -1,20 +1,41 @@
-# Step 1: Open up a conda virtual env for Python 3.7 named shape_completion 
-# Step 2: Install torch for Python 3.7 and CUDA 10.1. For Windows: conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
-# Step 3: Install these on a conda env via pip - pip install -r requirements.txt
-scipy==1.4.1
-psutil==5.6.7
-pytorch-lightning==0.5.3.2
-open3d==0.9.0.0
-torchviz==0.0.1
-matplotlib==3.0.2
-scikit_learn==0.20.2
+# -----------------------------------------------------------------------------------#
+#                                       Prep 
+# -----------------------------------------------------------------------------------#
+# [1] Download and install Anaconda
+#
+# [2] Open up a conda env for Python 3.7 named shape_completion
+# -----------------------------------------------------------------------------------#
+#                              	  Package Install
+# -----------------------------------------------------------------------------------#
+# [3] Install torch for Python 3.7 + Cuda 10.1
+#     Command: conda install pytorch torchvision cudatoolkit=10.1 -c pytorch
+# 
+# [4] Install these on the conda env via: 
+#     Command: pip install -r requirements.txt
+
 torch-scatter==1.4.0
-pillow==6.2.1
+pytorch-lightning==0.5.3.2
+torchviz==0.0.1
+psutil==5.6.7
+scipy==1.4.1
+scikit_learn==0.20.2
+matplotlib==3.0.2
 pyvista==0.23.0
-# Step 4[ SKIP THIS if installing a bot computer ] : In order to support nn.visualize(), you must install Graphviz. For Windows: 
-# 1. Open up your browser and go to: https://graphviz.gitlab.io/_pages/Download/windows/graphviz-2.38.msi
-# 2. Install the application. Default install path is: C:\Program Files (x86)\Graphviz2.38
-# 3. Add to your PATH variable: "C:\Program Files (x86)\Graphviz2.38\bin"
-# Step 5: If using PyCharm - Make sure that 'src/core' is enabled as the Sources Root  - https://stackoverflow.com/questions/28705029/pycharm-error-no-module-when-trying-to-import-own-module-python-script
-# Step 6: Make sure you have the data directory installed correctly 
+pillow==6.2.1
+
+# -----------------------------------------------------------------------------------#
+#                            Collaterals - Windows only
+# -----------------------------------------------------------------------------------#
+# [5] Optional: If you want to support full tensoboard features, install tensorflow via: 
+#     Command: pip install tensorflow
+#
+# [6] Optional: In order to support nn.visualize(), please install Graphviz
+#  *  Surf to: https://graphviz.gitlab.io/_pages/Download/windows/graphviz-2.38.msi
+#  *  Install the application to C:\Program Files (x86)\Graphviz2.38
+#  *  Add to your PATH variable: "C:\Program Files (x86)\Graphviz2.38\bin"
+# -----------------------------------------------------------------------------------#
+#                           		    Debug
+# -----------------------------------------------------------------------------------#
+#  PyCharm Users: Make sure that 'src/core' is enabled as the Source Root: 
+#  * See https://stackoverflow.com/questions/28705029/pycharm-error-no-module-when-trying-to-import-own-module-python-script
 

@@ -1,11 +1,11 @@
 from util.torch_nn import PytorchNet, set_determinsitic_run
 from dataset.datasets import PointDatasetMenu
-from util.string import banner, set_logging_to_stdout
+from util.string_op import banner, set_logging_to_stdout
 from util.func import tutorial
 from util.torch_data import none_or_int
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
-from architecture.lightning import train_lightning, test_lightning
+from architecture.lightning import lightning_trainer, test_lightning
 from dataset.transforms import *
 from dataset.abstract import InCfg
 
@@ -75,16 +75,22 @@ def parser():
 #                                                   Mains
 # ----------------------------------------------------------------------------------------------------------------------
 def train_main():
-    # Decide Model:
+    banner('Network Init')
     nn = F2PEncoderDecoder(parser())
+    nn.identify_system()
+
     hp = nn.hyper_params()
     # Init loaders and faces:
     ds = PointDatasetMenu.get('FaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=hp.in_channels)
     ldrs = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts,
                             s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev)
     nn.init_data(loaders=ldrs)
-    train_lightning(nn, fast_dev_run=False)
 
+    trainer = lightning_trainer(nn, fast_dev_run=False)
+    banner('Training Phase')
+    trainer.fit(nn)
+    banner('Testing Phase')
+    trainer.test(nn)
 
 def test_main():
     # Decide Model:
@@ -95,6 +101,7 @@ def test_main():
     test_ldr = ds._loader(ids=range(1000), transforms=None, batch_size=hp.batch_size, device=hp.dev)
     nn.init_data(loaders=[None, None, test_ldr])
     test_lightning(nn)
+
 
 
 # ----------------------------------------------------------------------------------------------------------------------

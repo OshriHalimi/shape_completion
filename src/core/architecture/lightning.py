@@ -8,30 +8,28 @@ from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 import mesh.io
 from mesh.plot import ParallelPlotter
 from util.torch_nn import PytorchNet
-from util.string import banner
+from util.string_op import banner
 from util.func import all_variables_by_module_name
 from util.container import first
 from copy import deepcopy
 from pathlib import Path
 import os.path as osp
+from util.torch_nn import TensorboardSupervisor
+import logging
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Trainer
 # ----------------------------------------------------------------------------------------------------------------------
 
-def train_lightning(nn, fast_dev_run=False):
-    banner('Network Init')
-    nn.identify_system()
+def lightning_trainer(nn, fast_dev_run=False):
     hp = nn.hyper_params()
-
     # TODO - Add support for logger = False
     trainer = Trainer(fast_dev_run=fast_dev_run, num_sanity_val_steps=0, weights_summary=None,
                       gpus=hp.gpus, distributed_backend=hp.distributed_backend, use_amp=hp.use_16b,
                       early_stop_callback=nn.early_stop, checkpoint_callback=nn.checkpoint, logger=nn.tb_logger,
                       min_epochs=hp.force_train_epoches, report_loss_per_batch=hp.REPORT_LOSS_PER_BATCH,
                       max_epochs=hp.MAX_EPOCHS)
-
     """ More flags to consider:
     log_gpu_memory = 'min_max' or 'all' # How to log the GPU memory
     track_grad_norm  = 2 # Track L2 norm of the gradient # Track the Gradient Norm
@@ -39,10 +37,7 @@ def train_lightning(nn, fast_dev_run=False):
     weights_summary = 'full', 'top' , None
     accumulate_grad_batches = 1
     """
-    banner('Training Phase')
-    trainer.fit(nn)
-    banner('Testing Phase')
-    trainer.test(nn)
+    return trainer
 
 
 def test_lightning(nn):
@@ -71,7 +66,7 @@ class CompletionLightningModel(PytorchNet):
         # Book-keeping:
         self.opt, self.loss, self.early_stop, self.checkpoint, self.tb_logger = None, None, None, None, None
         self.loaders, self.completions_dp, self.exp_dp, self.f, self.n_v = None, None, None, None, None
-        self.save_func = None
+        self.save_func, self.tb_sub = None, None
 
         self._build_model()  # Set hparams before this
         if self.hparams.do_weight_init:
@@ -115,6 +110,10 @@ class CompletionLightningModel(PytorchNet):
         self.checkpoint = ModelCheckpoint(filepath=self.exp_dp / 'checkpoints', save_top_k=0,
                                           verbose=True, prefix='weight', monitor='val_loss', mode='min', period=1)
 
+        logging.info(f'Current run directory: {str(self.exp_dp)}')
+        if hp.use_tensorboard:
+            self.tb_sub = TensorboardSupervisor()
+
         # Support for completions:
         if hp.save_completions > 0:
             self.test_ds_name = self.hparams.test_ds['dataset_name']
@@ -154,10 +153,12 @@ class CompletionLightningModel(PytorchNet):
             'log': logs
         }
 
-    def on_train_end(self):
+    def on_train_end(self):  # TODO - Move this to somewhere smarter
         # Called after all epochs, for cleanup
         if self.hparams.use_parallel_plotter and self.plt.is_alive():
             self.plt.finalize()
+        if self.hparams.use_tensorboard:
+            self.tb_sub.finalize()
 
     def validation_step(self, b, batch_idx):
 

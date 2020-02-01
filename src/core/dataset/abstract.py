@@ -4,7 +4,7 @@ from collections import Sequence
 from abc import ABC
 from torch.utils.data.sampler import SubsetRandomSampler
 from util.torch_data import determine_worker_num, ReconstructableDataLoader
-from util.string import warn, banner
+from util.string_op import warn, banner
 from util.func import time_me
 from util.fs import convert_bytes
 from util.container import split_frac, enum_eq

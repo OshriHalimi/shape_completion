@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 from collections import OrderedDict
-from util.string import banner, warn
+from util.string_op import banner, warn
 from util.fs import convert_bytes
 from util.func import list_class_declared_methods
 import types
@@ -11,6 +11,9 @@ from pytorch_lightning import LightningModule
 from collections.abc import Sequence
 from inspect import signature
 import random
+from multiprocessing import Process
+import sys
+import os
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -264,12 +267,47 @@ def worker_init_closure(seed=None):
     return worker_init_fn
 
 
+class TensorboardSupervisor:
+    def __init__(self, log_dp=None):
+        super().__init__()
+        if os.name != 'nt':
+            raise NotImplementedError("No support for Linux")
+        if log_dp is None:
+            from cfg import PRIMARY_RESULTS_DIR
+        self.server = TensorboardServer(PRIMARY_RESULTS_DIR)
+        self.chrome = ChromeProcess()
+        self.server.start()
+        self.chrome.start()
+
+    def finalize(self):
+        self.server.join()
+        self.chrome.join()
+
+
+class TensorboardServer(Process):
+    def __init__(self, log_dp):
+        super().__init__()
+        self.log_dp = str(log_dp)
+
+    def run(self):
+        os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp} 2> NUL')
+
+
+class ChromeProcess(Process):
+    def run(self):
+        os.system(f'start chrome  http://localhost:6006/')
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
-    import torch
-    import torchvision
-
-    model = torchvision.models.resnet50(False)
-    pymodel = PytorchNet.monkeypatch(model)
+    # dir = r'C:\Users\idoim\Desktop\ShapeCompletion\results'
+    t = TensorboardSupervisor()
+    t.finalize()
+    print('DONE!')
+    # import torch
+    # import torchvision
+    #
+    # model = torchvision.models.resnet50(False)
+    # pymodel = PytorchNet.monkeypatch(model)

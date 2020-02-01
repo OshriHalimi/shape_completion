@@ -1,6 +1,6 @@
 import inspect
 from types import FunctionType
-from util.string import banner, title
+from util.string_op import banner, title
 import timeit
 from datetime import timedelta
 from functools import wraps

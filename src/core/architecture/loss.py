@@ -1,6 +1,6 @@
 import torch
 from mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_moments
-from util.string import warn
+from util.string_op import warn
 
 
 # ----------------------------------------------------------------------------------------------------------------------
