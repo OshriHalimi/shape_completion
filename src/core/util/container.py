@@ -4,8 +4,12 @@ import random
 import numpy as np
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                     Enums
+# ----------------------------------------------------------------------------------------------------------------------
 def enum_eq(enum1, enum2):
     return enum1.__class__.__name__ == enum1.__class__.__name__ and enum1.value == enum2.value
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                     Lists
@@ -35,38 +39,15 @@ def split_frac(l, fracs):
 
     return np.split(l, splits)
 
-def first(iterable, condition = lambda x: True):
+
+def first(iterable, condition=lambda x: True):
     """
-    Returns the first item in the `iterable` that
-    satisfies the `condition`.
-
-    If the condition is not given, returns the first item of
-    the iterable.
-
-    Raises `StopIteration` if no item satysfing the condition is found.
-
-    # >>> first( (1,2,3), condition=lambda x: x % 2 == 0)
-    2
-    # >>> first(range(3, 100))
-    3
-    # >>> first( () )
-    Traceback (most recent call last):
-    ...
-    StopIteration
+    * Returns the first item in the `iterable` that satisfies the `condition`.
+    * If the condition is not given, returns the first item of the iterable.
+    * Raises `StopIteration` if no item satisfying the condition is found.
     """
-
     return next(x for x in iterable if condition(x))
 
-# def split_frac_tester():
-#     import numpy as np, numpy.random
-#     import random
-#     for i in range(1,10000):
-#         indices = list(range(i))
-#         n_split = random.randint(1, 20)
-#         n_dirac = random.randint(1, 1000*1000)/1000
-#         splits = np.random.dirichlet(np.ones(n_split) * n_dirac, size=1)*3/4
-#         # splits = [0.05,0.05,0.9]
-#         assert sum(map(len,split_frac(indices,splits))) == i , f"{i}"
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Dicts
@@ -200,3 +181,17 @@ class RandomDict(MutableMapping):
         """ Return a random key-value pair from this dictionary in O(1) time """
         k = self.random_key()
         return k, self[k]
+
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                   Tests
+# ----------------------------------------------------------------------------------------------------------------------
+# def split_frac_tester():
+#     import numpy as np, numpy.random
+#     import random
+#     for i in range(1,10000):
+#         indices = list(range(i))
+#         n_split = random.randint(1, 20)
+#         n_dirac = random.randint(1, 1000*1000)/1000
+#         splits = np.random.dirichlet(np.ones(n_split) * n_dirac, size=1)*3/4
+#         # splits = [0.05,0.05,0.9]
+#         assert sum(map(len,split_frac(indices,splits))) == i , f"{i}"

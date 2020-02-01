@@ -1,5 +1,5 @@
 import random
-from util.mesh_compute import vnrmls, moments, padded_part_by_mask, flip_mask
+from mesh.ops import vnrmls, moments, padded_part_by_mask, flip_vertex_mask
 import numpy as np
 
 
@@ -73,7 +73,7 @@ class RandomMaskFlip(Transform):
     def __call__(self, x):
         if random.random() < self._prob:
             nv = x['gt'].shape[0]
-            x['gt_mask_vi'] = flip_mask(nv, x['gt_mask_vi'])
+            x['gt_mask_vi'] = flip_vertex_mask(nv, x['gt_mask_vi'])
             # TODO: tp mask flips?
         return x
 

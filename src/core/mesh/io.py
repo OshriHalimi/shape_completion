@@ -1,4 +1,5 @@
 import numpy as np
+from util.fs import align_file_extension
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -56,21 +57,26 @@ def read_off(fp):
 # ----------------------------------------------------------------------------------------------------------------------#
 
 def write_off(fp, v, f=None):
-    if f is None:
-        f = []
+    fp = align_file_extension(fp, 'off')
     str_v = [f"{vv[0]} {vv[1]} {vv[2]}\n" for vv in v]
-    str_f = [f"3 {ff[0]} {ff[1]} {ff[2]}\n" for ff in f]
+    if f is not None:
+        str_f = [f"3 {ff[0]} {ff[1]} {ff[2]}\n" for ff in f]
+    else:
+        str_f = []
+
     with open(fp, 'w') as meshfile:
         meshfile.write(f'OFF\n{len(str_v)} {len(str_f)} 0\n{"".join(str_v)}{"".join(str_f)}')
 
 
 def write_obj(fp, v, f=None):
-    if f is None:
-        f = []
-    else:
-        f += 1  # Faces are 1-based, not 0-based in obj files
+    fp = align_file_extension(fp, 'obj')
     str_v = [f"v {vv[0]} {vv[1]} {vv[2]}\n" for vv in v]
-    str_f = [f"f {ff[0]} {ff[1]} {ff[2]}\n" for ff in f]
+    if f is not None:
+        # Faces are 1-based, not 0-based in obj files
+        str_f = [f"f {ff[0]} {ff[1]} {ff[2]}\n" for ff in f + 1]
+    else:
+        str_f = []
+
     with open(fp, 'w') as meshfile:
         meshfile.write(f'{"".join(str_v)}{"".join(str_f)}')
 
@@ -80,6 +86,7 @@ def write_obj(fp, v, f=None):
 # ----------------------------------------------------------------------------------------------------------------------#
 
 def write_ply(fp, v, f, n, clrs):
+    fp = align_file_extension(fp, 'ply')
     str_vertices = ["{} {} {}".format(v[0], v[1], v[2]) for v in v]
     str_indices = ["3 {} {} {}\n".format(i[0], i[1], i[2]) for i in f]
     str_normals = ["{} {} {}".format(n[0], n[1], n[2]) for n in n]

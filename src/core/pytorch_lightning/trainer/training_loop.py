@@ -321,7 +321,7 @@ class TrainerTrainLoopMixin(ABC):
             # .reset() doesn't work on disabled progress bar so we should check
             if not self.main_progress_bar.disable:
                 self.main_progress_bar.reset(num_iterations)
-            desc = f'Epoch {epoch + 1}' if not self.is_iterable_train_dataloader else ''
+            desc = f'Epoch {epoch}' if not self.is_iterable_train_dataloader else '' # MANO
             self.main_progress_bar.set_description(desc)
 
             # changing gradient according accumulation_scheduler

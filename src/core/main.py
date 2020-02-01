@@ -1,6 +1,8 @@
-from util.torch_ext import PytorchNet, set_determinsitic_run
+from util.torch_nn import PytorchNet, set_determinsitic_run
 from dataset.datasets import PointDatasetMenu
-from util.gen import none_or_int, banner, tutorial, set_logging_to_stdout
+from util.string import banner, set_logging_to_stdout
+from util.func import tutorial
+from util.torch_data import none_or_int
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
 from architecture.lightning import train_lightning, test_lightning
@@ -10,9 +12,6 @@ from dataset.abstract import InCfg
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
 
-#TODO: It seems the addition of the visualizer introduced a bug in training process: Training loss decreases differently after the change, validation error starts from much higher value and stays high
-#TODO: There is a bug in visualization scale
-#TODO: There is bug in the saved meshes
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Main Arguments
@@ -24,13 +23,13 @@ def parser():
     p.add_argument('--exp_name', type=str, default='', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
-    p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=0,
+    p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f)')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
-    p.add_argument('--batch_size', type=int, default=2, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
+    p.add_argument('--batch_size', type=int, default=5, help='SGD batch size')
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(10, 10, 10),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=3,
                    help='Number of input channels')
@@ -68,7 +67,7 @@ def parser():
                    help='Whether to log information to tensorboard or not')
     p.add_argument('--use_parallel_plotter', type=bool, default=True,
                    help='Whether to plot mesh sets while training or not')
-    # TODO: Expose Plotter control parameters here
+
     return [p]
 
 
@@ -79,12 +78,10 @@ def train_main():
     # Decide Model:
     nn = F2PEncoderDecoder(parser())
     hp = nn.hyper_params()
-
     # Init loaders and faces:
     ds = PointDatasetMenu.get('FaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=hp.in_channels)
     ldrs = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts,
                             s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev)
-
     nn.init_data(loaders=ldrs)
     train_lightning(nn, fast_dev_run=False)
 
@@ -137,7 +134,7 @@ def dataset_tutorial():
     # s_nums[i] will be taken for the dataloader, and transformed by s_transform[i].
     # s_shuffle and global_shuffle controls the shuffling of the different partitions - see doc inside function
 
-    # You can see part of the actual dataset using the vtkplotter function, with strategies 'spheres','mesh' or 'cloud'
+    # You can see part of the actual dataset with strategies 'spheres','mesh' or 'cloud'
     ds.show_sample(n_shapes=8, key='gt_part', strategy='cloud')
 
 
@@ -169,4 +166,28 @@ def pytorch_net_tutorial():
     py_nn.summary(x_shape=(3, 28, 28), batch_size=64)
 
 
-if __name__ == '__main__': train_main()
+@tutorial
+def shortcuts_tutorial():
+    print("""
+    Existing shortcuts are: 
+    r = reconstruction
+    b = batch
+    v = vertex
+    d = dict / dir 
+    s = string or split 
+    vn = vertex normals
+    f = face
+    fn = face normals 
+    gt = ground truth
+    tp = template
+    i = index 
+    fp = file path 
+    dp = directory path 
+    hp = hyper parameters 
+    ds = dataset 
+    You can also concatenate - gtrb = Ground Truth Reconstruction Batched  
+    """)
+
+
+if __name__ == '__main__':
+    train_main()

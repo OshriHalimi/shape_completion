@@ -2,7 +2,9 @@ import torch
 import torch.nn as nn
 import numpy as np
 from collections import OrderedDict
-from util.gen import banner, warn, list_class_declared_methods, convert_bytes
+from util.string import banner, warn
+from util.fs import convert_bytes
+from util.func import list_class_declared_methods
 import types
 from pathlib import Path
 from pytorch_lightning import LightningModule
@@ -35,7 +37,20 @@ class PytorchNet(LightningModule):
 
         return o
 
-    def identify_system(self):
+    @staticmethod
+    def print_memory_usage(device=0):
+        print(f'Memory Usage for GPU: {torch.cuda.get_device_name(device)}')
+        print('Allocated:', round(torch.cuda.memory_allocated(device) / 1024 ** 3, 1), 'GB')
+        print('Cached:   ', round(torch.cuda.memory_cached(device) / 1024 ** 3, 1), 'GB')
+
+    @staticmethod
+    def learning_rate(opt):
+        # Note - this only suits a model-uniform learning rate
+        # See: https://discuss.pytorch.org/t/print-current-learning-rate-of-the-adam-optimizer/15204/9
+        return opt.param_groups[0]['lr']
+
+    @staticmethod
+    def identify_system():
         from platform import python_version
         from util.cpuinfo import cpu
         import psutil
@@ -96,11 +111,6 @@ class PytorchNet(LightningModule):
         banner('Weights')
         for i, weights in enumerate(list(self.parameters())):
             print(f'Layer {i} :: weight shape: {list(weights.size())}')
-
-    def learning_rate(self, opt):
-        # TODO - only suits a model-uniform learning rate
-        # See: https://discuss.pytorch.org/t/print-current-learning-rate-of-the-adam-optimizer/15204/9
-        return opt.param_groups[0]['lr']
 
     def summary(self, x_shape=None, batch_size=-1, print_it=True):
         def register_hook(mod):
@@ -223,8 +233,8 @@ class PytorchNet(LightningModule):
 def set_determinsitic_run(seed=None):
     if seed is None:
         # Specific to the ShapeCompletion platform
-        from cfg import RANDOM_SEED
-        seed = RANDOM_SEED
+        from cfg import UNIVERSAL_RAND_SEED
+        seed = UNIVERSAL_RAND_SEED
 
     # CPU Seeds
     random.seed(seed)
@@ -240,11 +250,10 @@ def set_determinsitic_run(seed=None):
 
 
 def worker_init_closure(seed=None):
-    # TODO: What is this function?
     if seed is None:
         # Specific to the ShapeCompletion platform
-        from cfg import RANDOM_SEED
-        seed = RANDOM_SEED
+        from cfg import UNIVERSAL_RAND_SEED
+        seed = UNIVERSAL_RAND_SEED
 
     def worker_init_fn(worker_id):
         random.seed(worker_id + seed)
@@ -255,15 +264,9 @@ def worker_init_closure(seed=None):
     return worker_init_fn
 
 
-# TODO - Consider completing this
-# def memory():
-#     if device.type == 'cuda':
-#         print(torch.cuda.get_device_name(0))
-#         print('Memory Usage:')
-#         print('Allocated:', round(torch.cuda.memory_allocated(0) / 1024 ** 3, 1), 'GB')
-#         print('Cached:   ', round(torch.cuda.memory_cached(0) / 1024 ** 3, 1), 'GB')
-
-
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     import torch
     import torchvision

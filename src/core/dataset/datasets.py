@@ -3,9 +3,8 @@ from dataset.abstract import SMPLCompletionProjDataset, InCfg
 from dataset.index import HierarchicalIndexTree
 from pickle import load
 import numpy as np
-from util.mesh_io import read_npz_mask, read_off_verts
+from mesh.io import read_npz_mask, read_off_verts
 import scipy.io as sio
-from dataset.transforms import Center
 import re
 
 
@@ -163,7 +162,7 @@ def test_dataset():
     ds = PointDatasetMenu.get('DFaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=12)
     # ds.data_summary(with_tree=False)
     # ds.validate_dataset()
-    ds.show_sample(n_shapes=8, strategy='mesh', key='gt_part', with_vnormals=True,grid_on=True)
+    ds.show_sample(n_shapes=8, strategy='mesh', key='gt_part', with_vnormals=True, grid_on=True)
     # print(samp)
     # t1,vl,tsl = ds.split_loaders(split=[0.5,0.4,0.1],s_nums=[100,200,300000],
     # # s_shuffle=[True]*3,s_transform=[Center()]*3,global_shuffle=True)

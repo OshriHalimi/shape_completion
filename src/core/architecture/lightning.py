@@ -1,48 +1,31 @@
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau  # , CosineAnnealingLR
-
 import pytorch_lightning as pl
 from architecture.loss import F2PSMPLLoss
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-
-from util.mesh_visuals import ParallelPlotter
-from util.torch_ext import PytorchNet
-from util.gen import banner, all_variables_by_module_name, time_me
+import mesh.io
+from mesh.plot import ParallelPlotter
+from util.torch_nn import PytorchNet
+from util.string import banner
+from util.func import all_variables_by_module_name
 from util.container import first
-from util.mesh_io import write_obj
 from copy import deepcopy
 from pathlib import Path
 import os.path as osp
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-#                                                         Stand alone
+#                                                   Trainer
 # ----------------------------------------------------------------------------------------------------------------------
-def extend_hyper_params(hp, hp_data_tables):
-    # Note: For data compatibility, hp.dev is extended in the constructor
-    # Dataset:
-    for k, v in hp_data_tables.items():
-        setattr(hp, k, v)
-
-    # Config Variables
-    for k, v in all_variables_by_module_name('cfg').items():  # Only import non-class/module types
-        setattr(hp, k, v)
-
-    # Experiment:
-    if hp.exp_name is None or not hp.exp_name:
-        hp.exp_name = 'default_exp'
-
-    return hp
-
 
 def train_lightning(nn, fast_dev_run=False):
     banner('Network Init')
     nn.identify_system()
     hp = nn.hyper_params()
 
-    # NOTE: Setting logger=False may vastly improve IO bottleneck. See Issue #581
+    # TODO - Add support for logger = False
     trainer = Trainer(fast_dev_run=fast_dev_run, num_sanity_val_steps=0, weights_summary=None,
                       gpus=hp.gpus, distributed_backend=hp.distributed_backend, use_amp=hp.use_16b,
                       early_stop_callback=nn.early_stop, checkpoint_callback=nn.checkpoint, logger=nn.tb_logger,
@@ -63,6 +46,8 @@ def train_lightning(nn, fast_dev_run=False):
 
 
 def test_lightning(nn):
+    # TODO - Complete this
+    print(nn)
     pass
     # nn = F2PEncoderDecoder.load_from_metrics(
     #     weights_path='/path/to/pytorch_checkpoint.ckpt',
@@ -81,18 +66,17 @@ def test_lightning(nn):
 class CompletionLightningModel(PytorchNet):
     def __init__(self, hp=()):
         super().__init__()
-        self.hparams = self.add_model_specific_args(hp).parse_args()
-        dev = 'cpu' if self.hparams.gpus is None else torch.device('cuda', torch.cuda.current_device())
-        setattr(self.hparams, 'dev', dev)  # Not very smart to place it outside the extend_function
+        self.hparams = append_config_args(self.add_model_specific_args(hp).parse_args())
 
         # Book-keeping:
-        self.opt, self.loss, self.loaders = None, None, None
-        self.early_stop, self.checkpoint, self.tb_logger = None, None, None
-        self.completions_dp, self.exp_dp, self.f = None, None, None
-        self.train_plotter_cache, self.n_v = None, None
+        self.opt, self.loss, self.early_stop, self.checkpoint, self.tb_logger = None, None, None, None, None
+        self.loaders, self.completions_dp, self.exp_dp, self.f, self.n_v = None, None, None, None, None
+        self.save_func = None
 
-        self._build_model()  # Must be done after the setting of hparams
-        if hp and self.hparams.resume_version is None:
+        self._build_model()  # Set hparams before this
+        if self.hparams.do_weight_init:
+            # Set network weight precision
+            self.type(dst_type=getattr(torch, self.hparams.UNIVERSAL_PRECISION))  # TODO - Might be problematic
             self._init_model()
 
     def _build_model(self):
@@ -105,20 +89,47 @@ class CompletionLightningModel(PytorchNet):
         raise NotImplementedError
 
     def init_data(self, loaders):
-        self.loaders = loaders
-        hp_data_tables = {}
-        for assignment, ldr in zip(('train_ds', 'vald_ds', 'test_ds'), loaders):
-            hp_data_tables[assignment] = None if ldr is None else ldr.recon_table()
 
-        self.hparams = extend_hyper_params(self.hparams, hp_data_tables)
-        # TODO: move this call
-        self.type(dst_type=getattr(torch,self.hparams.DEF_COMPUTE_PRECISION))
+        # Assign Loaders:
+        self.loaders = loaders
+
+        # Assign faces & Number of vertices - TODO - Remember this strong assumption
+        ldr = first(self.loaders, lambda x: x is not None)
+        self.f = ldr.dataset._ds_inst.faces()
+        self.n_v = ldr.dataset._ds_inst.shape()[0]
+
+        # Extend Hyper-Parameters:
+        self.hparams = append_data_args(self.hparams, loaders)
+
         self._init_trainer_collaterals()
+
+    def _init_trainer_collaterals(self):
+
+        hp = self.hparams
+
+        # TODO - Is all of this needed when only testing? What about other cases?
+        self.early_stop = EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience, verbose=1, mode='min')
+        self.tb_logger = TestTubeLogger(save_dir=hp.PRIMARY_RESULTS_DIR, description=f"{hp.exp_name} Experiment",
+                                        name=hp.exp_name, version=hp.resume_version)
+        self.exp_dp = Path(osp.dirname(self.tb_logger.experiment.log_dir)).resolve()
+        self.checkpoint = ModelCheckpoint(filepath=self.exp_dp / 'checkpoints', save_top_k=0,
+                                          verbose=True, prefix='weight', monitor='val_loss', mode='min', period=1)
+
+        # Support for completions:
+        if hp.save_completions > 0:
+            self.test_ds_name = self.hparams.test_ds['dataset_name']
+            self.completions_dp = self.exp_dp / f'{self.test_ds_name}_completions'
+            self.completions_dp.mkdir(parents=True, exist_ok=True)
+            self.save_func = getattr(mesh.io, f'write_{hp.SAVE_MESH_AS}')
+
+        # Support for parallel plotter:
+        if hp.use_parallel_plotter:
+            # logging.info('Initializing Parallel Plotter')
+            self.plt = ParallelPlotter(faces=self.f, n_verts=self.n_v)
 
     def configure_optimizers(self):
 
-        f = first(self.loaders, lambda x: x is not None).dataset._ds_inst.faces()
-        self.loss = F2PSMPLLoss(hp=self.hparams, faces=f)
+        self.loss = F2PSMPLLoss(hp=self.hparams, f=self.f)
         self.opt = torch.optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
 
         if self.hparams.plateau_patience is not None:
@@ -136,27 +147,33 @@ class CompletionLightningModel(PytorchNet):
         logs = {'loss': loss}
 
         if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
-            self.train_plotter_cache = self._prepare_plotter_dict(b, pred)  # New tensors, without grad
+            self.plt.cache(self._prepare_plotter_dict(b, pred))  # New tensors, without grad
 
         return {
             'loss': loss,  # Must use 'loss' instead of 'train_loss' due to lightning framework
             'log': logs
         }
 
+    def on_train_end(self):
+        # Called after all epochs, for cleanup
+        if self.hparams.use_parallel_plotter and self.plt.is_alive():
+            self.plt.finalize()
+
     def validation_step(self, b, batch_idx):
 
         pred = self.forward(b['gt_part'], b['tp'])
 
         if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
-            new_data = (self.train_plotter_cache, self._prepare_plotter_dict(b, pred))
+            new_data = (self.plt.uncache(), self._prepare_plotter_dict(b, pred))
             self.plt.push(new_data=new_data, new_epoch=self.current_epoch)
 
         return {'val_loss': self.loss.compute(b, pred).unsqueeze(0)}
 
     def validation_end(self, outputs):
         avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
-        lr = self.learning_rate(self.opt)
+        lr = self.learning_rate(self.opt)  # Also log learning rate
 
+        # This must be kept as "val_loss" and not "avg_val_loss" due to lightning bug
         logs = {'val_loss': avg_val_loss, 'lr': lr}
         return {"val_loss": avg_val_loss,
                 "progress_bar": logs,
@@ -180,10 +197,9 @@ class CompletionLightningModel(PytorchNet):
     def _prepare_plotter_dict(self, b, gtrb):
 
         # TODO - Support normals
-        max_b_idx = self.hparams.N_MESH_SETS
-
-        return {'gt': b['gt'].detach().cpu().numpy()[:max_b_idx,:,:3],
-                'tp': b['tp'].detach().cpu().numpy()[:max_b_idx,:,:3],
+        max_b_idx = self.hparams.VIS_N_MESH_SETS
+        return {'gt': b['gt'].detach().cpu().numpy()[:max_b_idx, :, :3],
+                'tp': b['tp'].detach().cpu().numpy()[:max_b_idx, :, :3],
                 'gtrb': gtrb.detach().cpu().numpy()[:max_b_idx],
                 'gt_hi': b['gt_hi'][:max_b_idx],
                 'tp_hi': b['tp_hi'][:max_b_idx],
@@ -195,42 +211,15 @@ class CompletionLightningModel(PytorchNet):
             gt_hi = '_'.join(str(x) for x in gt_hi)
             tp_hi = '_'.join(str(x) for x in tp_hi)  # TODO - Add support for P2P
             gtr_v = gtrb[i, :, :3]
-            fp = self.completions_dp / f'{self.test_ds_name}_gthi_{gt_hi}_tphi_{tp_hi}_res.obj'
-            write_obj(fp, gtr_v, self.f)
-
-    def _init_trainer_collaterals(self):
-
-        hp = self.hparams
-        # TODO - decide when to use these, and when not to
-        self.early_stop = EarlyStopping(monitor='val_loss', patience=hp.early_stop_patience, verbose=1, mode='min')
-        self.tb_logger = TestTubeLogger(save_dir=hp.PRIMARY_RESULTS_DIR, description=f"{hp.exp_name} Experiment",
-                                        name=hp.exp_name, version=hp.resume_version)
-        self.exp_dp = Path(osp.dirname(self.tb_logger.experiment.log_dir)).resolve()
-
-        # Support for completions:
-        if hp.save_completions > 0:
-            self.test_ds_name = self.hparams.test_ds['dataset_name']
-            self.completions_dp = self.exp_dp / f'{self.test_ds_name}_completions'
-            self.completions_dp.mkdir(parents=True, exist_ok=True)
-
-        if hp.save_completions == 2 or hp.use_parallel_plotter:  # With faces
-            ldr = first(self.loaders, lambda x: x is not None)
-            self.f = ldr.dataset._ds_inst.faces() # Hard assumption - all meshes have the same number of vertices
-            self.n_v = ldr.dataset._ds_inst.shape()[0]
-
-        # Support for parallel plotter:
-        if hp.use_parallel_plotter:
-            self.plt = ParallelPlotter.initialize(faces=self.f,n_verts = self.n_v)
-            assert self.hparams.N_MESH_SETS <= self.hparams.batch_size, \
-                f"Parallel plotter needs a batch size of at least N_MESH_SETS={self.hparams.N_MESH_SETS}"
-
-        self.checkpoint = ModelCheckpoint(filepath=self.exp_dp / 'checkpoints', save_top_k=0,
-                                          verbose=True, prefix='weight', monitor='val_loss', mode='min', period=1)
-
-        # self.example_input_array = torch.rand(5, 28 * 28) # Used by weight summary to show in/out for each layer
+            fp = self.completions_dp / f'{self.test_ds_name}_gthi_{gt_hi}_tphi_{tp_hi}_res'
+            self.save_func(fp, gtr_v, self.f)
 
     def hyper_params(self):
         return deepcopy(self.hparams)
+
+    @staticmethod  # You need to override this method
+    def add_model_specific_args(parent_parser):
+        return parent_parser
 
     @pl.data_loader
     def train_dataloader(self):
@@ -244,6 +233,44 @@ class CompletionLightningModel(PytorchNet):
     def test_dataloader(self):
         return self.loaders[2]
 
-    @staticmethod  # You need to override this method
-    def add_model_specific_args(parent_parser):
-        return parent_parser
+
+# ----------------------------------------------------------------------------------------------------------------------
+#                                        Hyper Parameter Extents
+# ----------------------------------------------------------------------------------------------------------------------
+def append_config_args(hp):
+    # Config Variables
+    for k, v in all_variables_by_module_name('cfg').items():  # Only import non-class/module types
+        setattr(hp, k, v)
+
+    if hasattr(hp, 'gpus'):  # This is here to allow init of network with only model params (no argin)
+
+        # Device - TODO - Does this support multiple GPU ?
+        dev = torch.device('cpu') if hp.gpus is None else torch.device('cuda', torch.cuda.current_device())
+        setattr(hp, 'dev', dev)
+
+        # Experiment:
+        if hp.exp_name is None or not hp.exp_name:
+            hp.exp_name = 'default_exp'
+
+        # Weight Init Flag
+        setattr(hp, 'do_weight_init', hp.resume_version is None)
+
+        # Correctness of config parameters:
+        assert hp.VIS_N_MESH_SETS <= hp.batch_size, \
+            f"Plotter needs requires batch size >= N_MESH_SETS={hp.VIS_N_MESH_SETS}"
+
+    else:
+        setattr(hp, 'do_weight_init', True)
+
+    return hp
+
+
+def append_data_args(hp, loaders):
+    for set_name, ldr in zip(('train_ds', 'vald_ds', 'test_ds'), loaders):
+        table = None if ldr is None else ldr.recon_table()
+        setattr(hp, set_name, table)
+
+    # TODO - This might be a wrong assumption
+    setattr(hp, 'use_parallel_plotter', hp.use_parallel_plotter and loaders[0] is not None)
+
+    return hp

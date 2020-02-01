@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
-from util.datascience import normr, index_sparse
+from util.data_ops import normr, index_sparse
 import cfg
 
 
@@ -44,15 +44,8 @@ def face_barycenters(v, f):
     return centers
 
 
-def padded_part_by_mask(mask_vi, v):
-    # Pad the mask to length:
-    needed_padding_len = v.shape[0] - len(mask_vi)
-    mask_vi_padded = np.append(mask_vi, np.random.choice(mask_vi, needed_padding_len, replace=True))  # Copies
-    return v[mask_vi_padded, :]
-
-
 def fnrmls(v, f, normalized=True):
-    # TODO - Deprecated if proven slow vs the other versions
+    # TODO - Deprecated if proven slow vs Oshri's version
     a = v[f[:, 0], :]
     b = v[f[:, 1], :]
     c = v[f[:, 2], :]
@@ -63,7 +56,7 @@ def fnrmls(v, f, normalized=True):
 
 
 def vnrmls(v, f, normalized=True):
-    # TODO - Deprecated if proven slow vs the other versions
+    # TODO - Deprecated if proven slow vs Oshri's version
     # NOTE - Vertex normals unreferenced by faces will be zero
     if f is None:
         raise NotImplementedError  # TODO - Add in computation for scans, without faces - either with pcnormals/
@@ -81,18 +74,26 @@ def moments(v):
     return np.stack((x ** 2, y ** 2, z ** 2, x * y, x * z, y * z), axis=1)
 
 
-def flip_mask(nv, vi):
-    indicator = mask_indicator(nv,vi)
+def padded_part_by_mask(vi, v):
+    # Pad the mask to length:
+    needed_padding_len = v.shape[0] - len(vi)
+    mask_vi_padded = np.append(vi, np.random.choice(vi, needed_padding_len, replace=True))  # Copies
+    return v[mask_vi_padded, :]
+
+
+def flip_vertex_mask(nv, vi):
+    indicator = vertex_mask_indicator(nv, vi)
     return np.where(indicator == 0)[0]
 
-def mask_indicator(nv,vi):
-    indicator = np.zeros((nv,),dtype=bool)
+
+def vertex_mask_indicator(nv, vi):
+    indicator = np.zeros((nv,), dtype=bool)
     indicator[vi] = 1
     return indicator
 
 
-def trunc_to_vertex_subset(v, f, vi):
-    # TODO: Warning supports only watertight meshes (not scans)
+def trunc_to_vertex_mask(v, f, vi):
+    # TODO: Warning supports only watertight meshes (not scans) - Need to remove vertices unref by f2
     nv = v.shape[0]
     # Compute new vertices:
     v2 = v[vi, :]
@@ -125,7 +126,7 @@ def batch_moments(vb):
 
 
 def batch_fnrmls_fareas(vb, f):
-    """
+    """ # TODO - Allow also [n_verts x 3]. Write another function called batch_fnrmls if we only need those
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
     :param f: faces matrix,we assume all the shapes have the same connectivity, dim: [n_faces x 3], dtype = torch.long
     :return face_normals_b: batch of face normals, dim: [batch_size x n_faces x 3]
@@ -158,7 +159,7 @@ def batch_fnrmls_fareas(vb, f):
 # TODO - Oshri - Decide which implementation we are going to use
 
 def batch_vnrmls_(vb, f, adj_vf):
-    """
+    """ # TODO - Allow also [n_verts x 3].
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
     :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
     :param adj_vf: sparse adjacency matrix beween vertices and faces, dim: [n_vertices x n_faces]
@@ -222,17 +223,21 @@ def batch_vnrmls(vb, f):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-#                                               Test Functions
+#                                                   Test Suite
 # ----------------------------------------------------------------------------------------------------------------------
 
-def test_vnrmls_grad():
+def bring_in_test_data():
     from dataset.datasets import PointDatasetMenu, InCfg
     from dataset.transforms import Center
     ds = PointDatasetMenu.get('FaustPyProj', in_channels=12, in_cfg=InCfg.FULL2PART)
     samp = ds.sample(num_samples=2, transforms=[Center()])  # dim:
     vb = samp['gt'][:, :, :3]
     f = ds.faces().long()
+    return vb, f
 
+
+def test_vnrmls_grad():
+    vb, f = bring_in_test_data()
     # N_faces = faces.shape[0]
     # N_vertices = batch_v.shape[1]
     # adjacency_vf = vf_adjacency(faces, N_faces, N_vertices)
@@ -248,14 +253,8 @@ def test_vnrmls_grad():
 
 
 def test_vnrmls_visually():
-    from util.mesh_visuals import show_vnormals
-    from dataset.datasets import PointDatasetMenu, InCfg
-    from dataset.transforms import Center
-    ds = PointDatasetMenu.get('FaustPyProj', in_channels=12, in_cfg=InCfg.FULL2PART)
-    samp = ds.sample(num_samples=2, transforms=[Center()])  # dim:
-    vb = samp['gt'][:, :, :3]
-    f = ds.faces().long()
-
+    from mesh.plot import plot_mesh
+    vb, f = bring_in_test_data()
     # adjacency_VF = vf_adjacency(faces, n_faces, n_verts)
     # This operation can be calculated once for the whole training
     vertex_normals, is_valid_vnb = batch_vnrmls(vb, f)
@@ -264,24 +263,17 @@ def test_vnrmls_visually():
 
     v = vb[4, :, :]
     n = vertex_normals[4, :, :]
-    show_vnormals(v, f, n)
+    plot_mesh(v, f, n)
 
 
 def test_fnrmls_visually():
-    from util.mesh_visuals import show_fnormals
-    from dataset.datasets import PointDatasetMenu, InCfg
-    from dataset.transforms import Center
-    ds = PointDatasetMenu.get('FaustPyProj', in_channels=12, in_cfg=InCfg.FULL2PART)
-    samp = ds.sample(num_samples=2, transforms=[Center()])  # dim:
-    vb = samp['gt'][:, :, :3]
-    f = ds.faces().long()
-
+    from mesh.plot import plot_mesh
+    vb, f = bring_in_test_data()
     face_normals, is_valid_fnb, face_areas_b = batch_fnrmls_fareas(vb, f)
     # magnitude = torch.norm(face_normals, dim=2)  # Debug: assert the values are equal to 1.000
     v = vb[4, :, :]
     n = face_normals[4, :, :]
-    show_fnormals(v, f, n)
-    print(samp)
+    plot_mesh(v, f, n)
 
 
 if __name__ == '__main__':

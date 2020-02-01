@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import pyvista as pv
 import math
-from util.mesh_compute import face_barycenters, mask_indicator
+from mesh.ops import face_barycenters, vertex_mask_indicator
 from multiprocessing import Process, Manager
 from copy import deepcopy
 
@@ -135,18 +135,18 @@ def _append_mesh(p, v, f=None, n=None, spheres_on=True, grid_on=False, clr='ligh
 # ----------------------------------------------------------------------------------------------------------------------#
 
 class ParallelPlotter(Process):
-    from cfg import VIS_CMAP, VIS_METHOD, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, N_MESH_SETS, VIS_SHOW_GRID
+    from cfg import VIS_CMAP, VIS_METHOD, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, VIS_N_MESH_SETS, VIS_SHOW_GRID
 
-    def __init__(self, shared_dict, faces, n_v):
+    def __init__(self, faces, n_verts):
         super().__init__()
-        self.sd = shared_dict
+        self.sd = Manager().dict()
+        self.sd['epoch'] = -1
+        self.sd['poison'] = False
+
+        self.n_v = n_verts
         self.last_plotted_epoch = -1
-
-        # Book-keeping:
-        self.train_d, self.val_d = None, None
-        self.n_v = n_v
         self.f = faces if self.VIS_METHOD == 'mesh' else None
-
+        self.train_d, self.val_d, self.data_cache = None, None, None
         self.kwargs = {'smooth_shade_on': self.VIS_SMOOTH_SHADING, 'show_edges': self.VIS_SHOW_EDGES,
                        'spheres_on': (self.VIS_METHOD == 'spheres'), 'cmap': self.VIS_CMAP,
                        'grid_on': self.VIS_SHOW_GRID}
@@ -156,36 +156,41 @@ class ParallelPlotter(Process):
         pv.set_plot_theme("document")
         while 1:
             try:
-                if self.sd['poison']:
-                    print(f'Pipe poison detected. Exiting plotting supervisor')
+                if self.last_plotted_epoch != -1 and self.sd['poison']:  # Plotted at least one time + Poison
+                    print(f'Pipe poison detected. Displaying one last time, and then exiting plotting supervisor')
+                    self.try_update_data()
+                    self.plot_data(final=True)
                     break
             except (BrokenPipeError, EOFError):  # Missing parent
                 print(f'Producer missing. Exiting plotting supervisor')
                 break
 
-            current_epoch = self.sd['epoch']
-            if current_epoch != self.last_plotted_epoch:
-                self.last_plotted_epoch = current_epoch
-                self.read_data()
+            self.try_update_data()
             self.plot_data()
 
     # Meant to be called by the consumer
-    def read_data(self):
-        # Update version with one single read
+    def try_update_data(self):
+        current_epoch = self.sd['epoch']
+        if current_epoch != self.last_plotted_epoch:
+            self.last_plotted_epoch = current_epoch
+            self.train_d, self.val_d = deepcopy(self.sd['data'])  # Update version with one single read
+
         # Slight problem of atomicity here - with respect to current_epoch. Data may have changed in the meantime -
         # but it is still new data, so no real problem. May be resolved with lock = manager.Lock() before every update->
         # lock.acquire() / lock.release(), but this will be problematic for the main process - which we want to optimize
 
-        self.train_d, self.val_d = deepcopy(self.sd['data'])
-
     # Meant to be called by the consumer
-    def plot_data(self):
+    def plot_data(self, final=False):
+        if final:
+            title = f'Final visualziation before closing for Epoch {self.last_plotted_epoch}'
+        else:
+            title = f'Visualization for Epoch {self.last_plotted_epoch}'
 
-        p = pv.Plotter(shape=(2 * self.N_MESH_SETS, 4), title=f'Visualization for Epoch {self.last_plotted_epoch}')
+        p = pv.Plotter(shape=(2 * self.VIS_N_MESH_SETS, 4), title=title)
         for di, (d, set_name) in enumerate(zip([self.train_d, self.val_d], ['Train', 'Vald'])):
-            for i in range(self.N_MESH_SETS):
-                subplt_row_id = i + di * self.N_MESH_SETS
-                mask_ind = mask_indicator(self.n_v, d['gt_mask_vi'][i])
+            for i in range(self.VIS_N_MESH_SETS):
+                subplt_row_id = i + di * self.VIS_N_MESH_SETS
+                mask_ind = vertex_mask_indicator(self.n_v, d['gt_mask_vi'][i])
                 gtrb = d['gtrb'][i].squeeze()
                 gt = d['gt'][i].squeeze()
                 tp = d['tp'][i].squeeze()
@@ -206,14 +211,6 @@ class ParallelPlotter(Process):
         # p.link_views()
         p.show()
 
-    @staticmethod
-    def initialize(faces, n_verts):
-        shared_dict = Manager().dict()
-        shared_dict['epoch'] = -1
-        shared_dict['poison'] = False
-        p = ParallelPlotter(shared_dict, faces, n_verts)
-        return p
-
     # Meant to be called by the producer
     def push(self, new_epoch, new_data):
         # new_data = (train_dict,vald_dict)
@@ -227,7 +224,15 @@ class ParallelPlotter(Process):
         if old_epoch == 0:  # First push
             self.start()
 
-    # Meant to be called by the producer
+    def cache(self, data):
+        self.data_cache = data
+
+    def uncache(self):
+        cache = self.data_cache
+        self.data_cache = None
+        return cache
+        # Meant to be called by the producer
+
     def finalize(self):
         self.sd['poison'] = True
         print('Workload completed - Please exit plotter to complete execution')
@@ -240,7 +245,7 @@ class ParallelPlotter(Process):
 
 def visuals_tester():
     from dataset.datasets import PointDatasetMenu, InCfg
-    from util.mesh_compute import vnrmls  # , fnrmls
+    from mesh.ops import vnrmls  # , fnrmls
     ds = PointDatasetMenu.get('FaustPyProj', in_channels=6, in_cfg=InCfg.FULL2PART)
     samp = ds.sample(15)  # dim:
     vv = samp['gt'][0, :, :3]

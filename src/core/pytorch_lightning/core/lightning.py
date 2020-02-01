@@ -3,7 +3,6 @@ import warnings
 import collections
 import logging
 from abc import ABC, abstractmethod
-from argparse import Namespace
 
 import torch
 import torch.distributed as dist
@@ -643,7 +642,7 @@ class LightningModule(ABC, GradInformation, ModelIO, ModelHooks):
 
                 return model, optimizers
         """
-        model, optimizers = amp.initialize(
+        model, optimizers = amp.init(
             model, optimizers, opt_level=amp_level,
         )
 

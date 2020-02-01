@@ -123,7 +123,7 @@ class Trainer(TrainerIOMixin,
         :param str distributed_backend: Options: 'dp', 'ddp', 'ddp2'.
         :param bool use_amp: If true uses apex for 16bit precision
         :param bool print_nan_grads: Prints nan gradients
-        :param str weights_summary: Options: 'full', 'top', None to not print.
+        :param str or None weights_summary: Options: 'full', 'top', None to not print.
         :param bool weights_save_path: Where to save weights if on cluster
         :param str amp_level: Check nvidia docs for level
         :param int num_sanity_val_steps: How many val steps before a full train loop.
@@ -200,7 +200,7 @@ class Trainer(TrainerIOMixin,
         self.total_batch_idx = 0
         self.running_loss = []
         import numpy
-        self.avg_loss = numpy.Inf # Mano
+        self.avg_loss = numpy.Inf # MANO
         self.batch_idx = 0
         self.tqdm_metrics = {}
         self.callback_metrics = {}

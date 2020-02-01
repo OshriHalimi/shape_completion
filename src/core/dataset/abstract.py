@@ -1,22 +1,23 @@
 from torch.utils.data import Dataset
 from pathlib import Path
-from dataset.collate import completion_collate
 from collections import Sequence
-from abc import ABC  # , abstractmethod
+from abc import ABC
 from torch.utils.data.sampler import SubsetRandomSampler
-from util.torch_data_ext import determine_worker_num, ReconstructableDataLoader
-from util.gen import warn, banner, convert_bytes, time_me
+from util.torch_data import determine_worker_num, ReconstructableDataLoader
+from util.string import warn, banner
+from util.func import time_me
+from util.fs import convert_bytes
 from util.container import split_frac, enum_eq
-from util.mesh_compute import trunc_to_vertex_subset
+from mesh.ops import trunc_to_vertex_mask
 from pickle import load
-from copy import deepcopy
 from dataset.transforms import *
 from enum import Enum, auto
-import sys
 from tqdm import tqdm
 from types import MethodType
-import time
-from timeit import default_timer as timer
+import sys
+import torch
+import re
+from torch._six import container_abcs, string_classes, int_classes
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -87,7 +88,7 @@ class PointDataset(ABC):
 
     def faces(self):
         assert self._f is not None, "Faces property is empty"
-        return deepcopy(self._f)
+        return self._f
 
     def sample(self, num_samples=10, transforms=None):
         if num_samples > self.num_pnt_clouds():
@@ -275,9 +276,9 @@ class CompletionProjDataset(PointDataset, ABC):
         self._hierarchical_index_to_path = MethodType(getattr(self.__class__, f"_{in_cfg.name.lower()}_path"), self)
         self._path_load = MethodType(getattr(self.__class__, f"_{in_cfg.name.lower()}_load"), self)
 
-        from cfg import DANGEROUS_MASK_THRESH, DEF_COMPUTE_PRECISION
+        from cfg import DANGEROUS_MASK_THRESH, UNIVERSAL_PRECISION
         self._mask_thresh = DANGEROUS_MASK_THRESH
-        self._def_precision = getattr(np, DEF_COMPUTE_PRECISION)
+        self._def_precision = getattr(np, UNIVERSAL_PRECISION)
 
     def _transformation_finalizer(self, transforms):
         # A bit messy
@@ -323,17 +324,17 @@ class CompletionProjDataset(PointDataset, ABC):
         return comp_d
 
     def show_sample(self, n_shapes=8, key='gt_part', strategy='spheres', with_vnormals=False, *args, **kwargs):
-        from util.mesh_visuals import plot_mesh_montage
+        from mesh.plot import plot_mesh_montage
         assert strategy in ['spheres', 'mesh', 'cloud']
         using_full = key in ['gt', 'tp']
-        # assert not (not using_full and strategy == 'mesh'), "Mesh strategy for 'part' gets stuck in vtkplotter"
+
         fp_fun = self._hi2full_path if using_full else self._hi2proj_path
         samp = self.sample(n_shapes)
 
         origin = key.split('_')[0]
         labelb = [f'{key} | {fp_fun(samp[f"{origin}_hi"][i]).name}' for i in range(n_shapes)]
         vb = samp[key][:, :, 0:3].numpy()
-        if with_vnormals: # TODO - add intergration for gt_part
+        if with_vnormals:  # TODO - add intergration for gt_part
             nb = samp[key][:, :, 3:6].numpy()
         else:
             nb = None
@@ -343,12 +344,12 @@ class CompletionProjDataset(PointDataset, ABC):
                 fb = self._f
             else:
                 # TODO - Should we change the vertices as well?
-                fb = [trunc_to_vertex_subset(vb[i], self._f, samp[f'{origin}_mask_vi'][i])[1] for i in range(n_shapes)]
+                fb = [trunc_to_vertex_mask(vb[i], self._f, samp[f'{origin}_mask_vi'][i])[1] for i in range(n_shapes)]
         else:
             fb = None
 
-        plot_mesh_montage(vb=vb, fb=fb,nb=nb, labelb=labelb, spheres_on=(strategy == 'spheres'),
-                          *args,**kwargs)
+        plot_mesh_montage(vb=vb, fb=fb, nb=nb, labelb=labelb, spheres_on=(strategy == 'spheres'),
+                          *args, **kwargs)
 
         # @abstractmethod
 
@@ -374,7 +375,66 @@ class SMPLCompletionProjDataset(CompletionProjDataset, ABC):
         # Add in SMPL faces
         with open(self._data_dir / 'SMPL_face.pkl', "rb") as f_file:
             self._f = load(f_file)
+            self._f.flags.writeable = False  # Make this a read-only numpy array
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
+np_str_obj_array_pattern = re.compile(r'[SaUO]')
+
+
+# noinspection PyUnresolvedReferences
+def completion_collate(batch, stop=False):
+    r"""Puts each data field into a tensor with outer dimension batch size"""
+    if stop:
+        return batch
+    elem = batch[0]
+    elem_type = type(elem)
+    if isinstance(elem, torch.Tensor):
+        out = None
+        if torch.utils.data.get_worker_info() is not None:
+            # If we're in a background process, concatenate directly into a
+            # shared memory tensor to avoid an extra copy
+            numel = sum([x.numel() for x in batch])
+            storage = elem.storage()._new_shared(numel)
+            out = elem.new(storage)
+        return torch.stack(batch, 0, out=out)
+    elif elem_type.__module__ == 'numpy' and elem_type.__name__ != 'str_' \
+            and elem_type.__name__ != 'string_':
+        elem = batch[0]
+        if elem_type.__name__ == 'ndarray':
+            # array of string classes and object
+            if np_str_obj_array_pattern.search(elem.dtype.str) is not None:
+                raise TypeError(
+                    f"default_collate: batch must contain tensors, numpy arrays, "
+                    f"numbers, dicts or lists; found {elem.dtype}")
+
+            return completion_collate([torch.as_tensor(b) for b in batch])
+        elif elem.shape == ():  # scalars
+            return torch.as_tensor(batch)
+    elif isinstance(elem, float):
+        return torch.tensor(batch, dtype=torch.float64)
+    elif isinstance(elem, int_classes):
+        return torch.tensor(batch)
+    elif isinstance(elem, string_classes):
+        return batch
+    elif isinstance(elem, container_abcs.Mapping):
+        # A bit hacky - but works
+        d = {}
+        for k in elem:
+            if k in ['gt_mask_vi', 'tp_mask_vi', 'gt_hi', 'tp_hi']:
+                stop = True
+            else:
+                stop = False
+            d[k] = completion_collate([d[k] for d in batch], stop)
+        return d
+
+        # return {key: default_collate([d[key] for d in batch],rec_level=1) for key in elem}
+    elif isinstance(elem, tuple) and hasattr(elem, '_fields'):  # namedtuple
+        return elem_type(*(completion_collate(samples) for samples in zip(*batch)))
+    elif isinstance(elem, container_abcs.Sequence):
+        transposed = zip(*batch)
+        return [completion_collate(samples) for samples in transposed]
+    raise TypeError(
+        f"default_collate: batch must contain tensors, numpy arrays, numbers, dicts or lists; found {elem.dtype}")
