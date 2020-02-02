@@ -29,7 +29,7 @@ def lightning_trainer(nn, fast_dev_run=False):
                       gpus=hp.gpus, distributed_backend=hp.distributed_backend, use_amp=hp.use_16b,
                       early_stop_callback=nn.early_stop, checkpoint_callback=nn.checkpoint, logger=nn.tb_logger,
                       min_epochs=hp.force_train_epoches, report_loss_per_batch=hp.REPORT_LOSS_PER_BATCH,
-                      max_epochs=hp.MAX_EPOCHS)
+                      max_epochs=hp.MAX_EPOCHS,print_nan_grads=False)
     """ More flags to consider:
     log_gpu_memory = 'min_max' or 'all' # How to log the GPU memory
     track_grad_norm  = 2 # Track L2 norm of the gradient # Track the Gradient Norm

@@ -2,6 +2,7 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 from util.data_ops import normr, index_sparse
+from util.func import time_me
 import cfg
 
 
@@ -148,11 +149,11 @@ def batch_fnrmls_fareas(vb, f):
     face_areas_b = torch.norm(face_normals_b, dim=2, keepdim=True) / 2
     is_valid_fnb = (face_areas_b.squeeze(2) > (cfg.NORMAL_MAGNITUDE_THRESH / 2))
 
-    face_normals_b = face_normals_b / (2 * face_areas_b)
-    face_normals_b[~is_valid_fnb, :] = 0
+    fnb_out = torch.zeros_like(face_normals_b)
+    fnb_out[is_valid_fnb, :] = face_normals_b[is_valid_fnb, :] / (2 * face_areas_b[is_valid_fnb, :])
 
     face_areas_b = face_areas_b.squeeze(2)
-    return face_normals_b, face_areas_b, is_valid_fnb
+    return fnb_out, face_areas_b, is_valid_fnb
 
 
 # TODO - Oshri - Decide which implementation we are going to use
@@ -214,12 +215,12 @@ def batch_vnrmls(vb, f):
 
     magnitude = torch.norm(vnb, dim=2, keepdim=True)
     is_valid_vnb = (magnitude > cfg.NORMAL_MAGNITUDE_THRESH).squeeze(2)
-    vnb = vnb / magnitude
-    vnb[~is_valid_vnb, :] = 0
+    vnb_out = torch.zeros_like(vb)
+    vnb_out[is_valid_vnb, :] = vnb[is_valid_vnb, :] / magnitude[is_valid_vnb, :]
 
     # check the sum of face normals is greater than zero
 
-    return vnb, is_valid_vnb
+    return vnb_out, is_valid_vnb
 
 
 # ----------------------------------------------------------------------------------------------------------------------
