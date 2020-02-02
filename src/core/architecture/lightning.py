@@ -16,6 +16,7 @@ from pathlib import Path
 import os.path as osp
 from util.torch_nn import TensorboardSupervisor
 import logging
+from util.func import time_me
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -65,7 +66,7 @@ class CompletionLightningModel(PytorchNet):
 
         # Book-keeping:
         self.opt, self.loss, self.early_stop, self.checkpoint, self.tb_logger = None, None, None, None, None
-        self.loaders, self.completions_dp, self.exp_dp, self.f, self.n_v = None, None, None, None, None
+        self.loaders, self.completions_dp, self.exp_dp, self.f, self.n_f, self.n_v = None, None, None, None, None, None
         self.save_func, self.tb_sub = None, None
 
         self._build_model()  # Set hparams before this
@@ -91,6 +92,7 @@ class CompletionLightningModel(PytorchNet):
         # Assign faces & Number of vertices - TODO - Remember this strong assumption
         ldr = first(self.loaders, lambda x: x is not None)
         self.f = ldr.dataset._ds_inst.faces()
+        self.n_f = self.f.shape[0]
         self.n_v = ldr.dataset._ds_inst.shape()[0]
 
         # Extend Hyper-Parameters:

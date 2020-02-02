@@ -28,7 +28,7 @@ def parser():
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
-    p.add_argument('--batch_size', type=int, default=5, help='SGD batch size')
+    p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
     p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
@@ -48,7 +48,7 @@ def parser():
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
     # L2 Losses: Use 0 to ignore, >0 to compute
-    p.add_argument('--lambdas', nargs=4, type=float, default=(1, 1, 0, 0, 0),
+    p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0.001, 0, 0, 0),
                    help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas] loss multiplication modifiers')
     # Loss Modifiers: # TODO - Implement for Euclid Maps & Face Areas as well.
     p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0),

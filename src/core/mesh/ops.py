@@ -4,23 +4,25 @@ import torch.nn.functional as F
 from util.data_ops import normr, index_sparse
 from util.func import time_me
 import cfg
-
+from util.torch_nn import PytorchNet
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                    Singleton Computes for Numpy/Pytorch Tensors
 # ----------------------------------------------------------------------------------------------------------------------#
-def vf_adjacency(faces, n_faces, n_verts):
+def vf_adjacency(faces, n_faces, n_verts, device):
     """
     :param faces: dim: [N_faces x 3]
     :param n_faces: number of faces
     :param n_verts: number of vertices
+    :param dev: device to place tensors
     :return: adjacency_vf: sparse integer adjacency matrix between vertices and faces, dim: [N_vertices x N_faces]
     """
-    i0 = torch.stack((faces[:, 0], torch.arange(n_faces)), dim=1)
-    i1 = torch.stack((faces[:, 1], torch.arange(n_faces)), dim=1)
-    i2 = torch.stack((faces[:, 2], torch.arange(n_faces)), dim=1)
+    fvec = torch.arange(n_faces, device=device)
+    i0 = torch.stack((faces[:, 0], fvec), dim=1)
+    i1 = torch.stack((faces[:, 1], fvec), dim=1)
+    i2 = torch.stack((faces[:, 2], fvec), dim=1)
     ind = torch.cat((i0, i1, i2), dim=0)
-    ones_vec = torch.ones([3 * n_faces], dtype=torch.int8)
+    ones_vec = torch.ones([3 * n_faces], dtype=torch.int8, device=device)
     adjacency_vf = torch.sparse.IntTensor(ind.t(), ones_vec, torch.Size([n_verts, n_faces]))
     return adjacency_vf
 
@@ -155,39 +157,6 @@ def batch_fnrmls_fareas(vb, f):
     face_areas_b = face_areas_b.squeeze(2)
     return fnb_out, face_areas_b, is_valid_fnb
 
-
-# TODO - Oshri - Decide which implementation we are going to use
-
-def batch_vnrmls_(vb, f, adj_vf):
-    """ # TODO - Allow also [n_verts x 3].
-    :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
-    :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
-    :param adj_vf: sparse adjacency matrix beween vertices and faces, dim: [n_vertices x n_faces]
-    :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
-    :return: is_valid_vnb: boolean matrix indicating if the normal is valid,
-    magnitude greater than zero [batch_size x n_vertices].
-    """
-
-    face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f)
-    is_valid_fnb = is_valid_fnb.unsqueeze(1)
-    face_areas_b = face_areas_b.unsqueeze(1)
-    adj_vf = adj_vf.unsqueeze(0)
-
-    weights_vf = is_valid_fnb * face_areas_b * adj_vf.to_dense()  # dim: [batch_size x n_vertices x n_faces]
-    total_weight_v = torch.norm(weights_vf, dim=2, keepdim=True, p=1)
-    weights_vf = weights_vf / total_weight_v
-    total_weight_v = total_weight_v.squeeze(2)
-    is_valid_vnb = total_weight_v > 0  # A check that at least one valid face contributes to the average
-    vnb = weights_vf.bmm(face_normals_b)  # face_normals_b dim: [batch_size x n_faces x 3]
-
-    magnitude = torch.norm(vnb, dim=2, keepdim=True)
-    vnb = vnb / magnitude
-    is_valid_vnb = is_valid_vnb * (magnitude.squeeze(2) > cfg.NORMAL_MAGNITUDE_THRESH)
-    # A check that the average normal is greater than zero
-
-    return vnb, is_valid_vnb
-
-
 def batch_vnrmls(vb, f):
     """
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
@@ -217,7 +186,6 @@ def batch_vnrmls(vb, f):
     is_valid_vnb = (magnitude > cfg.NORMAL_MAGNITUDE_THRESH).squeeze(2)
     vnb_out = torch.zeros_like(vb)
     vnb_out[is_valid_vnb, :] = vnb[is_valid_vnb, :] / magnitude[is_valid_vnb, :]
-
     # check the sum of face normals is greater than zero
 
     return vnb_out, is_valid_vnb
@@ -279,3 +247,41 @@ def test_fnrmls_visually():
 
 if __name__ == '__main__':
     test_vnrmls_visually()
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+#                                        Graveyard
+# ----------------------------------------------------------------------------------------------------------------------
+
+# This implementation for batch vertex normals is here since currently it consumes too much memory
+# and pytorch doesn't support sparse matrix bmm
+# def batch_vnrmls_(vb, f, adj_vf):
+#     """.
+#     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
+#     :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
+#     :param adj_vf: sparse adjacency matrix beween vertices and faces, dim: [n_vertices x n_faces]
+#     :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
+#     :return: is_valid_vnb: boolean matrix indicating if the normal is valid,
+#     magnitude greater than zero [batch_size x n_vertices].
+#     """
+#     PytorchNet.print_memory_usage()
+#     face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f)
+#     is_valid_fnb = is_valid_fnb.unsqueeze(1)
+#     face_areas_b = face_areas_b.unsqueeze(1)
+#     adj_vf = adj_vf.unsqueeze(0)
+#
+#     weights_vf = is_valid_fnb * face_areas_b * adj_vf.to_dense()  # dim: [batch_size x n_vertices x n_faces]
+#     total_weight_v = torch.norm(weights_vf, dim=2, keepdim=True, p=1)
+#     weights_vf = weights_vf / total_weight_v
+#     total_weight_v = total_weight_v.squeeze(2)
+#     is_valid_vnb = total_weight_v > 0  # A check that at least one valid face contributes to the average
+#     vnb = weights_vf.bmm(face_normals_b)  # face_normals_b dim: [batch_size x n_faces x 3]
+#
+#     magnitude = torch.norm(vnb, dim=2, keepdim=True)
+#     is_valid_vnb = is_valid_vnb * (magnitude.squeeze(2) > cfg.NORMAL_MAGNITUDE_THRESH)
+#     vnb_out = torch.zeros_like(vb)
+#     vnb_out[is_valid_vnb, :] = vnb[is_valid_vnb, :] / magnitude[is_valid_vnb, :]
+#     # A check that the average normal is greater than zero
+#
+#     return vnb, is_valid_vnb

@@ -11,7 +11,7 @@ UNIVERSAL_PRECISION = 'float32'  # float64,float32 or float16. PyTorch defaults 
 NORMAL_MAGNITUDE_THRESH = 10 ** (-6)  # The minimal norm allowed for vertex normals to decide that they are too small
 DEF_LR_SCHED_COOLDOWN = 5  # Number of epoches to wait after reducing the step-size. Works only if LR sched is enabled
 DEF_MINIMAL_LR = 1e-6  # The smallest learning step allowed with LR sched. Works only if LR sched is enabled
-MAX_EPOCHS = 1000  # Maximum number of allowed epochs. We usually stop WAY before this due to early stop callback
+MAX_EPOCHS = 2  # Maximum number of allowed epochs. We usually stop WAY before this due to early stop callback
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                    COMPLEXITY
 # ----------------------------------------------------------------------------------------------------------------------
@@ -32,7 +32,7 @@ SAVE_MESH_AS = 'obj'  # Currently implemented - ['obj','off']
 #                                                   VISUALIZATION
 # ----------------------------------------------------------------------------------------------------------------------
 VIS_N_MESH_SETS = 2  # Parallel plot will plot 8 meshes for each mesh set - 4 from train, 4 from vald
-VIS_METHOD = 'spheres'  # spheres,cloud,mesh  - Choose how to display the meshes
+VIS_METHOD = 'cloud'  # spheres,cloud,mesh  - Choose how to display the meshes
 VIS_CMAP = 'summer'  # https://matplotlib.org/3.1.0/tutorials/colors/colormaps.html
 # We use two colors: one for the mask verts [Right end of the spectrum] and one for the rest [Left end of the spectrum].
 VIS_SHOW_GRID = False  # Visualzie with grid?

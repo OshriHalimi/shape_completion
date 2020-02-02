@@ -1,8 +1,8 @@
 import torch
-from mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_moments
+from mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_vnrmls_, batch_moments
 from util.string_op import warn
-
-
+from mesh.ops import vf_adjacency
+from util.torch_nn import PytorchNet
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Loss Helpers
 # ----------------------------------------------------------------------------------------------------------------------
@@ -19,7 +19,7 @@ class F2PSMPLLoss:
         self.def_prec = getattr(torch, hp.UNIVERSAL_PRECISION)
 
         # Handle Faces:
-        if f is not None:
+        if f is not None and self.lambdas[1] > 0:
             self.torch_f = torch.from_numpy(f).long().to(device=self.dev, non_blocking=self.non_blocking)
 
         # Sanity Check - Input Channels:
