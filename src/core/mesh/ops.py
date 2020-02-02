@@ -132,10 +132,8 @@ def batch_fnrmls_fareas(vb, f):
     :return face_normals_b: batch of face normals, dim: [batch_size x n_faces x 3]
             face_areas_b: batch of face areas, dim: [batch_size x n_faces]
             is_valid_fnb: boolean matrix indicating if the normal is valid,
-            magnitude greater than zero [batch_size x n_faces]
-
-    Warning: In case the normal magnitude is smaller than a threshold,
-    the normal vector is returned without normalization
+            magnitude greater than zero [batch_size x n_faces].
+            If the normal is not valid we return [0,0,0].
     """
 
     # calculate xyz coordinates for 1-3 vertices in each triangle
@@ -148,11 +146,12 @@ def batch_fnrmls_fareas(vb, f):
 
     face_normals_b = torch.cross(edge_12, edge_23)
     face_areas_b = torch.norm(face_normals_b, dim=2, keepdim=True) / 2
+    is_valid_fnb = (face_areas_b.squeeze(2) > (cfg.NORMAL_MAGNITUDE_THRESH / 2))
 
     face_normals_b = face_normals_b / (2 * face_areas_b)
-    face_areas_b = face_areas_b.squeeze(2)
-    is_valid_fnb = face_areas_b > (cfg.NORMAL_MAGNITUDE_THRESH / 2)
+    face_normals_b[~is_valid_fnb, :] = 0
 
+    face_areas_b = face_areas_b.squeeze(2)
     return face_normals_b, face_areas_b, is_valid_fnb
 
 
@@ -165,7 +164,7 @@ def batch_vnrmls_(vb, f, adj_vf):
     :param adj_vf: sparse adjacency matrix beween vertices and faces, dim: [n_vertices x n_faces]
     :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
     :return: is_valid_vnb: boolean matrix indicating if the normal is valid,
-    magnitude greater than zero [batch_size x n_vertices]
+    magnitude greater than zero [batch_size x n_vertices].
     """
 
     face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f)
@@ -194,29 +193,30 @@ def batch_vnrmls(vb, f):
     :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
     :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
     :return: is_valid_vnb: boolean matrix indicating if the normal is valid, magnitude greater than zero
-    [batch_size x n_vertices]
+    [batch_size x n_vertices].
+    If the normal is not valid we return [0,0,0].
     """
 
     n_faces = f.shape[0]
     n_batch = vb.shape[0]
 
-    face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f)
-    face_normals_b[~is_valid_fnb, :] = 0  # non valid face normals --> [0, 0, 0]
+    face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f) # non valid face normals are: [0, 0, 0], due to batch_fnrmls_fareas
     face_normals_b *= face_areas_b.unsqueeze(2)  # weight each normal with the corresponding face area
 
     face_normals_b = face_normals_b.repeat(1, 3, 1)  # repeat face normals 3 times along the face dimension
     f = f.t().contiguous().view(3 * n_faces)  # dim: [n_faces x 3] --> [(3*n_faces)]
     f = f.expand(n_batch, -1)  # dim: [B x (3*n_faces)]
-    f = f.unsqueeze(2).expand(n_batch, 3 * n_faces,
-                              3)  # dim: [B x (3*n_faces) x 3], last dimension (xyz dimension) is repeated
+    f = f.unsqueeze(2).expand(n_batch, 3 * n_faces, 3)  # dim: [B x (3*n_faces) x 3], last dimension (xyz dimension) is repeated
 
     # For each vertex, sum all the normals of the adjacent faces (weighted by their areas)
     vnb = torch.zeros_like(vb)  # dim: [batch_size x n_vertices x 3]
-    vnb = vnb.scatter_add_(1, f, face_normals_b)  # vb[b][f[b,f,xyz][xyz] = face_normals_b[b][f][xyz]
+    vnb = vnb.scatter_add(1, f, face_normals_b)  # vb[b][f[b,f,xyz][xyz] = face_normals_b[b][f][xyz]
 
     magnitude = torch.norm(vnb, dim=2, keepdim=True)
+    is_valid_vnb = (magnitude > cfg.NORMAL_MAGNITUDE_THRESH).squeeze(2)
     vnb = vnb / magnitude
-    is_valid_vnb = magnitude.squeeze(2) > cfg.NORMAL_MAGNITUDE_THRESH
+    vnb[~is_valid_vnb, :] = 0
+
     # check the sum of face normals is greater than zero
 
     return vnb, is_valid_vnb

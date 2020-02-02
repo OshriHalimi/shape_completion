@@ -274,13 +274,13 @@ class TensorboardSupervisor:
             raise NotImplementedError("No support for Linux")
         if log_dp is None:
             from cfg import PRIMARY_RESULTS_DIR
-        self.server = TensorboardServer(PRIMARY_RESULTS_DIR)
+        #self.server = TensorboardServer(PRIMARY_RESULTS_DIR)
         self.chrome = ChromeProcess()
-        self.server.start()
+        #self.server.start()
         self.chrome.start()
 
     def finalize(self):
-        self.server.join()
+        # self.server.join()
         self.chrome.join()
 
 

@@ -68,8 +68,9 @@ class F2PSMPLLoss:
                 if i == 0:  # XYZ
                     loss += self._l2_loss(gtb_xyz, gtrb, lamb=lamb, vertex_mask=w)
                 elif i == 1:  # Normals
-                    loss += self._l2_loss(b['gt'][:, :, 3:6], batch_vnrmls(gtrb, self.torch_f), lamb=lamb,
-                                          vertex_mask=w)
+                    vnb, is_valid_vnb = batch_vnrmls(gtrb, self.torch_f)
+                    loss1 = self._l2_loss(b['gt'][:, :, 3:6], vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
+                    loss +=loss1
                 elif i == 2:  # Moments:
                     loss += self._l2_loss(b['gt'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
                 elif i == 3:  # Euclidean Distance Matrices
