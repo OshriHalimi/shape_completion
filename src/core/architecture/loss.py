@@ -1,5 +1,5 @@
 import torch
-from mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_vnrmls_, batch_moments
+from mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_moments
 from util.string_op import warn
 from mesh.ops import vf_adjacency
 from util.torch_nn import PytorchNet
