@@ -2,13 +2,21 @@ import torch
 import numpy as np
 import torch.nn.functional as F
 from util.data_ops import normr, index_sparse
-from util.func import time_me
 import cfg
-from util.torch_nn import PytorchNet
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                    Singleton Computes for Numpy/Pytorch Tensors
 # ----------------------------------------------------------------------------------------------------------------------#
+#TODO: validate me
+def calc_volume(v,f):
+    v1 = v[:,f[:,0],:]
+    v2 = v[:,f[:,1],:]
+    v3 = v[:,f[:,2],:]
+    a_vec = torch.cross(v2-v1, v3-v1, -1)
+    center = (v1+v2+v3)/3
+    volume = torch.sum(a_vec*center/6, dim=(1,2))
+    return volume
+
 def vf_adjacency(faces, n_faces, n_verts, device):
     """
     :param faces: dim: [N_faces x 3]
@@ -26,7 +34,7 @@ def vf_adjacency(faces, n_faces, n_verts, device):
     adjacency_vf = torch.sparse.IntTensor(ind.t(), ones_vec, torch.Size([n_verts, n_faces]))
     return adjacency_vf
 
-
+#TODO: validate me
 def face_barycenters(v, f):
     """
     :param v: vertices (numpy array or tensors), dim: [n_v x 3]
@@ -37,13 +45,15 @@ def face_barycenters(v, f):
     v2 = v[f[:, 1], :]  # dim: [n_faces x 3]
     v3 = v[f[:, 2], :]  # dim: [n_faces x 3]
 
-    center_x = v1[:, 0] + v2[:, 0] + v3[:, 0]
-    center_y = v1[:, 1] + v2[:, 1] + v3[:, 1]
-    center_z = v1[:, 2] + v2[:, 2] + v3[:, 2]
+    # center_x = v1[:, 0] + v2[:, 0] + v3[:, 0]
+    # center_y = v1[:, 1] + v2[:, 1] + v3[:, 1]
+    # center_z = v1[:, 2] + v2[:, 2] + v3[:, 2]
+    #
+    # centers = torch.stack((center_x, center_y, center_z), dim=1) if torch.is_tensor(center_x) \
+    #     else np.stack((center_x, center_y, center_z), axis=1)
+    # centers = (1 / 3) * centers  # Faster to do it here than for each center
 
-    centers = torch.stack((center_x, center_y, center_z), dim=1) if torch.is_tensor(center_x) \
-        else np.stack((center_x, center_y, center_z), axis=1)
-    centers = (1 / 3) * centers  # Faster to do it here than for each center
+    centers = (v1 + v2 + v3)/3
     return centers
 
 
@@ -248,7 +258,7 @@ def test_fnrmls_visually():
 
 
 if __name__ == '__main__':
-    test_vnrmls_visually()
+    test_fnrmls_visually()
 
 
 

@@ -23,10 +23,7 @@ class F2PSMPLLoss:
             self.torch_f = torch.from_numpy(f).long().to(device=self.dev, non_blocking=self.non_blocking)
 
         # Sanity Check - Input Channels:
-        #TODO: we should have a transformation block operating on the initial data, adding input channels
-        #TODO: We should have a transformation block oprating on the network data, adding output channels
-        #TODO: the input and output channels should not be calculated in the loss stage - Loss.compute()
-
+        #TODO: we should have a transformation block operating on the initial data, adding input channels.
         #TODO: hp.in_channels should be defined with respect to transformed input data.
         # For example: the initial data might not have normals (initial input channels = 3), however in the input pipeline
         # we add normals (before the network), making the input channel = 6. Now, assume we want to calculate normal loss.
@@ -61,7 +58,7 @@ class F2PSMPLLoss:
         :param gtrb: The batched ground truth reconstruction of dim: [b x nv x 3]
         :return: The loss
         """
-        # TODO: Insert support for other out_channels: This codes assumes gtr has 3 input channels
+
         # Aliasing. We can only assume that channels 0:3 definitely exist
         gtrb_xyz = gtrb [:, :, 0:3]
         gtb_xyz = b['gt'][:, :, 0:3]
@@ -82,9 +79,6 @@ class F2PSMPLLoss:
                     vnb, is_valid_vnb = out[0:2]
                     if need_f_area:
                         f_area_gtrb = out[2]
-                    # TODO: The above chunk shouldn't be here (should be done by an output transformation block)
-                    # TODO: Currently we mix loss logic with transformation logic
-
                     loss += self._l2_loss(b['gt'][:, :, 3:6], vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
                 elif i == 2:  # Moments:
                     loss += self._l2_loss(b['gt'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
@@ -96,9 +90,6 @@ class F2PSMPLLoss:
                         f_area_gtrb
                     except NameError:
                         f_area_gtrb = batch_fnrmls_fareas(gtrb_xyz, self.torch_f, return_normals=False)
-                    # TODO: The above chunk shouldn't be here (should be done by an input/output transformation block)
-                    # TODO: Currently we mix loss logic with transformation logic
-
                     loss += self._l2_loss(f_area_gt, f_area_gtrb, lamb=lamb, vertex_mask=w)
                 elif i == 5:  # Volume:
                     pass
