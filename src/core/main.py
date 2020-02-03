@@ -20,7 +20,7 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='Train with normaLS', help='The experiment name. Leave empty for default')
+    p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
@@ -48,13 +48,13 @@ def parser():
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
     # L2 Losses: Use 0 to ignore, >0 to compute
-    p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0.01, 0, 0, 0),
-                   help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas] loss multiplication modifiers')
+    p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0.01, 0, 0, 1, 0),
+                   help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas, Volume] loss multiplication modifiers')
     # Loss Modifiers: # TODO - Implement for Euclid Maps & Face Areas as well.
-    p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0),
-                   help='[XYZ,Normal,Moments] increased weight on mask vertices. Use val <= 1 to disable')
-    p.add_argument('--dist_v_penalties', nargs=3, type=float, default=(0, 0, 0),
-                   help='[XYZ,Normal,Moments] increased weight on distant vertices. Use val <= 1 to disable')
+    p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0),
+                   help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas, Volume] increased weight on mask vertices. Use val <= 1 to disable')
+    p.add_argument('--dist_v_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0),
+                   help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas, Volume] increased weight on distant vertices. Use val <= 1 to disable')
 
     # Computation
     p.add_argument('--gpus', type=none_or_int, default=-1, help='Use -1 to use all available. Use None to run on CPU')
@@ -63,7 +63,7 @@ def parser():
     p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
     # Visualization
-    p.add_argument('--use_tensorboard', type=bool, default=False,  # TODO - Not in use
+    p.add_argument('--use_tensorboard', type=bool, default=True,  # TODO - Not in use
                    help='Whether to log information to tensorboard or not')
     p.add_argument('--use_parallel_plotter', type=bool, default=True,
                    help='Whether to plot mesh sets while training or not')

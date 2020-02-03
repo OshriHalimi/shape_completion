@@ -11,7 +11,7 @@ UNIVERSAL_PRECISION = 'float32'  # float64,float32 or float16. PyTorch defaults 
 NORMAL_MAGNITUDE_THRESH = 10 ** (-6)  # The minimal norm allowed for vertex normals to decide that they are too small
 DEF_LR_SCHED_COOLDOWN = 5  # Number of epoches to wait after reducing the step-size. Works only if LR sched is enabled
 DEF_MINIMAL_LR = 1e-6  # The smallest learning step allowed with LR sched. Works only if LR sched is enabled
-MAX_EPOCHS = 2  # Maximum number of allowed epochs. We usually stop WAY before this due to early stop callback
+MAX_EPOCHS = 100000000000000000  # Maximum number of allowed epochs. We usually stop WAY before this due to early stop callback
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                    COMPLEXITY
 # ----------------------------------------------------------------------------------------------------------------------

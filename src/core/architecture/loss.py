@@ -1,5 +1,5 @@
 import torch
-from mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_moments
+from mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_fnrmls_fareas, batch_moments
 from util.string_op import warn
 from mesh.ops import vf_adjacency
 from util.torch_nn import PytorchNet
@@ -19,10 +19,18 @@ class F2PSMPLLoss:
         self.def_prec = getattr(torch, hp.UNIVERSAL_PRECISION)
 
         # Handle Faces:
-        if f is not None and self.lambdas[1] > 0:
+        if f is not None and (self.lambdas[1] > 0 or self.lambdas[4] > 0):
             self.torch_f = torch.from_numpy(f).long().to(device=self.dev, non_blocking=self.non_blocking)
 
         # Sanity Check - Input Channels:
+        #TODO: we should have a transformation block operating on the initial data, adding input channels
+        #TODO: We should have a transformation block oprating on the network data, adding output channels
+        #TODO: the input and output channels should not be calculated in the loss stage - Loss.compute()
+
+        #TODO: hp.in_channels should be defined with respect to transformed input data.
+        # For example: the initial data might not have normals (initial input channels = 3), however in the input pipeline
+        # we add normals (before the network), making the input channel = 6. Now, assume we want to calculate normal loss.
+        # If hp.in_channels refers to the initial input channels then the logic below won't work (the assert will fail).
         if self.lambdas[1] > 0:
             assert hp.in_channels >= 6, "Only makes sense to compute normal losses with normals available"
         if self.lambdas[2] > 0:
@@ -55,6 +63,7 @@ class F2PSMPLLoss:
         """
         # TODO: Insert support for other out_channels: This codes assumes gtr has 3 input channels
         # Aliasing. We can only assume that channels 0:3 definitely exist
+        gtrb_xyz = gtrb [:, :, 0:3]
         gtb_xyz = b['gt'][:, :, 0:3]
         tpb_xyz = b['tp'][:, :, 0:3]
         mask_vi = b['gt_mask_vi']
@@ -66,17 +75,33 @@ class F2PSMPLLoss:
                 w = self._mask_penalty_weight(mask_b=mask_vi, nv=nv, p=self.mask_penalties[i]) * \
                     self._distant_vertex_weight(gtb_xyz, tpb_xyz, self.dist_v_penalties[i])
                 if i == 0:  # XYZ
-                    loss += self._l2_loss(gtb_xyz, gtrb, lamb=lamb, vertex_mask=w)
+                    loss += self._l2_loss(gtb_xyz, gtrb_xyz, lamb=lamb, vertex_mask=w)
                 elif i == 1:  # Normals
-                    vnb, is_valid_vnb = batch_vnrmls(gtrb, self.torch_f)
+                    need_f_area = self.lambdas[4] > 0
+                    out = batch_vnrmls(gtrb, self.torch_f, return_f_areas=need_f_area)
+                    vnb, is_valid_vnb = out[0:2]
+                    if need_f_area:
+                        f_area_gtrb = out[2]
+                    # TODO: The above chunk shouldn't be here (should be done by an output transformation block)
+                    # TODO: Currently we mix loss logic with transformation logic
+
                     loss += self._l2_loss(b['gt'][:, :, 3:6], vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
                 elif i == 2:  # Moments:
                     loss += self._l2_loss(b['gt'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
                 elif i == 3:  # Euclidean Distance Matrices
                     loss += self._l2_loss(batch_euclid_dist_mat(gtb_xyz), batch_euclid_dist_mat(gtrb), lamb=lamb)
                 elif i == 4:  # Face Areas:
-                    pass  # TODO - add Face Areas here
-                    # loss += self._l2_loss(face_areas(gtb_xyz))
+                    f_area_gt = batch_fnrmls_fareas(gtrb_xyz, self.torch_f, return_normals=False)
+                    try:
+                        f_area_gtrb
+                    except NameError:
+                        f_area_gtrb = batch_fnrmls_fareas(gtrb_xyz, self.torch_f, return_normals=False)
+                    # TODO: The above chunk shouldn't be here (should be done by an input/output transformation block)
+                    # TODO: Currently we mix loss logic with transformation logic
+
+                    loss += self._l2_loss(f_area_gt, f_area_gtrb, lamb=lamb, vertex_mask=w)
+                elif i == 5:  # Volume:
+                    pass
                 else:  # TODO - What about volumetric error?
                     raise AssertionError
         return loss

@@ -128,12 +128,13 @@ def batch_moments(vb):
     raise NotImplementedError
 
 
-def batch_fnrmls_fareas(vb, f):
+def batch_fnrmls_fareas(vb, f, return_normals=True):
     """ # TODO - Allow also [n_verts x 3]. Write another function called batch_fnrmls if we only need those
+    :param return_vb:
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
     :param f: faces matrix,we assume all the shapes have the same connectivity, dim: [n_faces x 3], dtype = torch.long
     :return face_normals_b: batch of face normals, dim: [batch_size x n_faces x 3]
-            face_areas_b: batch of face areas, dim: [batch_size x n_faces]
+            face_areas_b: batch of face areas, dim: [batch_size x n_faces x 1]
             is_valid_fnb: boolean matrix indicating if the normal is valid,
             magnitude greater than zero [batch_size x n_faces].
             If the normal is not valid we return [0,0,0].
@@ -149,15 +150,15 @@ def batch_fnrmls_fareas(vb, f):
 
     face_normals_b = torch.cross(edge_12, edge_23)
     face_areas_b = torch.norm(face_normals_b, dim=2, keepdim=True) / 2
-    is_valid_fnb = (face_areas_b.squeeze(2) > (cfg.NORMAL_MAGNITUDE_THRESH / 2))
+    if not return_normals:
+        return face_areas_b
 
+    is_valid_fnb = (face_areas_b.squeeze(2) > (cfg.NORMAL_MAGNITUDE_THRESH / 2))
     fnb_out = torch.zeros_like(face_normals_b)
     fnb_out[is_valid_fnb, :] = face_normals_b[is_valid_fnb, :] / (2 * face_areas_b[is_valid_fnb, :])
-
-    face_areas_b = face_areas_b.squeeze(2)
     return fnb_out, face_areas_b, is_valid_fnb
 
-def batch_vnrmls(vb, f):
+def batch_vnrmls(vb, f, return_f_areas = True):
     """
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
     :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
@@ -165,13 +166,14 @@ def batch_vnrmls(vb, f):
     :return: is_valid_vnb: boolean matrix indicating if the normal is valid, magnitude greater than zero
     [batch_size x n_vertices].
     If the normal is not valid we return [0,0,0].
+    :return face_areas_b (optional): a batch of face areas, dim: [batch_size x n_faces x 1]
     """
 
     n_faces = f.shape[0]
     n_batch = vb.shape[0]
 
     face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f) # non valid face normals are: [0, 0, 0], due to batch_fnrmls_fareas
-    face_normals_b *= face_areas_b.unsqueeze(2)  # weight each normal with the corresponding face area
+    face_normals_b *= face_areas_b  # weight each normal with the corresponding face area
 
     face_normals_b = face_normals_b.repeat(1, 3, 1)  # repeat face normals 3 times along the face dimension
     f = f.t().contiguous().view(3 * n_faces)  # dim: [n_faces x 3] --> [(3*n_faces)]
@@ -188,7 +190,7 @@ def batch_vnrmls(vb, f):
     vnb_out[is_valid_vnb, :] = vnb[is_valid_vnb, :] / magnitude[is_valid_vnb, :]
     # check the sum of face normals is greater than zero
 
-    return vnb_out, is_valid_vnb
+    return (vnb_out, is_valid_vnb, face_areas_b) if return_f_areas else (vnb_out, is_valid_vnb)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
