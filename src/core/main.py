@@ -28,7 +28,7 @@ def parser():
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
-    p.add_argument('--batch_size', type=int, default=5, help='SGD batch size')
+    p.add_argument('--batch_size', type=int, default=3, help='SGD batch size')
     p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
@@ -48,13 +48,13 @@ def parser():
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
     # L2 Losses: Use 0 to ignore, >0 to compute
-    p.add_argument('--lambdas', nargs=4, type=float, default=(0, 0, 0, 1, 0, 0),
-                   help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas, Volume] loss multiplication modifiers')
+    p.add_argument('--lambdas', nargs=4, type=float, default=(0, 0, 0, 1, 1, 0, 0),
+                   help='[XYZ,Normal,Moments,Euclid_distortion, Euclid_distortion normals,FaceAreas, Volume] loss multiplication modifiers')
     # Loss Modifiers: # TODO - Implement for Euclid Maps & Face Areas as well.
-    p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0),
-                   help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas, Volume] increased weight on mask vertices. Use val <= 1 to disable')
-    p.add_argument('--dist_v_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0),
-                   help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas, Volume] increased weight on distant vertices. Use val <= 1 to disable')
+    p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0, 0),
+                   help='[XYZ,Normal,Moments,Euclid_distortion, Euclid_distortion normals, FaceAreas, Volume] increased weight on mask vertices. Use val <= 1 to disable')
+    p.add_argument('--dist_v_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0, 0),
+                   help='[XYZ,Normal,Moments,Euclid_distortion, Euclid_distortion normals, FaceAreas, Volume] increased weight on distant vertices. Use val <= 1 to disable')
 
     # Computation
     p.add_argument('--gpus', type=none_or_int, default=-1, help='Use -1 to use all available. Use None to run on CPU')

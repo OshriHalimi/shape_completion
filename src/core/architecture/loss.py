@@ -19,7 +19,7 @@ class F2PSMPLLoss:
         self.def_prec = getattr(torch, hp.UNIVERSAL_PRECISION)
 
         # Handle Faces:
-        if f is not None and (self.lambdas[1] > 0 or self.lambdas[4] > 0):
+        if f is not None and (self.lambdas[1] > 0 or self.lambdas[4] > 0 or self.lambdas[5] > 0):
             self.torch_f = torch.from_numpy(f).long().to(device=self.dev, non_blocking=self.non_blocking)
 
         # Sanity Check - Input Channels:
@@ -28,7 +28,7 @@ class F2PSMPLLoss:
         # For example: the initial data might not have normals (initial input channels = 3), however in the input pipeline
         # we add normals (before the network), making the input channel = 6. Now, assume we want to calculate normal loss.
         # If hp.in_channels refers to the initial input channels then the logic below won't work (the assert will fail).
-        if self.lambdas[1] > 0:
+        if (self.lambdas[1] > 0 or self.lambdas[4]):
             assert hp.in_channels >= 6, "Only makes sense to compute normal losses with normals available"
         if self.lambdas[2] > 0:
             assert hp.in_channels >= 12, "Only makes sense to compute moment losses with moments available"
@@ -63,6 +63,8 @@ class F2PSMPLLoss:
         gtrb_xyz = gtrb [:, :, 0:3]
         gtb_xyz = b['gt'][:, :, 0:3]
         tpb_xyz = b['tp'][:, :, 0:3]
+        gtb_normals = b['gt'][:, :, 3:6]
+        gtb_moments = b['gt'][:, :, 6:12]
         mask_vi = b['gt_mask_vi']
         nv = gtrb.shape[1]
 
@@ -74,24 +76,35 @@ class F2PSMPLLoss:
                 if i == 0:  # XYZ
                     loss += self._l2_loss(gtb_xyz, gtrb_xyz, lamb=lamb, vertex_mask=w)
                 elif i == 1:  # Normals
-                    need_f_area = self.lambdas[4] > 0
+                    need_f_area = self.lambdas[5] > 0
                     out = batch_vnrmls(gtrb, self.torch_f, return_f_areas=need_f_area)
                     vnb, is_valid_vnb = out[0:2]
                     if need_f_area:
                         f_area_gtrb = out[2]
-                    loss += self._l2_loss(b['gt'][:, :, 3:6], vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
+                    loss += self._l2_loss(gtb_normals, vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
                 elif i == 2:  # Moments:
-                    loss += self._l2_loss(b['gt'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
-                elif i == 3:  # Euclidean Distance Matrices (validated) #TODO: Extend to normals 
+                    loss += self._l2_loss(gtb_moments, batch_moments(gtrb), lamb=lamb, vertex_mask=w)
+                elif i == 3:  # Euclidean Distance Matrices (validated) #TODO: Extend to normals
                     loss += self._l2_loss(batch_euclid_dist_mat(gtb_xyz), batch_euclid_dist_mat(gtrb_xyz), lamb=lamb)
-                elif i == 4:  # Face Areas:
+                elif i == 4:  # Euclidean Distance Matrices with normals
+                    try:
+                        vnb
+                    except NameError:
+                        need_f_area = self.lambdas[5] > 0
+                        out = batch_vnrmls(gtrb, self.torch_f, return_f_areas=need_f_area)
+                        vnb, is_valid_vnb = out[0:2]
+                        if need_f_area:
+                            f_area_gtrb = out[2]
+
+                    loss += self._l2_loss(batch_euclid_dist_mat(gtb_normals), batch_euclid_dist_mat(vnb), lamb=lamb)
+                elif i == 5:  # Face Areas
                     f_area_gt = batch_fnrmls_fareas(gtrb_xyz, self.torch_f, return_normals=False)
                     try:
                         f_area_gtrb
                     except NameError:
                         f_area_gtrb = batch_fnrmls_fareas(gtrb_xyz, self.torch_f, return_normals=False)
                     loss += self._l2_loss(f_area_gt, f_area_gtrb, lamb=lamb, vertex_mask=w)
-                elif i == 5:  # Volume:
+                elif i == 6:  # Volume:
                     pass
                 #TODO: implement chamfer distance loss
                 else:
