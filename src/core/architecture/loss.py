@@ -23,7 +23,7 @@ class F2PSMPLLoss:
             self.torch_f = torch.from_numpy(f).long().to(device=self.dev, non_blocking=self.non_blocking)
 
         # Sanity Check - Input Channels:
-        #TODO: we should have a transformation block operating on the initial data, adding input channels.
+        #TODO: we should have a transformation block operating on the initial data, adding input channels, scaling, rotating etc.
         #TODO: hp.in_channels should be defined with respect to transformed input data.
         # For example: the initial data might not have normals (initial input channels = 3), however in the input pipeline
         # we add normals (before the network), making the input channel = 6. Now, assume we want to calculate normal loss.
@@ -84,7 +84,7 @@ class F2PSMPLLoss:
                     loss += self._l2_loss(gtb_normals, vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
                 elif i == 2:  # Moments:
                     loss += self._l2_loss(gtb_moments, batch_moments(gtrb), lamb=lamb, vertex_mask=w)
-                elif i == 3:  # Euclidean Distance Matrices (validated) #TODO: Extend to normals
+                elif i == 3:  # Euclidean Distance Matrices (validated)
                     loss += self._l2_loss(batch_euclid_dist_mat(gtb_xyz), batch_euclid_dist_mat(gtrb_xyz), lamb=lamb)
                 elif i == 4:  # Euclidean Distance Matrices with normals
                     try:
