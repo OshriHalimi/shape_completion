@@ -21,14 +21,14 @@ def parser():
     # Check-pointing
     # TODO - Don't forget to change me!
     p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_version', type=none_or_int, default=11, #TODO: resume is not working! It seems to write to the requested file but the training starts from Epoch=0 and high loss (previous weights are not loaded)
+    p.add_argument('--resume_version', type=none_or_int, default=None, #TODO: resume is not working! It seems to write to the requested file but the training starts from Epoch=0 and high loss (previous weights are not loaded)
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f)')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
-    p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
+    p.add_argument('--batch_size', type=int, default=5, help='SGD batch size')
     p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
@@ -48,7 +48,7 @@ def parser():
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
     # L2 Losses: Use 0 to ignore, >0 to compute
-    p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0.01, 0, 0, 1, 0),
+    p.add_argument('--lambdas', nargs=4, type=float, default=(0, 0, 0, 1, 0, 0),
                    help='[XYZ,Normal,Moments,Euclid_Maps,FaceAreas, Volume] loss multiplication modifiers')
     # Loss Modifiers: # TODO - Implement for Euclid Maps & Face Areas as well.
     p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0),

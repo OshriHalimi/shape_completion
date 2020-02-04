@@ -82,8 +82,8 @@ class F2PSMPLLoss:
                     loss += self._l2_loss(b['gt'][:, :, 3:6], vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
                 elif i == 2:  # Moments:
                     loss += self._l2_loss(b['gt'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
-                elif i == 3:  # Euclidean Distance Matrices
-                    loss += self._l2_loss(batch_euclid_dist_mat(gtb_xyz), batch_euclid_dist_mat(gtrb), lamb=lamb)
+                elif i == 3:  # Euclidean Distance Matrices (validated) #TODO: Extend to normals 
+                    loss += self._l2_loss(batch_euclid_dist_mat(gtb_xyz), batch_euclid_dist_mat(gtrb_xyz), lamb=lamb)
                 elif i == 4:  # Face Areas:
                     f_area_gt = batch_fnrmls_fareas(gtrb_xyz, self.torch_f, return_normals=False)
                     try:
@@ -93,7 +93,8 @@ class F2PSMPLLoss:
                     loss += self._l2_loss(f_area_gt, f_area_gtrb, lamb=lamb, vertex_mask=w)
                 elif i == 5:  # Volume:
                     pass
-                else:  # TODO - What about volumetric error?
+                #TODO: implement chamfer distance loss
+                else:
                     raise AssertionError
         return loss
 
