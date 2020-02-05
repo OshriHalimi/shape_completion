@@ -1,7 +1,7 @@
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau  # , CosineAnnealingLR
 import pytorch_lightning as pl
-from architecture.loss import F2PSMPLLoss
+from architecture.loss import loss_basic
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
@@ -129,7 +129,7 @@ class CompletionLightningModel(PytorchNet):
             self.plt = ParallelPlotter(faces=self.f, n_verts=self.n_v)
 
     def configure_optimizers(self):
-        self.loss = F2PSMPLLoss(hp=self.hparams, f=self.f)
+        self.loss = loss_basic(hp=self.hparams, f=self.f)
         self.opt = torch.optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
 
         if self.hparams.plateau_patience is not None:

@@ -4,9 +4,46 @@ from util.string_op import warn
 from mesh.ops import vf_adjacency
 from util.torch_nn import PytorchNet
 # ----------------------------------------------------------------------------------------------------------------------
-#                                                   Loss Helpers
+#                           Full Losses (different architecture might have different losses)
 # ----------------------------------------------------------------------------------------------------------------------
-class F2PSMPLLoss:
+class loss_basic:
+    def __init__(self, hp, f):
+        self.shape_diff = loss_shape_diff(hp, f)
+
+    def compute(self, input, network_output):
+        """
+        :param input: The input batch dictionary
+        :param network_output: The network output
+        :return: loss
+        """
+        completion_gt = input['gt']
+        completion_rec = network_output
+        loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=network_output, w=1)  #TODO calculate mask: w
+        return loss_dict
+
+class loss_skeptic:
+    def __init__(self, hp, f):
+        self.shape_diff = loss_shape_diff(hp, f)
+
+    def compute(self, part, full, completion_gt, part_rec, full_rec, completion_rec):
+        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec)
+        loss_dict_part = self.shape_diff.compute(part, part_rec)
+        loss_dict_full = self.shape_diff.compute(full, full_rec)
+
+        loss_dict_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
+        loss_dict_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
+        loss_dict_full = {f'{k}_full': v for k, v in loss_dict_full.items()}
+
+        loss_dict = loss_dict_comp
+        loss_dict.update(loss_dict_part)
+        loss_dict.update(loss_dict_full)
+        loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'])
+        return loss_dict
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                   Loss Terms
+# ----------------------------------------------------------------------------------------------------------------------
+#Relies on the fact the shapes have the same connectivity
+class loss_shape_diff:
     def __init__(self, hp, f):
         # Copy over from the hyper-params - Remove ties to the hp container for our own editing
         self.lambdas = list(hp.lambdas)
@@ -52,7 +89,75 @@ class F2PSMPLLoss:
         if [p for p in self.dist_v_penalties if p > 1]:  # if using_distant_vertex
             self.dist_v_ones = torch.ones((1, 1, 1), device=self.dev, dtype=self.def_prec)
 
-    def compute(self, b, gtrb):
+
+
+
+    def compute(self, shape_1, shape_2, w):
+        """
+        :param shape_1: first batch of shapes [b x nv x d] - for which all fields are known
+        :param shape_2: second batch shapes [b x nv x 3] - for which only xyz fields are known
+        :param w: a set of weighting functions over the vertices
+        :return: The loss, as dictionary
+        """
+        loss = torch.zeros(1, device=self.dev, dtype=self.def_prec)
+        loss_dict = {}
+        for i, lamb in enumerate(self.lambdas):
+            if lamb > 0:
+                if i == 0:  # XYZ
+                    loss_xyz = self._l2_loss(shape_1[:, :, 0:3], shape_2, lamb=lamb, vertex_mask=w)
+                    loss_dict['xyz'] = loss_xyz
+                    loss += loss_xyz
+                elif i == 1:  # Normals
+                    need_f_area = self.lambdas[5] > 0
+                    out = batch_vnrmls(shape_2, self.torch_f, return_f_areas=need_f_area)
+                    vnb_2, is_valid_vnb_2 = out[0:2]
+                    if need_f_area:
+                        f_area_2 = out[2]
+                    loss_normals = self._l2_loss(shape_1[:, :, 3:6], vnb_2, lamb=lamb, vertex_mask=w*is_valid_vnb_2.unsqueeze(2))
+                    loss_dict['normals'] = loss_normals
+                    loss += loss_normals
+                elif i == 2:  # Moments:
+                    loss_moments = self._l2_loss(shape_1[:, :, 6:12], batch_moments(shape_2), lamb=lamb, vertex_mask=w)
+                    loss_dict['moments'] = loss_moments
+                    loss += loss_moments
+                elif i == 3:  # Euclidean Distance Matrices (validated)
+                    loss_euc_dist = self._l2_loss(batch_euclid_dist_mat(shape_1[:, :, 0:3]), batch_euclid_dist_mat(shape_2), lamb=lamb)
+                    loss_dict['EucDist'] = loss_euc_dist
+                    loss += loss_euc_dist
+                elif i == 4:  # Euclidean Distance Matrices with normals (defined on Gauss map)
+                    try:
+                        vnb_2
+                    except NameError:
+                        need_f_area = self.lambdas[5] > 0
+                        out = batch_vnrmls(shape_2, self.torch_f, return_f_areas=need_f_area)
+                        vnb_2, is_valid_vnb_2 = out[0:2]
+                        if need_f_area:
+                            f_area_2 = out[2]
+
+                    loss_euc_dist_gauss = self._l2_loss(batch_euclid_dist_mat(shape_1[:, :, 3:6]), batch_euclid_dist_mat(vnb_2), lamb=lamb)
+                    loss_dict['EucDistGauss'] = loss_euc_dist_gauss
+                    loss += loss_euc_dist_gauss
+                elif i == 5:  # Face Areas
+                    f_area_1 = batch_fnrmls_fareas(shape_1[:, :, 0:3], self.torch_f, return_normals=False)
+                    try:
+                        f_area_2
+                    except NameError:
+                        f_area_2 = batch_fnrmls_fareas(shape_2, self.torch_f, return_normals=False)
+                    loss_areas = self._l2_loss(f_area_1, f_area_2, lamb=lamb, vertex_mask=w)
+                    loss_dict['Areas'] = loss_areas
+                    loss += loss_areas
+                elif i == 6:  # Volume:
+                    pass
+                #TODO: implement chamfer distance loss
+                else:
+                    raise AssertionError
+
+        loss_dict['total_loss'] = loss
+        return loss_dict
+
+
+
+    def compute_old(self, b, gtrb):
         """
         :param b: The input batch dictionary
         :param gtrb: The batched ground truth reconstruction of dim: [b x nv x 3]
@@ -63,8 +168,6 @@ class F2PSMPLLoss:
         gtrb_xyz = gtrb[:, :, 0:3]
         gtb_xyz = b['gt'][:, :, 0:3]
         tpb_xyz = b['tp'][:, :, 0:3]
-        gtb_normals = b['gt'][:, :, 3:6]
-        gtb_moments = b['gt'][:, :, 6:12]
         mask_vi = b['gt_mask_vi']
         nv = gtrb.shape[1]
 
@@ -84,11 +187,11 @@ class F2PSMPLLoss:
                     vnb, is_valid_vnb = out[0:2]
                     if need_f_area:
                         f_area_gtrb = out[2]
-                    loss_normals = self._l2_loss(gtb_normals, vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
+                    loss_normals = self._l2_loss(b['gt'][:, :, 3:6], vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
                     loss_dict['normals'] = loss_normals
                     loss += loss_normals
                 elif i == 2:  # Moments:
-                    loss_moments = self._l2_loss(gtb_moments, batch_moments(gtrb), lamb=lamb, vertex_mask=w)
+                    loss_moments = self._l2_loss(b['gt'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
                     loss_dict['moments'] = loss_moments
                     loss += loss_moments
                 elif i == 3:  # Euclidean Distance Matrices (validated)
@@ -105,11 +208,11 @@ class F2PSMPLLoss:
                         if need_f_area:
                             f_area_gtrb = out[2]
 
-                    loss_euc_dist_gauss = self._l2_loss(batch_euclid_dist_mat(gtb_normals), batch_euclid_dist_mat(vnb), lamb=lamb)
+                    loss_euc_dist_gauss = self._l2_loss(batch_euclid_dist_mat(b['gt'][:, :, 3:6]), batch_euclid_dist_mat(vnb), lamb=lamb)
                     loss_dict['EucDistGauss'] = loss_euc_dist_gauss
                     loss += loss_euc_dist_gauss
                 elif i == 5:  # Face Areas
-                    f_area_gt = batch_fnrmls_fareas(gtrb_xyz, self.torch_f, return_normals=False)
+                    f_area_gt = batch_fnrmls_fareas(gtb_xyz, self.torch_f, return_normals=False)
                     try:
                         f_area_gtrb
                     except NameError:
