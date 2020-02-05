@@ -144,7 +144,7 @@ class CompletionLightningModel(PytorchNet):
 
     def training_step(self, b, batch_idx):
         pred = self.forward(b['gt_part'], b['tp'])
-        loss = self.loss.compute(b, pred[0]).unsqueeze(0)
+        loss = self.loss.compute(b, pred[0]).unsqueeze(0) # TODO:loss and pred can vary from network to network
         logs = {'loss': loss}
 
         if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
@@ -170,7 +170,7 @@ class CompletionLightningModel(PytorchNet):
             new_data = (self.plt.uncache(), self._prepare_plotter_dict(b, pred))
             self.plt.push(new_data=new_data, new_epoch=self.current_epoch)
 
-        return {'val_loss': self.loss.compute(b, pred[0]).unsqueeze(0)}
+        return {'val_loss': self.loss.compute(b, pred[0]).unsqueeze(0)} # TODO:loss and pred can vary from network to network
 
     def validation_end(self, outputs):
         avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
@@ -186,9 +186,9 @@ class CompletionLightningModel(PytorchNet):
 
         pred = self.forward(b['gt_part'], b['tp'])
         if self.hparams.save_completions > 0:
-            self._save_completions_by_batch(pred[0], b['gt_hi'], b['tp_hi'])
+            self._save_completions_by_batch(pred[0], b['gt_hi'], b['tp_hi'])  # TODO:pred can vary from network to network
 
-        return {"test_loss": self.loss.compute(b, pred[0]).unsqueeze(0)}
+        return {"test_loss": self.loss.compute(b, pred[0]).unsqueeze(0)} # TODO:loss and pred can vary from network to network
 
     def test_end(self, outputs):
         avg_test_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
