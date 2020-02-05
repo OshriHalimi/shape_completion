@@ -1,10 +1,11 @@
 import pathlib  # PyCharm tip : Use CTRL + SHIFT + f in to detect where these are used
-
+import torch
 # ----------------------------------------------------------------------------------------------------------------------
 #                                           ADDITIONAL LEARNING PARAMS
 # ----------------------------------------------------------------------------------------------------------------------
 UNIVERSAL_RAND_SEED = 2147483647  # The random seed. Use datetime.now() For a truly random seed
 UNIVERSAL_PRECISION = 'float32'  # float64,float32 or float16. PyTorch defaults to float32.
+UNIVERSAL_PRECISION_TORCH = torch.float32
 # TODO - This does not propagate to faces. Is this a problem ?
 # TODO - VTK does not work with float16 - should we transform the CPU tensors before plot?
 
@@ -27,6 +28,7 @@ DANGEROUS_MASK_THRESH = 100  # The minimal length allowed for mask vertex indice
 # ----------------------------------------------------------------------------------------------------------------------
 PRIMARY_RESULTS_DIR = (pathlib.Path(__file__).parents[0] / '..' / '..' / 'results').resolve()
 PRIMARY_DATA_DIR = (pathlib.Path(__file__).parents[0] / '..' / '..' / 'data').resolve()
+SMPL_TEMPLATE_PATH = (PRIMARY_DATA_DIR / 'templates/template_color.ply').resolve()
 SAVE_MESH_AS = 'obj'  # Currently implemented - ['obj','off']
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   VISUALIZATION

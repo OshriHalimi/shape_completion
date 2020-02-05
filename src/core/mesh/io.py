@@ -1,6 +1,6 @@
 import numpy as np
 from util.fs import align_file_extension
-
+from plyfile import PlyData
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                   READ
@@ -8,6 +8,23 @@ from util.fs import align_file_extension
 def read_npz_mask(fp):
     return np.load(fp)["mask"]
 
+def read_ply(fp):
+    with open(fp, 'rb') as f:
+        plydata = PlyData.read(f)
+
+    x = plydata['vertex']['x']
+    y = plydata['vertex']['y']
+    z = plydata['vertex']['z']
+    vertices = np.column_stack((x,y,z))
+    try:
+        r = plydata['vertex']['red']
+        g = plydata['vertex']['green']
+        b = plydata['vertex']['blue']
+        rgb = np.column_stack((r,g,b))
+    except KeyError:
+        rgb = None
+    faces = np.stack(plydata['face']['vertex_indices'])
+    return vertices, faces, rgb
 
 def read_off_verts(fp):
     vbuf = []
@@ -115,3 +132,11 @@ end_header
 {2}
 {3}
 '''.format(len(str_vertices), len(str_indices), ''.join(str_vertices), ''.join(str_indices)))
+
+
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                                   Tester Functions
+# ----------------------------------------------------------------------------------------------------------------------#
+
+if __name__ == '__main__':
+    train_read_ply()

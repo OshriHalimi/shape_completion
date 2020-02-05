@@ -3,6 +3,9 @@ from test_tube import HyperOptArgumentParser
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from mesh.io import read_ply
+from cfg import SMPL_TEMPLATE_PATH, UNIVERSAL_PRECISION_TORCH
+from mesh.ops import batch_vnrmls
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -13,7 +16,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
         # Encoder takes a 3D point cloud as an input. 
         # Note that a linear layer is applied to the global feature vector
         self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size)
-        self.decoder = CompletionDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
+        self.decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
                                          out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
 
     def _init_model(self):
@@ -45,6 +48,57 @@ class F2PEncoderDecoder(CompletionLightningModel):
         y = self.decoder(y)
         return y
 
+
+class F2PEncoderDecoderSkeptic(CompletionLightningModel):
+    def _build_model(self):
+        # Encoder takes a 3D point cloud as an input.
+        # Note that a linear layer is applied to the global feature vector
+        vertices, faces, colors = read_ply(SMPL_TEMPLATE_PATH)
+        self.template = Template(vertices, faces, colors, self.hparams.in_channels, self.hparams.dev)
+        self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size)
+        self.comp_decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
+                                         out_channels=self.hparams.out_channels, num_convl=self.hparams.comp_decoder_convl)
+        self.rec_decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + self.hparams.code_size,
+                                         out_channels=self.hparams.out_channels, num_convl=self.hparams.rec_decoder_convl)
+
+
+    def _init_model(self):
+        self.encoder.init_weights()
+        self.comp_decoder.init_weights()
+        self.rec_decoder.init_weights()
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--code_size', default=1024, type=int)
+        p.add_argument('--out_channels', default=3, type=int)
+        p.add_argument('--comp_decoder_convl', default=5, type=int)
+        p.add_argument('--rec_decoder_convl', default=3, type=int)
+        if not parent_parser:  # Name clash with parent
+            p.add_argument('--in_channels', default=3, type=int)
+        return p
+
+    def forward(self, part, full):
+        # part, template [bs x nv x in_channels]
+        bs = part.size(0)
+        nv = part.size(1)
+
+        part_code = self.encoder(part)  # [b x code_size]
+        full_code = self.encoder(full)  # [b x code_size]
+
+        part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        full_code = full_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+
+        x = torch.cat((full, part_code, full_code), 2).contiguous()  # [b x nv x (in_channels + 2*code_size)]
+        completion = self.comp_decoder(x)
+
+        template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
+        y = torch.cat((template, full_code), 2).contiguous()  # [b x nv x (in_channels + code_size)]
+        full_rec = self.rec_decoder(y)
+
+        z = torch.cat((template, part_code), 2).contiguous()  # [b x nv x (in_channels + code_size)]
+        part_rec = self.rec_decoder(z)
+        return completion, full_rec, part_rec
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Encoders
 # ----------------------------------------------------------------------------------------------------------------------
@@ -78,7 +132,7 @@ class ShapeEncoder(nn.Module):
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Decoders
 # ----------------------------------------------------------------------------------------------------------------------
-class CompletionDecoder(nn.Module):
+class ShapeDecoder(nn.Module):
     CCFG = [1, 1, 2, 4, 8, 16, 16]  # Enlarge this if you need more
 
     def __init__(self, pnt_code_size, out_channels, num_convl):
@@ -163,3 +217,29 @@ class PointNetFeatures(nn.Module):
         x = self.bn3(self.conv3(x))  # [B x code_size x n]
         x, _ = torch.max(x, 2)  # [B x code_size]
         return x
+
+# ----------------------------------------------------------------------------------------------------------------------
+#                                               Aux Classes
+# ----------------------------------------------------------------------------------------------------------------------
+class Template():
+    def __init__(self, vertices, faces, colors, in_channels, dev):
+        self.vertices = torch.tensor(vertices, dtype=UNIVERSAL_PRECISION_TORCH).unsqueeze(0)
+        faces = torch.LongTensor(faces)  # Not a property
+        self.in_channels = in_channels
+        if self.in_channels == 6:
+            self.normals, _ = batch_vnrmls(self.vertices, faces, return_f_areas=False)  #done on cpu (default)
+            self.normals = self.normals.to(device = dev)  #transformed to requested device
+        self.vertices = self.vertices.to(device = dev) #transformed to requested device
+
+        #self.colors = colors
+
+
+    def get_template(self):
+        if self.in_channels == 3:
+            return self.vertices
+        elif self.in_channels == 6:
+            return torch.cat((self.vertices, self.normals), 2).contiguous()
+        else:
+            raise AssertionError
+
+

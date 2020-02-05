@@ -144,7 +144,7 @@ class CompletionLightningModel(PytorchNet):
 
     def training_step(self, b, batch_idx):
         pred = self.forward(b['gt_part'], b['tp'])
-        loss = self.loss.compute(b, pred).unsqueeze(0)
+        loss = self.loss.compute(b, pred[0]).unsqueeze(0)
         logs = {'loss': loss}
 
         if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch

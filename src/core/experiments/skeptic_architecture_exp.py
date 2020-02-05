@@ -1,11 +1,10 @@
 from util.torch_nn import PytorchNet, set_determinsitic_run
 from dataset.datasets import PointDatasetMenu
 from util.string_op import banner, set_logging_to_stdout
-from util.func import tutorial
 from util.torch_data import none_or_int
 from test_tube import HyperOptArgumentParser
-from architecture.models import F2PEncoderDecoder
-from architecture.lightning import lightning_trainer, test_lightning
+from architecture.models import F2PEncoderDecoderSkeptic
+from architecture.lightning import lightning_trainer
 from dataset.transforms import *
 from dataset.abstract import InCfg
 
@@ -20,7 +19,7 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
+    p.add_argument('--exp_name', type=str, default='skeptic_architecture_exp', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None, #TODO: resume is not working! It seems to write to the requested file but the training starts from Epoch=0 and high loss (previous weights are not loaded)
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
@@ -28,7 +27,7 @@ def parser():
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
-    p.add_argument('--batch_size', type=int, default=3, help='SGD batch size')
+    p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
     p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
@@ -48,7 +47,7 @@ def parser():
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
     # L2 Losses: Use 0 to ignore, >0 to compute
-    p.add_argument('--lambdas', nargs=4, type=float, default=(0, 0, 0, 1, 1, 0, 0),
+    p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,Euclid_distortion, Euclid_distortion normals,FaceAreas, Volume] loss multiplication modifiers')
     # Loss Modifiers: # TODO - Implement for Euclid Maps & Face Areas as well.
     p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0, 0),
@@ -65,7 +64,7 @@ def parser():
     # Visualization
     p.add_argument('--use_tensorboard', type=bool, default=True,  # TODO - Not in use
                    help='Whether to log information to tensorboard or not')
-    p.add_argument('--use_parallel_plotter', type=bool, default=True,
+    p.add_argument('--use_parallel_plotter', type=bool, default=False,
                    help='Whether to plot mesh sets while training or not')
 
     return [p]
