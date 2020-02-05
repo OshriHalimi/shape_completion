@@ -170,7 +170,7 @@ class CompletionLightningModel(PytorchNet):
             new_data = (self.plt.uncache(), self._prepare_plotter_dict(b, pred))
             self.plt.push(new_data=new_data, new_epoch=self.current_epoch)
 
-        return {'val_loss': self.loss.compute(b, pred).unsqueeze(0)}
+        return {'val_loss': self.loss.compute(b, pred[0]).unsqueeze(0)}
 
     def validation_end(self, outputs):
         avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
@@ -184,11 +184,11 @@ class CompletionLightningModel(PytorchNet):
 
     def test_step(self, b, _):
 
-        gtrb = self.forward(b['gt_part'], b['tp'])
+        pred = self.forward(b['gt_part'], b['tp'])
         if self.hparams.save_completions > 0:
-            self._save_completions_by_batch(gtrb, b['gt_hi'], b['tp_hi'])
+            self._save_completions_by_batch(pred[0], b['gt_hi'], b['tp_hi'])
 
-        return {"test_loss": self.loss.compute(b, gtrb).unsqueeze(0)}
+        return {"test_loss": self.loss.compute(b, pred[0]).unsqueeze(0)}
 
     def test_end(self, outputs):
         avg_test_loss = torch.stack([x['test_loss'] for x in outputs]).mean()

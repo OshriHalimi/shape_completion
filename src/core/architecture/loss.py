@@ -60,7 +60,7 @@ class F2PSMPLLoss:
         """
 
         # Aliasing. We can only assume that channels 0:3 definitely exist
-        gtrb_xyz = gtrb [:, :, 0:3]
+        gtrb_xyz = gtrb[:, :, 0:3]
         gtb_xyz = b['gt'][:, :, 0:3]
         tpb_xyz = b['tp'][:, :, 0:3]
         gtb_normals = b['gt'][:, :, 3:6]
