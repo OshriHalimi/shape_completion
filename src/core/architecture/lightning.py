@@ -16,7 +16,7 @@ from pathlib import Path
 import os.path as osp
 from util.torch_nn import TensorboardSupervisor
 import logging
-from util.func import time_me
+from functools import reduce
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -129,7 +129,6 @@ class CompletionLightningModel(PytorchNet):
             self.plt = ParallelPlotter(faces=self.f, n_verts=self.n_v)
 
     def configure_optimizers(self):
-
         self.loss = F2PSMPLLoss(hp=self.hparams, f=self.f)
         self.opt = torch.optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
 
@@ -144,14 +143,16 @@ class CompletionLightningModel(PytorchNet):
 
     def training_step(self, b, batch_idx):
         pred = self.forward(b['gt_part'], b['tp'])
-        loss = self.loss.compute(b, pred[0]).unsqueeze(0) # TODO:loss and pred can vary from network to network
-        logs = {'loss': loss}
+        loss_dict = self.loss.compute(b, pred[0]) # TODO:loss and pred can vary from network to network
+        loss_dict = {f'{k}_train': v for k, v in loss_dict.items()}  # make different logs for train, test, validation
+        train_loss = loss_dict['total_loss_train']
+        logs = loss_dict
 
         if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
             self.plt.cache(self._prepare_plotter_dict(b, pred))  # New tensors, without grad
 
         return {
-            'loss': loss,  # Must use 'loss' instead of 'train_loss' due to lightning framework
+            'loss': train_loss,  # Must use 'loss' instead of 'train_loss' due to lightning framework
             'log': logs
         }
 
@@ -163,23 +164,32 @@ class CompletionLightningModel(PytorchNet):
             self.tb_sub.finalize()
 
     def validation_step(self, b, batch_idx):
-
         pred = self.forward(b['gt_part'], b['tp'])
 
         if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
             new_data = (self.plt.uncache(), self._prepare_plotter_dict(b, pred))
             self.plt.push(new_data=new_data, new_epoch=self.current_epoch)
 
-        return {'val_loss': self.loss.compute(b, pred[0]).unsqueeze(0)} # TODO:loss and pred can vary from network to network
+        loss_dict = self.loss.compute(b, pred[0])  # TODO:loss and pred can vary from network to network
+        return loss_dict
 
     def validation_end(self, outputs):
-        avg_val_loss = torch.stack([x['val_loss'] for x in outputs]).mean()
+        # average the values with same keys
+        loss_dict = {}
+        keys = outputs[0].keys()
+        for k in keys:
+            loss_dict[k] = torch.stack([x[k] for x in outputs]).mean()
+        loss_dict = {f'{k}_val': v for k, v in loss_dict.items()} # make different logs for train, test, validation
+        val_loss_avg = loss_dict['total_loss_val']
+
         lr = self.learning_rate(self.opt)  # Also log learning rate
+        pb = {'val_loss': val_loss_avg, 'lr': lr}
+        logs = loss_dict
+        logs.update(lr=lr)
 
         # This must be kept as "val_loss" and not "avg_val_loss" due to lightning bug
-        logs = {'val_loss': avg_val_loss, 'lr': lr}
-        return {"val_loss": avg_val_loss,
-                "progress_bar": logs,
+        return {"val_loss": val_loss_avg,
+                "progress_bar": pb,
                 "log": logs}
 
     def test_step(self, b, _):
@@ -188,13 +198,22 @@ class CompletionLightningModel(PytorchNet):
         if self.hparams.save_completions > 0:
             self._save_completions_by_batch(pred[0], b['gt_hi'], b['tp_hi'])  # TODO:pred can vary from network to network
 
-        return {"test_loss": self.loss.compute(b, pred[0]).unsqueeze(0)} # TODO:loss and pred can vary from network to network
+        loss_dict = self.loss.compute(b, pred[0])  # TODO:loss and pred can vary from network to network
+        return loss_dict
 
     def test_end(self, outputs):
-        avg_test_loss = torch.stack([x['test_loss'] for x in outputs]).mean()
-        logs = {'test_loss': avg_test_loss}
+        loss_dict = {}
+        keys = outputs[0].keys()
+        for k in keys:
+            loss_dict[k] = torch.stack([x[k] for x in outputs]).mean()
+        loss_dict = {f'{k}_test': v for k, v in loss_dict.items()} # make different logs for train, test, validation
+        avg_test_loss = loss_dict['total_loss_test']
+
+        pb = {'test_loss': avg_test_loss}
+        logs = loss_dict
+
         return {"test_loss": avg_test_loss,
-                "progress_bar": logs,
+                "progress_bar": pb,
                 "log": logs}
 
     def _prepare_plotter_dict(self, b, gtrb):

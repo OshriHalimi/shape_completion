@@ -28,7 +28,7 @@ def parser():
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(2, 2, 2),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
                    help='Number of input channels')
