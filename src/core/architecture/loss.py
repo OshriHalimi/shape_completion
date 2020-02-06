@@ -17,15 +17,20 @@ class loss_basic:
         :return: loss
         """
         completion_gt = input['gt']
-        completion_rec = network_output
-        loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=network_output, w=1)  #TODO calculate mask: w
+        completion_rec = network_output['completion']
+        loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=completion_rec, w=1)  #TODO calculate mask: w
         return loss_dict
 
 class loss_skeptic:
     def __init__(self, hp, f):
         self.shape_diff = loss_shape_diff(hp, f)
 
-    def compute(self, part, full, completion_gt, part_rec, full_rec, completion_rec):
+    def compute(self, input, network_output):
+        completion_gt = input['gt']
+        completion_rec = network_output['completion']
+        part_rec = network_output['part_rec']
+        full_rec = network_output['full_rec']
+
         loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec)
         loss_dict_part = self.shape_diff.compute(part, part_rec)
         loss_dict_full = self.shape_diff.compute(full, full_rec)
@@ -65,7 +70,7 @@ class loss_shape_diff:
         # For example: the initial data might not have normals (initial input channels = 3), however in the input pipeline
         # we add normals (before the network), making the input channel = 6. Now, assume we want to calculate normal loss.
         # If hp.in_channels refers to the initial input channels then the logic below won't work (the assert will fail).
-        if (self.lambdas[1] > 0 or self.lambdas[4]):
+        if self.lambdas[1] > 0 or self.lambdas[4]:
             assert hp.in_channels >= 6, "Only makes sense to compute normal losses with normals available"
         if self.lambdas[2] > 0:
             assert hp.in_channels >= 12, "Only makes sense to compute moment losses with moments available"

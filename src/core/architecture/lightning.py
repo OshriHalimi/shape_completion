@@ -143,7 +143,7 @@ class CompletionLightningModel(PytorchNet):
 
     def training_step(self, b, batch_idx):
         pred = self.forward(b['gt_part'], b['tp'])
-        loss_dict = self.loss.compute(b, pred[0]) # TODO:loss and pred can vary from network to network
+        loss_dict = self.loss.compute(b, pred) # TODO:loss and pred can vary from network to network
         loss_dict = {f'{k}_train': v for k, v in loss_dict.items()}  # make different logs for train, test, validation
         train_loss = loss_dict['total_loss_train']
         logs = loss_dict
@@ -170,7 +170,7 @@ class CompletionLightningModel(PytorchNet):
             new_data = (self.plt.uncache(), self._prepare_plotter_dict(b, pred))
             self.plt.push(new_data=new_data, new_epoch=self.current_epoch)
 
-        loss_dict = self.loss.compute(b, pred[0])  # TODO:loss and pred can vary from network to network
+        loss_dict = self.loss.compute(b, pred)  # TODO:loss and pred can vary from network to network
         return loss_dict
 
     def validation_end(self, outputs):
@@ -196,9 +196,9 @@ class CompletionLightningModel(PytorchNet):
 
         pred = self.forward(b['gt_part'], b['tp'])
         if self.hparams.save_completions > 0:
-            self._save_completions_by_batch(pred[0], b['gt_hi'], b['tp_hi'])  # TODO:pred can vary from network to network
+            self._save_completions_by_batch(pred, b['gt_hi'], b['tp_hi'])  # TODO:pred can vary from network to network
 
-        loss_dict = self.loss.compute(b, pred[0])  # TODO:loss and pred can vary from network to network
+        loss_dict = self.loss.compute(b, pred)  # TODO:loss and pred can vary from network to network
         return loss_dict
 
     def test_end(self, outputs):
@@ -216,8 +216,8 @@ class CompletionLightningModel(PytorchNet):
                 "progress_bar": pb,
                 "log": logs}
 
-    def _prepare_plotter_dict(self, b, gtrb):
-
+    def _prepare_plotter_dict(self, b, network_output):
+        gtrb = network_output['completion']
         # TODO - Support normals
         max_b_idx = self.hparams.VIS_N_MESH_SETS
         return {'gt': b['gt'].detach().cpu().numpy()[:max_b_idx, :, :3],
@@ -227,7 +227,8 @@ class CompletionLightningModel(PytorchNet):
                 'tp_hi': b['tp_hi'][:max_b_idx],
                 'gt_mask_vi': b['gt_mask_vi'][:max_b_idx]}
 
-    def _save_completions_by_batch(self, gtrb, gt_hi_b, tp_hi_b):
+    def _save_completions_by_batch(self, network_output, gt_hi_b, tp_hi_b):
+        gtrb = network_output['completion']
         gtrb = gtrb.cpu().numpy()
         for i, (gt_hi, tp_hi) in enumerate(zip(gt_hi_b, tp_hi_b)):
             gt_hi = '_'.join(str(x) for x in gt_hi)

@@ -20,7 +20,7 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
+    p.add_argument('--exp_name', type=str, default='basic_architecture_exp', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None, #TODO: resume is not working! It seems to write to the requested file but the training starts from Epoch=0 and high loss (previous weights are not loaded)
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
@@ -29,7 +29,7 @@ def parser():
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(2, 2, 2),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
                    help='Number of input channels')
