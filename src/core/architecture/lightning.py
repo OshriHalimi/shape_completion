@@ -1,12 +1,12 @@
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau  # , CosineAnnealingLR
 import pytorch_lightning as pl
-from architecture.loss import loss_basic
+import architecture.loss
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 import mesh.io
-from mesh.plot import ParallelPlotter
+from mesh.plot import CompletionPlotter
 from util.torch_nn import PytorchNet
 from util.string_op import banner
 from util.func import all_variables_by_module_name
@@ -124,12 +124,14 @@ class CompletionLightningModel(PytorchNet):
             self.save_func = getattr(mesh.io, f'write_{hp.SAVE_MESH_AS}')
 
         # Support for parallel plotter:
-        if hp.use_parallel_plotter:
+        if hp.parallel_plotter is not None:
             # logging.info('Initializing Parallel Plotter')
-            self.plt = ParallelPlotter(faces=self.f, n_verts=self.n_v)
+            plt_class = getattr(mesh.plot,hp.parallel_plotter)
+            self.plt = plt_class(faces=self.f, n_verts=self.n_v)
 
     def configure_optimizers(self):
-        self.loss = loss_basic(hp=self.hparams, f=self.f)
+        loss_cls = getattr(architecture.loss ,self.hparams.loss_class)
+        self.loss = loss_cls(hp=self.hparams, f=self.f)
         self.opt = torch.optim.Adam(self.parameters(), lr=self.hparams.lr, weight_decay=self.hparams.weight_decay)
 
         if self.hparams.plateau_patience is not None:
@@ -143,12 +145,12 @@ class CompletionLightningModel(PytorchNet):
 
     def training_step(self, b, batch_idx):
         pred = self.forward(b['gt_part'], b['tp'])
-        loss_dict = self.loss.compute(b, pred) # TODO:loss and pred can vary from network to network
+        loss_dict = self.loss.compute(b, pred)
         loss_dict = {f'{k}_train': v for k, v in loss_dict.items()}  # make different logs for train, test, validation
         train_loss = loss_dict['total_loss_train']
         logs = loss_dict
 
-        if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
+        if self.hparams.parallel_plotter is not None and batch_idx == 0:  # On first batch
             self.plt.cache(self._prepare_plotter_dict(b, pred))  # New tensors, without grad
 
         return {
@@ -166,11 +168,11 @@ class CompletionLightningModel(PytorchNet):
     def validation_step(self, b, batch_idx):
         pred = self.forward(b['gt_part'], b['tp'])
 
-        if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
+        if self.hparams.parallel_plotter is not None and batch_idx == 0:  # On first batch
             new_data = (self.plt.uncache(), self._prepare_plotter_dict(b, pred))
             self.plt.push(new_data=new_data, new_epoch=self.current_epoch)
 
-        loss_dict = self.loss.compute(b, pred)  # TODO:loss and pred can vary from network to network
+        loss_dict = self.loss.compute(b, pred)
         return loss_dict
 
     def validation_end(self, outputs):
@@ -198,7 +200,7 @@ class CompletionLightningModel(PytorchNet):
         if self.hparams.save_completions > 0:
             self._save_completions_by_batch(pred, b['gt_hi'], b['tp_hi'])  # TODO:pred can vary from network to network
 
-        loss_dict = self.loss.compute(b, pred)  # TODO:loss and pred can vary from network to network
+        loss_dict = self.loss.compute(b, pred)
         return loss_dict
 
     def test_end(self, outputs):
@@ -294,6 +296,6 @@ def append_data_args(hp, loaders):
         setattr(hp, set_name, table)
 
     # TODO - This might be a wrong assumption
-    setattr(hp, 'use_parallel_plotter', hp.use_parallel_plotter and loaders[0] is not None)
+    setattr(hp, 'use_parallel_plotter', hp.parallel_plotter and loaders[0] is not None)
 
     return hp

@@ -1,7 +1,7 @@
 from util.torch_nn import PytorchNet, set_determinsitic_run
 from dataset.datasets import PointDatasetMenu
 from util.string_op import banner, set_logging_to_stdout
-from util.torch_data import none_or_int
+from util.torch_data import none_or_int,none_or_str
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoderSkeptic
 from architecture.lightning import lightning_trainer
@@ -64,8 +64,8 @@ def parser():
     # Visualization
     p.add_argument('--use_tensorboard', type=bool, default=True,  # TODO - Not in use
                    help='Whether to log information to tensorboard or not')
-    p.add_argument('--use_parallel_plotter', type=bool, default=False,
-                   help='Whether to plot mesh sets while training or not')
+    p.add_argument('--parallel_plotter', type=none_or_str, choices=[None,'CompletionPlotter'],
+                   help='The plotter class or None')
 
     return [p]
 

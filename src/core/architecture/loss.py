@@ -6,9 +6,9 @@ from util.torch_nn import PytorchNet
 # ----------------------------------------------------------------------------------------------------------------------
 #                           Full Losses (different architecture might have different losses)
 # ----------------------------------------------------------------------------------------------------------------------
-class loss_basic:
+class BasicLoss:
     def __init__(self, hp, f):
-        self.shape_diff = loss_shape_diff(hp, f)
+        self.shape_diff = ShapeDiffLoss(hp, f)
 
     def compute(self, input, network_output):
         """
@@ -21,9 +21,9 @@ class loss_basic:
         loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=completion_rec, w=1)  #TODO calculate mask: w
         return loss_dict
 
-class loss_skeptic:
+class SkepticLoss:
     def __init__(self, hp, f):
-        self.shape_diff = loss_shape_diff(hp, f)
+        self.shape_diff = ShapeDiffLoss(hp, f)
 
     def compute(self, input, network_output):
         completion_gt = input['gt']
@@ -48,7 +48,7 @@ class loss_skeptic:
 #                                                   Loss Terms
 # ----------------------------------------------------------------------------------------------------------------------
 #Relies on the fact the shapes have the same connectivity
-class loss_shape_diff:
+class ShapeDiffLoss:
     def __init__(self, hp, f):
         # Copy over from the hyper-params - Remove ties to the hp container for our own editing
         self.lambdas = list(hp.lambdas)
