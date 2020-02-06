@@ -55,7 +55,7 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
         # Note that a linear layer is applied to the global feature vector
         vertices, faces, colors = read_ply(SMPL_TEMPLATE_PATH)
         self.template = Template(vertices, faces, colors, self.hparams.in_channels, self.hparams.dev)
-        self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size)
+        self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size, dense=self.hparams.dense_encoder)
         self.comp_decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
                                          out_channels=self.hparams.out_channels, num_convl=self.hparams.comp_decoder_convl)
         self.rec_decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + self.hparams.code_size,
@@ -104,13 +104,18 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
 #                                               Encoders
 # ----------------------------------------------------------------------------------------------------------------------
 class ShapeEncoder(nn.Module):
-    def __init__(self, code_size=1024, in_channels=3):
+    def __init__(self, code_size=1024, in_channels=3, dense=True):
         super().__init__()
         self.code_size = code_size
         self.in_channels = in_channels
 
+        if dense:
+            FeaturesNet = DensePointNetFeatures(self.code_size, self.in_channels)
+        else:
+            FeaturesNet = PointNetFeatures(self.code_size, self.in_channels)
+
         self.encoder = nn.Sequential(
-            PointNetFeatures(self.code_size, self.in_channels),
+            FeaturesNet,
             nn.Linear(self.code_size, self.code_size),
             nn.BatchNorm1d(self.code_size),
             nn.ReLU()
@@ -128,7 +133,6 @@ class ShapeEncoder(nn.Module):
     # Output: The global feature vector : [b x code_size]
     def forward(self, shape):
         return self.encoder(shape)
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Decoders
@@ -219,6 +223,41 @@ class PointNetFeatures(nn.Module):
         x, _ = torch.max(x, 2)  # [B x code_size]
         return x
 
+
+class DensePointNetFeatures(nn.Module):
+    def __init__(self, code_size, in_channels):
+        super().__init__()
+        self.conv1 = nn.Conv1d(in_channels, 64, 1)
+        self.conv2 = nn.Conv1d(in_channels + 64, 128, 1)
+        self.conv3 = nn.Conv1d(in_channels + 64 + 128, code_size, 1)
+        self.bn1 = nn.BatchNorm1d(64)
+        self.bn2 = nn.BatchNorm1d(128)
+        self.bn3 = nn.BatchNorm1d(code_size)
+
+    def init_weights(self):
+        conv_mu = 0.0
+        conv_sigma = 0.02
+        bn_gamma_mu = 1.0
+        bn_gamma_sigma = 0.02
+        bn_betta_bias = 0.0
+
+        for m in self.modules():
+            if isinstance(m, nn.Conv1d):
+                nn.init.normal_(m.weight, mean=conv_mu, std=conv_sigma)
+            elif isinstance(m, nn.BatchNorm1d):
+                nn.init.normal_(m.weight, mean=bn_gamma_mu, std=bn_gamma_sigma)  # weight=gamma, bias=betta
+                nn.init.constant_(m.bias, bn_betta_bias)
+
+    # noinspection PyTypeChecker
+    def forward(self, x):
+        # Input: Batch of Point Clouds : [b x num_vertices X in_channels]
+        # Output: The global feature vector : [b x code_size]
+        x = x.transpose(2, 1).contiguous()  #[b x in_channels x num_vertices]
+        y = F.relu(self.bn1(self.conv1(x)))  # [B x 64 x n]
+        z = F.relu(self.bn2(self.conv2(torch.cat((x,y), 1))))  # [B x 128 x n]
+        z = self.bn3(self.conv3(torch.cat((x,y,z), 1)))  # [B x code_size x n]
+        z, _ = torch.max(z, 2)  # [B x code_size]
+        return z
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Aux Classes
 # ----------------------------------------------------------------------------------------------------------------------

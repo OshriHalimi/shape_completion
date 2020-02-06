@@ -26,6 +26,9 @@ def parser():
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f)')
 
+    # Architecture
+    p.add_argument('--dense_encoder', type=bool, default=True, help='If true uses dense encoder architecture')
+
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=3, help='SGD batch size')
