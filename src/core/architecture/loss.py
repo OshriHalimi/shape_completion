@@ -18,7 +18,7 @@ class BasicLoss:
         """
         completion_gt = input['gt']
         completion_rec = network_output['completion']
-        loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=completion_rec, w=1)  #TODO calculate mask: w
+        loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
         return loss_dict
 
 class SkepticLoss:
@@ -26,14 +26,23 @@ class SkepticLoss:
         self.shape_diff = ShapeDiffLoss(hp, f)
 
     def compute(self, input, network_output):
+        # input retrieval
         completion_gt = input['gt']
+        full = input['tp']
+        part_idx = input['gt_mask_vi']
+
+        # output retrieval
         completion_rec = network_output['completion']
         part_rec = network_output['part_rec']
         full_rec = network_output['full_rec']
 
-        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec)
-        loss_dict_part = self.shape_diff.compute(part, part_rec)
-        loss_dict_full = self.shape_diff.compute(full, full_rec)
+        # weights calculation
+        nv = completion_gt.shape[1]
+        w_part = self.shape_diff._mask_part_weight(part_idx, nv)
+
+        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
+        loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
+        loss_dict_full = self.shape_diff.compute(full, full_rec,w=1)
 
         loss_dict_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
         loss_dict_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
@@ -234,9 +243,21 @@ class ShapeDiffLoss:
         loss_dict['total_loss'] = loss
         return loss_dict
 
+    def _mask_part_weight(self, mask_b, nv):
+        """
+        :param mask_b: A list of mask indices as numpy arrays
+        :param nv: The number of vertices
+        :return w: a weight function admitting 1 on the part and 0 outside the part
+        """
+        b = len(mask_b)
+        w = torch.zeros((b, nv, 1), dtype=self.def_prec)
+        for i in range(b):
+            w[i, mask_b[i], :] = 1
+        return w.to(device=self.dev, non_blocking=self.non_blocking)  # Transfer after looping
+
     def _mask_penalty_weight(self, mask_b, nv, p):
         """ TODO - This function was never checked
-        :param mask_b: A list of masks (protected inside a list)
+        :param mask_b: A list of mask indices as numpy arrays
         :param nv: The number of vertices
         :param p: Additional weight multiplier for the mask vertices - A scalar > 1
         """

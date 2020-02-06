@@ -1,7 +1,7 @@
 from util.torch_nn import PytorchNet, set_determinsitic_run
 from dataset.datasets import PointDatasetMenu
 from util.string_op import banner, set_logging_to_stdout
-from util.torch_data import none_or_int,none_or_str
+from util.torch_data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoderSkeptic
 from architecture.lightning import lightning_trainer
@@ -28,7 +28,7 @@ def parser():
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(2, 2, 2),
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
                    help='Number of input channels')
@@ -46,10 +46,13 @@ def parser():
                    help="Number of epoches to wait on learning plateau before stopping train")
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
-    # L2 Losses: Use 0 to ignore, >0 to compute
+
+    # Loss
+    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss'], default='SkepticLoss',
+                   help='The loss class')
+    # Shape diff Losses: Use 0 to ignore, >0 to compute
     p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,Euclid_distortion, Euclid_distortion normals,FaceAreas, Volume] loss multiplication modifiers')
-    # Loss Modifiers: # TODO - Implement for Euclid Maps & Face Areas as well.
     p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,Euclid_distortion, Euclid_distortion normals, FaceAreas, Volume] increased weight on mask vertices. Use val <= 1 to disable')
     p.add_argument('--dist_v_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0, 0),
@@ -64,8 +67,8 @@ def parser():
     # Visualization
     p.add_argument('--use_tensorboard', type=bool, default=True,  # TODO - Not in use
                    help='Whether to log information to tensorboard or not')
-    p.add_argument('--parallel_plotter', type=none_or_str, choices=[None,'CompletionPlotter'],
-                   help='The plotter class or None')
+    p.add_argument('--parallel_plotter', type=none_or_str, choices=[None, 'CompletionPlotter'], default='CompletionPlotter',
+                   help='The plotter class or None for no plot')
 
     return [p]
 
