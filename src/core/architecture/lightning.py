@@ -81,7 +81,7 @@ class CompletionLightningModel(PytorchNet):
     def _init_model(self):
         raise NotImplementedError
 
-    def forward(self, part, template):
+    def forward(self, input_dict):
         raise NotImplementedError
 
     def init_data(self, loaders):
@@ -144,7 +144,7 @@ class CompletionLightningModel(PytorchNet):
             return [self.opt]
 
     def training_step(self, b, batch_idx):
-        pred = self.forward(b['gt_part'], b['tp'])
+        pred = self.forward(b)
         loss_dict = self.loss.compute(b, pred)
         loss_dict = {f'{k}_train': v for k, v in loss_dict.items()}  # make different logs for train, test, validation
         train_loss = loss_dict['total_loss_train']
@@ -166,7 +166,7 @@ class CompletionLightningModel(PytorchNet):
             self.tb_sub.finalize()
 
     def validation_step(self, b, batch_idx):
-        pred = self.forward(b['gt_part'], b['tp'])
+        pred = self.forward(b)
 
         if self.hparams.parallel_plotter is not None and batch_idx == 0:  # On first batch
             new_data = (self.plt.uncache(), self._prepare_plotter_dict(b, pred))
@@ -196,7 +196,7 @@ class CompletionLightningModel(PytorchNet):
 
     def test_step(self, b, _):
 
-        pred = self.forward(b['gt_part'], b['tp'])
+        pred = self.forward(b)
         if self.hparams.save_completions > 0:
             self._save_completions_by_batch(pred, b['gt_hi'], b['tp_hi'])  # TODO:pred can vary from network to network
 

@@ -33,18 +33,21 @@ class F2PEncoderDecoder(CompletionLightningModel):
             p.add_argument('--in_channels', default=3, type=int)
         return p
 
-    def forward(self, part, template):
-        # part, template [bs x nv x in_channels]
+    def forward(self, input_dict):
+        part = input_dict['gt_part']
+        full = input_dict['tp']
+
+        # part, full [bs x nv x in_channels]
         bs = part.size(0)
         nv = part.size(1)
 
         part_code = self.encoder(part)  # [b x code_size]
-        template_code = self.encoder(template)  # [b x code_size]
+        full_code = self.encoder(full)  # [b x code_size]
 
         part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
-        template_code = template_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        full_code = full_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
 
-        y = torch.cat((template, part_code, template_code), 2).contiguous()  # [b x nv x (in_channels + 2*code_size)]
+        y = torch.cat((full, part_code, full_code), 2).contiguous()  # [b x nv x (in_channels + 2*code_size)]
         y = self.decoder(y)
         return {'completion': y}
 
@@ -78,8 +81,10 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
             p.add_argument('--in_channels', default=3, type=int)
         return p
 
-    def forward(self, part, full):
-        # part, template [bs x nv x in_channels]
+    def forward(self, input_dict):
+        part = input_dict['gt_part']
+        full = input_dict['tp']
+        # part, full [bs x nv x in_channels]
         bs = part.size(0)
         nv = part.size(1)
 
