@@ -105,6 +105,61 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
         part_rec = self.rec_decoder(z)
 
         return {'completion': completion, 'full_rec':full_rec, 'part_rec':part_rec}
+
+
+class F2PEncoderDecoderVerySkeptic(CompletionLightningModel):
+    def _build_model(self):
+        # Encoder takes a 3D point cloud as an input.
+        # Note that a linear layer is applied to the global feature vector
+        vertices, faces, colors = read_ply(SMPL_TEMPLATE_PATH)
+        self.template = Template(vertices, faces, colors, self.hparams.in_channels, self.hparams.dev)
+        self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size, dense=self.hparams.dense_encoder)
+        self.decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + self.hparams.code_size,
+                                         out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
+        self.regressor = Regressor(code_size=self.hparams.code_size)
+
+
+    def _init_model(self):
+        self.encoder.init_weights()
+        self.decoder.init_weights()
+        #TODO: (optionally) non default weight init of regressor
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--code_size', default=1024, type=int)
+        p.add_argument('--out_channels', default=3, type=int)
+        p.add_argument('--decoder_convl', default=5, type=int)
+        if not parent_parser:  # Name clash with parent
+            p.add_argument('--in_channels', default=3, type=int)
+        return p
+
+    def forward(self, input_dict):
+        part = input_dict['gt_part']
+        full = input_dict['tp']
+        gt = input_dict['gt']
+
+        # part, full, gt [bs x nv x in_channels]
+        bs = part.size(0)
+        nv = part.size(1)
+
+        part_code = self.encoder(part)  # [b x code_size]
+        full_code = self.encoder(full)  # [b x code_size]
+        gt_code = self.encoder(gt)  # [b x code_size]
+        comp_code = self.regressor(torch.cat((part_code, full_code), 1).contiguous())
+        output_dict = {'comp_code': comp_code, 'gt_code': gt_code}
+
+        part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        full_code = full_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        comp_code = comp_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+
+        template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
+        full_rec = self.decoder(torch.cat((template, full_code), 2).contiguous()) # decoder input: [b x nv x (in_channels + code_size)]
+        part_rec = self.decoder(torch.cat((template, part_code), 2).contiguous()) # decoder input: [b x nv x (in_channels + code_size)]
+        completion = self.decoder(torch.cat((template, comp_code), 2).contiguous()) # decoder input: [b x nv x (in_channels + code_size)]
+
+        output_dict.update({'completion': completion, 'full_rec':full_rec, 'part_rec':part_rec})
+        return output_dict
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Encoders
 # ----------------------------------------------------------------------------------------------------------------------
@@ -189,7 +244,28 @@ class ShapeDecoder(nn.Module):
         out = out.transpose(2, 1)
         return out
 
+# ----------------------------------------------------------------------------------------------------------------------
+#                                               Regressors
+# ----------------------------------------------------------------------------------------------------------------------
+class Regressor(nn.Module):
+    #TODO: support external control on internal architecture
+    def __init__(self,code_size):
+        super().__init__()
+        self.code_size = code_size
 
+        self.lin1 = nn.Linear(2 * self.code_size,  128)
+        self.lin2 = nn.Linear(128, 128)
+        self.lin3 = nn.Linear(128, self.code_size)
+
+        self.bn1 = torch.nn.BatchNorm1d(128)
+        self.bn2 = torch.nn.BatchNorm1d(128)
+        self.bn3 = torch.nn.BatchNorm1d(self.code_size)
+
+    def forward(self, x):
+        x = F.relu(self.bn1(self.lin1(x)))
+        x = F.relu(self.bn2(self.lin2(x)))
+        x = F.relu(self.bn3(self.lin3(x)))
+        return x
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Modules
 # ----------------------------------------------------------------------------------------------------------------------

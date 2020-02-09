@@ -3,7 +3,7 @@ from dataset.datasets import PointDatasetMenu
 from util.string_op import banner, set_logging_to_stdout
 from util.torch_data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
-from architecture.models import F2PEncoderDecoderSkeptic
+from architecture.models import F2PEncoderDecoderVerySkeptic
 from architecture.lightning import lightning_trainer
 from dataset.transforms import *
 from dataset.abstract import InCfg
@@ -19,7 +19,7 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='skeptic_architecture_exp', help='The experiment name. Leave empty for default')
+    p.add_argument('--exp_name', type=str, default='very_skeptic_architecture_exp', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None, #TODO: resume is not working! It seems to write to the requested file but the training starts from Epoch=0 and high loss (previous weights are not loaded)
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
@@ -51,7 +51,7 @@ def parser():
 
 
     # Loss
-    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss'], default='SkepticLoss',
+    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss', 'VerySkepticLoss'], default='VerySkepticLoss',
                    help='The loss class')
     # Shape diff Losses: Use 0 to ignore, >0 to compute
     p.add_argument('--lambdas', nargs=4, type=float, default=(1, 0, 0, 0, 0, 0, 0),
@@ -81,7 +81,7 @@ def parser():
 # ----------------------------------------------------------------------------------------------------------------------
 def train_main():
     banner('Network Init')
-    nn = F2PEncoderDecoderSkeptic(parser())
+    nn = F2PEncoderDecoderVerySkeptic(parser())
     nn.identify_system()
 
     hp = nn.hyper_params()
