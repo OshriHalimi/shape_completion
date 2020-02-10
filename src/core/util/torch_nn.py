@@ -293,8 +293,8 @@ class TensorboardSupervisor:
             self.chrome.start()
 
     def finalize(self):
-        if self.mode != 2:
-            self.server.join()
+        # if self.mode != 2:
+        #     self.server.join()
         if self.mode != 1:
             self.chrome.join()
 
@@ -309,7 +309,7 @@ class TensorboardServer(Process):
         if self.os_name == 'nt':  # Windows
             os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp} 2> NUL')
         elif self.os_name == 'posix':  # Linux
-            os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp}') # >/dev/null 2>&1
+            os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp} >/dev/null 2>&1')
         else:
             raise NotImplementedError(f'No support for OS : {self.os_name}')
 
