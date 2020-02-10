@@ -280,10 +280,8 @@ class TensorboardSupervisor:
         # 'Mode: 0 - Does nothing. 1 - Opens up only server. 2 - Opens up only chrome. 3- Opens up both '
         super().__init__()
         self.mode = mode
-        if mode not in [1, 2, 3]:
+        if mode not in [1, 2, 3]:  # TODO - Put this in an enum
             raise ValueError(f'Invalid mode: {mode}')
-        if os.name != 'nt':
-            raise NotImplementedError("No support for Linux")
         if log_dp is None:
             from cfg import PRIMARY_RESULTS_DIR
             log_dp = PRIMARY_RESULTS_DIR
@@ -304,15 +302,30 @@ class TensorboardSupervisor:
 class TensorboardServer(Process):
     def __init__(self, log_dp):
         super().__init__()
+        self.os_name = os.name
         self.log_dp = str(log_dp)
 
     def run(self):
-        os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp} 2> NUL')
+        if self.os_name == 'nt':  # Windows
+            os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp} 2> NUL')
+        elif self.os_name == 'posix':  # Linux
+            os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp}') # >/dev/null 2>&1
+        else:
+            raise NotImplementedError(f'No support for OS : {self.os_name}')
 
 
 class ChromeProcess(Process):
+    def __init__(self):
+        super().__init__()
+        self.os_name = os.name
+
     def run(self):
-        os.system(f'start chrome  http://localhost:6006/')
+        if self.os_name == 'nt':  # Windows
+            os.system(f'start chrome  http://localhost:6006/')
+        elif self.os_name == 'posix':  # Linux
+            os.system(f'google-chrome http://localhost:6006/')
+        else:
+            raise NotImplementedError(f'No support for OS : {self.os_name}')
 
 
 # ----------------------------------------------------------------------------------------------------------------------
