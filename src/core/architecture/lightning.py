@@ -1,10 +1,10 @@
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau  # , CosineAnnealingLR
-import pytorch_lightning as pl
+import lightning as pl
 import architecture.loss
-from pytorch_lightning import Trainer
-from pytorch_lightning.logging import TestTubeLogger
-from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
+from lightning import Trainer
+from lightning.logging import TestTubeLogger
+from lightning.callbacks import EarlyStopping, ModelCheckpoint
 import util.mesh.io
 from util.mesh.ops import batch_vnrmls, trunc_to_vertex_mask
 from util.torch_nn import PytorchNet

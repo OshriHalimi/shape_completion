@@ -7,7 +7,7 @@ from util.fs import convert_bytes
 from util.func import list_class_declared_methods
 import types
 from pathlib import Path
-from pytorch_lightning import LightningModule
+from lightning import LightningModule
 from collections.abc import Sequence
 from inspect import signature
 import random
