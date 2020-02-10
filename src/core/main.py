@@ -22,7 +22,7 @@ def parser():
     # Check-pointing
     # TODO - Don't forget to change me!
     p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_version', type=none_or_int, default=0,
+    p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2,3], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f). '
@@ -30,8 +30,8 @@ def parser():
 
     # Architecture
     p.add_argument('--dense_encoder', type=bool, default=True, help='If true uses dense encoder architecture')
-    p.add_argument('--use_default_init', type=bool,default=True,help='If true, using .init_weights(). Else, use default'
-                                                                     'kaiming init')
+    p.add_argument('--use_default_init', type=bool,default=True,help='If true, using default kaiming init. Else - '
+                                                                      'using our .init_weights()')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
