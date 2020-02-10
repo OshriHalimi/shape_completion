@@ -22,8 +22,9 @@ def parser():
     p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
-    p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
-                   help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f)')
+    p.add_argument('--save_completions', type=int, choices=[0, 1, 2,3], default=2,
+                   help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f). '
+                        'Use 3 for gt,tp,gt_part,tp_part save as well.')
 
     # Architecture
     p.add_argument('--dense_encoder', type=bool, default=True, help='If true uses dense encoder architecture')

@@ -6,7 +6,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 import util.mesh.io
-from util.mesh.ops import batch_vnrmls
+from util.mesh.ops import batch_vnrmls, trunc_to_vertex_mask
 from util.torch_nn import PytorchNet
 from util.func import all_variables_by_module_name
 from util.container import first
@@ -82,10 +82,10 @@ class CompletionLightningModel(PytorchNet):
     def forward(self, input_dict):
         raise NotImplementedError
 
-    def fforward(self,input_dict):
+    def fforward(self, input_dict):
         output_dict = self.forward(input_dict)
         if self.hparams.compute_output_normals:
-            vnb,vnb_is_valid = batch_vnrmls(output_dict['completion_xyz'], self.torch_f, return_f_areas=False) #TODO
+            vnb, vnb_is_valid = batch_vnrmls(output_dict['completion_xyz'], self.torch_f, return_f_areas=False)  # TODO
             output_dict['completion_vnb'] = vnb
             output_dict['completion_vnb_is_valid'] = vnb_is_valid
 
@@ -95,7 +95,7 @@ class CompletionLightningModel(PytorchNet):
 
         # Assign Loaders:
         self.loaders = loaders
-        ldr = first(self.loaders, lambda x: x is not None) # Assuming Test,Train,Vald stem from the same param module
+        ldr = first(self.loaders, lambda x: x is not None)  # Assuming Test,Train,Vald stem from the same param module
 
         # Extend Hyper-Parameters:
         self.hparams = append_data_args(self.hparams, loaders)
@@ -107,7 +107,6 @@ class CompletionLightningModel(PytorchNet):
         if self.hparams.compute_output_normals:
             self.torch_f = torch.from_numpy(self.f).long().to(device=self.hparams.dev,
                                                               non_blocking=self.hparams.NON_BLOCKING)
-
 
         self._init_trainer_collaterals()
 
@@ -201,7 +200,7 @@ class CompletionLightningModel(PytorchNet):
 
         pred = self.fforward(b)
         if self.hparams.save_completions > 0:
-            self._save_completions_by_batch(pred, b['gt_hi'], b['tp_hi'])  # TODO:pred can vary from network to network
+            self._save_completions_by_batch(pred, b)  # TODO:pred can vary from network to network
 
         return self.loss.compute(b, pred)
 
@@ -217,7 +216,7 @@ class CompletionLightningModel(PytorchNet):
         gtrb = network_output['completion_xyz']
         # TODO - Support normals
         max_b_idx = self.hparams.VIS_N_MESH_SETS
-        dict= {'gt': b['gt'].detach().cpu().numpy()[:max_b_idx, :, :3],
+        dict = {'gt': b['gt'].detach().cpu().numpy()[:max_b_idx, :, :3],
                 'tp': b['tp'].detach().cpu().numpy()[:max_b_idx, :, :3],
                 'gtrb': gtrb.detach().cpu().numpy()[:max_b_idx],
                 'gt_hi': b['gt_hi'][:max_b_idx],
@@ -229,14 +228,29 @@ class CompletionLightningModel(PytorchNet):
             # dict['gtrb_vnb_is_valid'] = network_output['completion_vnb'].detach().cpu().numpy()[:max_b_idx, :,:]
         return dict
 
-    def _save_completions_by_batch(self, network_output, gt_hi_b, tp_hi_b):
-        gtrb = network_output['completion_xyz']
-        gtrb = gtrb.cpu().numpy()
-        for i, (gt_hi, tp_hi) in enumerate(zip(gt_hi_b, tp_hi_b)):
+    def _save_completions_by_batch(self, network_output, b):
+        gtrb = network_output['completion_xyz'].cpu().numpy()
+        running_p2p = 'tp_mask' in b  # TODO - ugly
+        for i, (gt_hi, tp_hi) in enumerate(zip(b['gt_hi'], b['tp_hi'])):
             gt_hi = '_'.join(str(x) for x in gt_hi)
             tp_hi = '_'.join(str(x) for x in tp_hi)
             gtr_v = gtrb[i, :, :3]
             fp = self.completions_dp / f'{self.test_ds_name}_gthi_{gt_hi}_tphi_{tp_hi}_res'
+            if self.hparams.save_completions == 3:  # Save all
+                gt_v = b['gt'][i, :, :3]
+                tp_v = b['tp'][i, :, :3]
+                gt_fp = self.completions_dp / f'{self.test_ds_name}_gthi_{gt_hi}_tphi_{tp_hi}_gt'
+                self.save_func(gt_fp, gt_v, self.f)
+                tp_fp = self.completions_dp / f'{self.test_ds_name}_gthi_{gt_hi}_tphi_{tp_hi}_tp'
+                self.save_func(tp_fp, tp_v, self.f)
+                gt_part_fp = self.completions_dp / f'{self.test_ds_name}_gthi_{gt_hi}_tphi_{tp_hi}_gt_part'
+                gt_part_v, gt_part_f = trunc_to_vertex_mask(gt_v, self.f, b['gt_mask'][i])
+                self.save_func(gt_part_fp, gt_part_v, gt_part_f)
+                if running_p2p:
+                    tp_part_fp = self.completions_dp / f'{self.test_ds_name}_gthi_{gt_hi}_tphi_{tp_hi}_tp_part'
+                    tp_part_v, tp_part_f = trunc_to_vertex_mask(tp_v, self.f, b['tp_mask'][i])
+                    self.save_func(tp_part_fp, tp_part_v, tp_part_f)
+
             self.save_func(fp, gtr_v, self.f)
 
     def hyper_params(self):
@@ -301,8 +315,9 @@ def append_data_args(hp, loaders):
     setattr(hp, 'use_parallel_plotter', hp.plotter_class is not None and loaders[0] is not None and loaders[1]
             is not None)
 
-    setattr(hp,'compute_output_normals',hp.VIS_SHOW_NORMALS or
+    setattr(hp, 'compute_output_normals', hp.VIS_SHOW_NORMALS or
             hp.lambdas[1] > 0 or hp.lambdas[4] > 0 or hp.lambdas[5] > 0)
-    assert hp.in_channels >=6 and hp.compute_output_normals, "In channels not aligned to loss/plot config"
+    if hp.compute_output_normals:
+        assert hp.in_channels >= 6, "In channels not aligned to loss/plot config"
 
     return hp
