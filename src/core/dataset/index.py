@@ -267,6 +267,27 @@ def construct_amass_hit_pickles(with_write=False):
     return hits
 
 
+def generic_fs_hit_build(fp):
+    from pathlib import Path
+    from pprint import pprint
+    fp = Path(fp)
+    assert fp.is_dir(), f"{fp} is not a directory"
+    hit = {}
+    _generic_fs_hit_build_aux(fp, hit)
+    pprint(hit)
+
+
+def _generic_fs_hit_build_aux(fp, hit):
+    for x in fp.iterdir():
+        if x.is_file():
+            num_files = len([name for name in fp.iterdir() if name.is_file()])
+            return num_files
+        else:
+            hit[x.name] = _generic_fs_hit_build_aux(fp / x.name, {})
+
+    return hit
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                Test Modules
 # ----------------------------------------------------------------------------------------------------------------------
@@ -351,5 +372,10 @@ def hit_test2():
     # construct_amass_hit_pickles()
 
 
+def generic_hit():
+    fp = r'C:\Users\idoim\Desktop\ShapeCompletion\data\synthetic\DFaustPyProj\full'
+    generic_fs_hit_build(fp)
+
+
 if __name__ == "__main__":
-    hit_test2()
+    generic_hit()
