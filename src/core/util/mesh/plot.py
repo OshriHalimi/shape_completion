@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import pyvista as pv
 import math
-from util.mesh.ops import face_barycenters, vertex_mask_indicator
+from core.util.mesh.ops import face_barycenters, vertex_mask_indicator
 from multiprocessing import Process, Manager
 from copy import deepcopy
 from abc import ABC
@@ -148,7 +148,7 @@ def _append_mesh(p, v, f=None, n=None, strategy='mesh', grid_on=False, clr='ligh
 # ----------------------------------------------------------------------------------------------------------------------#
 
 class ParallelPlotterBase(Process, ABC):
-    from cfg import VIS_CMAP, VIS_STRATEGY, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, \
+    from core.cfg import VIS_CMAP, VIS_STRATEGY, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, \
         VIS_N_MESH_SETS, VIS_SHOW_GRID,VIS_SHOW_NORMALS
 
     def __init__(self, faces, n_verts):

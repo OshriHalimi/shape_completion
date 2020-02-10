@@ -4,11 +4,12 @@ import fnmatch
 import os
 from progress.bar import Bar
 
-
+read_path = '/mnt/gip_main_data/ShapeCompletion/Mixamo/Blender/MPI-FAUST/000/Au'
+save_path = '/mnt/gip_main_data/ShapeCompletion/Mixamo/Projections'
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--input_folder', help='absolute path to input folder')
-parser.add_argument('--output_folder', help='absolute path to output folder')
+parser.add_argument('--input_folder', default = read_path, help='absolute path to input folder')
+parser.add_argument('--output_folder', default = save_path, help='absolute path to output folder')
 parser.add_argument('--max_files', help='maximum number of files to process at a time (if it is too big it is going to run oom)', default=1000, type=int)
 
 
