@@ -119,7 +119,7 @@ class CompletionLightningModel(PytorchNet):
         self.tb_logger = TestTubeLogger(save_dir=hp.PRIMARY_RESULTS_DIR, description=f"{hp.exp_name} Experiment",
                                         name=hp.exp_name, version=hp.resume_version)
         self.exp_dp = Path(osp.dirname(self.tb_logger.experiment.log_dir)).resolve()
-        self.checkpoint = ModelCheckpoint(filepath=self.exp_dp / 'checkpoints', save_top_k=0,
+        self.checkpoint = ModelCheckpoint(filepath=self.exp_dp / 'checkpoints', save_top_k=1,
                                           verbose=True, prefix='weight', monitor='val_loss', mode='min', period=1)
 
         logging.info(f'Current run directory: {str(self.exp_dp)}')
