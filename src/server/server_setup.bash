@@ -22,10 +22,8 @@ source /etc/profile.d/bash_completion.sh
 # Environment: 
 unset XDG_RUNTIME_DIR
 export LC_ALL="en_US.UTF-8"
-source /etc/profile.d/modules.sh
-module load cuda
-
-
+# source /etc/profile.d/modules.sh
+# module load cuda
 # module load matlab/r2017b
 # ../.local/bin/jupyter-lab --no-browser --ip=$hn --port=5698
 
