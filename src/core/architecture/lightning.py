@@ -123,7 +123,7 @@ class CompletionLightningModel(PytorchNet):
                                           verbose=True, prefix='weight', monitor='val_loss', mode='min', period=1)
 
         logging.info(f'Current run directory: {str(self.exp_dp)}')
-        if hp.use_auto_tensorboard >0:
+        if hp.use_auto_tensorboard > 0:
             self.tb_sub = TensorboardSupervisor(mode=hp.use_auto_tensorboard)
 
         # Support for completions:
@@ -171,8 +171,8 @@ class CompletionLightningModel(PytorchNet):
         # Called after all epochs, for cleanup
         if self.hparams.use_parallel_plotter and self.plt.is_alive():
             self.plt.finalize()
-        # if self.hparams.use_auto_tensorboard:# Chrome detaches by itself, server - is an endless run-> join not needed
-        #     self.tb_sub.finalize()
+        if self.hparams.use_auto_tensorboard > 0:  
+            self.tb_sub.finalize()
 
     def validation_step(self, b, batch_idx):
         pred = self.fforward(b)

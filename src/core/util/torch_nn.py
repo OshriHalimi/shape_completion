@@ -293,9 +293,9 @@ class TensorboardSupervisor:
             self.chrome.start()
 
     def finalize(self):
-        # if self.mode != 2:
-        #     self.server.join()
-        if self.mode != 1:
+        if self.mode != 2 and self.server.is_alive():
+            self.server.join()
+        if self.mode != 1 and self.server.is_alive():
             self.chrome.join()
 
 
