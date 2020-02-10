@@ -6,6 +6,7 @@ from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
 import util.mesh.io
+from util.mesh.ops import batch_vnrmls
 from util.torch_nn import PytorchNet
 from util.func import all_variables_by_module_name
 from util.container import first
@@ -81,19 +82,32 @@ class CompletionLightningModel(PytorchNet):
     def forward(self, input_dict):
         raise NotImplementedError
 
+    def fforward(self,input_dict):
+        output_dict = self.forward(input_dict)
+        if self.hparams.compute_output_normals:
+            vnb,vnb_is_valid = batch_vnrmls(output_dict['completion_xyz'], self.torch_f, return_f_areas=False) #TODO
+            output_dict['completion_vnb'] = vnb
+            output_dict['completion_vnb_is_valid'] = vnb_is_valid
+
+        return output_dict
+
     def init_data(self, loaders):
 
         # Assign Loaders:
         self.loaders = loaders
-
-        # Assign faces & Number of vertices - TODO - Remember this strong assumption
-        ldr = first(self.loaders, lambda x: x is not None)
-        self.f = ldr.faces()
-        self.n_f = ldr.num_faces()
-        self.n_v = ldr.num_verts()
+        ldr = first(self.loaders, lambda x: x is not None) # Assuming Test,Train,Vald stem from the same param module
 
         # Extend Hyper-Parameters:
         self.hparams = append_data_args(self.hparams, loaders)
+
+        # Assign faces & Number of vertices - TODO - Remember this strong assumption
+        self.f = ldr.faces()
+        self.n_f = ldr.num_faces()
+        self.n_v = ldr.num_verts()
+        if self.hparams.compute_output_normals:
+            self.torch_f = torch.from_numpy(self.f).long().to(device=self.hparams.dev,
+                                                              non_blocking=self.hparams.NON_BLOCKING)
+
 
         self._init_trainer_collaterals()
 
@@ -141,7 +155,7 @@ class CompletionLightningModel(PytorchNet):
             return [self.opt]
 
     def training_step(self, b, batch_idx):
-        pred = self.forward(b)
+        pred = self.fforward(b)
         loss_dict = self.loss.compute(b, pred)
         loss_dict = {f'{k}_train': v for k, v in loss_dict.items()}  # make different logs for train, test, validation
         train_loss = loss_dict['total_loss_train']
@@ -162,7 +176,7 @@ class CompletionLightningModel(PytorchNet):
         #     self.tb_sub.finalize()
 
     def validation_step(self, b, batch_idx):
-        pred = self.forward(b)
+        pred = self.fforward(b)
 
         if self.hparams.use_parallel_plotter and batch_idx == 0:  # On first batch
             new_data = (self.plt.uncache(), self._prepare_plotter_dict(b, pred))
@@ -185,7 +199,7 @@ class CompletionLightningModel(PytorchNet):
 
     def test_step(self, b, _):
 
-        pred = self.forward(b)
+        pred = self.fforward(b)
         if self.hparams.save_completions > 0:
             self._save_completions_by_batch(pred, b['gt_hi'], b['tp_hi'])  # TODO:pred can vary from network to network
 
@@ -200,18 +214,23 @@ class CompletionLightningModel(PytorchNet):
                 "log": avg_loss_dict}
 
     def _prepare_plotter_dict(self, b, network_output):
-        gtrb = network_output['completion']
+        gtrb = network_output['completion_xyz']
         # TODO - Support normals
         max_b_idx = self.hparams.VIS_N_MESH_SETS
-        return {'gt': b['gt'].detach().cpu().numpy()[:max_b_idx, :, :3],
+        dict= {'gt': b['gt'].detach().cpu().numpy()[:max_b_idx, :, :3],
                 'tp': b['tp'].detach().cpu().numpy()[:max_b_idx, :, :3],
                 'gtrb': gtrb.detach().cpu().numpy()[:max_b_idx],
                 'gt_hi': b['gt_hi'][:max_b_idx],
                 'tp_hi': b['tp_hi'][:max_b_idx],
                 'gt_mask': b['gt_mask'][:max_b_idx]}
+        if self.hparams.VIS_SHOW_NORMALS:
+            dict['gtr_vnb'] = network_output['completion_vnb'].detach().cpu().numpy()[:max_b_idx, :, :]
+            dict['gt_vnb'] = b['gt'].detach().cpu().numpy()[:max_b_idx, :, 3:6]
+            # dict['gtrb_vnb_is_valid'] = network_output['completion_vnb'].detach().cpu().numpy()[:max_b_idx, :,:]
+        return dict
 
     def _save_completions_by_batch(self, network_output, gt_hi_b, tp_hi_b):
-        gtrb = network_output['completion']
+        gtrb = network_output['completion_xyz']
         gtrb = gtrb.cpu().numpy()
         for i, (gt_hi, tp_hi) in enumerate(zip(gt_hi_b, tp_hi_b)):
             gt_hi = '_'.join(str(x) for x in gt_hi)
@@ -281,5 +300,9 @@ def append_data_args(hp, loaders):
 
     setattr(hp, 'use_parallel_plotter', hp.plotter_class is not None and loaders[0] is not None and loaders[1]
             is not None)
+
+    setattr(hp,'compute_output_normals',hp.VIS_SHOW_NORMALS or
+            hp.lambdas[1] > 0 or hp.lambdas[4] > 0 or hp.lambdas[5] > 0)
+    assert hp.in_channels >=6 and hp.compute_output_normals, "In channels not aligned to loss/plot config"
 
     return hp

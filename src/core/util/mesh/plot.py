@@ -148,7 +148,8 @@ def _append_mesh(p, v, f=None, n=None, strategy='mesh', grid_on=False, clr='ligh
 # ----------------------------------------------------------------------------------------------------------------------#
 
 class ParallelPlotterBase(Process, ABC):
-    from cfg import VIS_CMAP, VIS_STRATEGY, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, VIS_N_MESH_SETS, VIS_SHOW_GRID
+    from cfg import VIS_CMAP, VIS_STRATEGY, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, \
+        VIS_N_MESH_SETS, VIS_SHOW_GRID,VIS_SHOW_NORMALS
 
     def __init__(self, faces, n_verts):
         super().__init__()
@@ -232,6 +233,8 @@ class ParallelPlotterBase(Process, ABC):
 
 class CompletionPlotter(ParallelPlotterBase):
     def plot_data(self):
+        gtr_vnb = None
+        gt_vnb = None
         p = pv.Plotter(shape=(2 * self.VIS_N_MESH_SETS, 4), title=self.plt_title)
         for di, (d, set_name) in enumerate(zip([self.train_d, self.val_d], ['Train', 'Vald'])):
             for i in range(self.VIS_N_MESH_SETS):
@@ -240,13 +243,18 @@ class CompletionPlotter(ParallelPlotterBase):
                 gtrb = d['gtrb'][i].squeeze()
                 gt = d['gt'][i].squeeze()
                 tp = d['tp'][i].squeeze()
+                if self.VIS_SHOW_NORMALS:
+                    gtr_vnb = d['gtr_vnb'][i].squeeze()
+                    gt_vnb = d['gt_vnb'][i].squeeze()
 
                 # TODO - Add support for normals & P2P
                 # TODO - Check why in mesh method + tensor colors, colors are interpolated onto the faces.
                 p.subplot(subplt_row_id, 0)  # GT Reconstructed with colored mask
-                _append_mesh(p, v=gtrb, f=self.f, clr=mask_ind, label=f'{set_name} Reconstruction {i}', **self.kwargs)
+                _append_mesh(p, v=gtrb, f=self.f,n=gtr_vnb,
+                             clr=mask_ind, label=f'{set_name} Reconstruction {i}', **self.kwargs)
                 p.subplot(subplt_row_id, 1)  # GT with colored mask
-                _append_mesh(p, v=gt, f=self.f, clr=mask_ind, label=f'{set_name} GT {i}', **self.kwargs)
+                _append_mesh(p, v=gt, f=self.f,n=gt_vnb,
+                             clr=mask_ind, label=f'{set_name} GT {i}', **self.kwargs)
                 p.subplot(subplt_row_id, 2)  # TP with colored mask
                 _append_mesh(p, v=tp, f=self.f, clr=mask_ind, label=f'{set_name} TP {i}', **self.kwargs)
                 p.subplot(subplt_row_id, 3)  # GT Reconstructed + Part

@@ -17,7 +17,7 @@ class BasicLoss:
         :return: loss
         """
         completion_gt = input['gt']
-        completion_rec = network_output['completion']
+        completion_rec = network_output['completion_xyz']
         loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
         return loss_dict
 
@@ -32,7 +32,7 @@ class SkepticLoss:
         part_idx = input['gt_mask']
 
         # output retrieval
-        completion_rec = network_output['completion']
+        completion_rec = network_output['completion_xyz']
         part_rec = network_output['part_rec']
         full_rec = network_output['full_rec']
 
@@ -66,7 +66,7 @@ class VerySkepticLoss:
         part_idx = input['gt_mask_vi']
 
         # output retrieval
-        completion_rec = network_output['completion']
+        completion_rec = network_output['completion_xyz']
         part_rec = network_output['part_rec']
         full_rec = network_output['full_rec']
         comp_code = network_output['comp_code']

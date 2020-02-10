@@ -47,7 +47,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
 
         y = torch.cat((full, part_code, full_code), 2).contiguous()  # [b x nv x (in_channels + 2*code_size)]
         y = self.decoder(y)
-        return {'completion': y}
+        return {'completion_xyz': y}
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -107,7 +107,7 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
         z = torch.cat((template, part_code), 2).contiguous()  # [b x nv x (in_channels + code_size)]
         part_rec = self.rec_decoder(z)
 
-        return {'completion': completion, 'full_rec': full_rec, 'part_rec': part_rec}
+        return {'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec}
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -167,5 +167,5 @@ class F2PEncoderDecoderVerySkeptic(CompletionLightningModel):
         completion = self.decoder(
             torch.cat((template, comp_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
 
-        output_dict.update({'completion': completion, 'full_rec': full_rec, 'part_rec': part_rec})
+        output_dict.update({'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec})
         return output_dict

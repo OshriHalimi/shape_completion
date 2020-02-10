@@ -70,7 +70,7 @@ def parser():
     p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
     # Visualization
-    p.add_argument('--use_auto_tensorboard', type=bool, default=True,
+    p.add_argument('--use_auto_tensorboard', type=bool, default=False,
                    help='Whether to automatically open up the tensorboard server and chrome process')
     p.add_argument('--use_logger', type=bool, default=True,  # TODO - Not in use
                    help='Whether to log information or not')

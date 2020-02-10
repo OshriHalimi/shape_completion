@@ -39,3 +39,4 @@ VIS_CMAP = 'summer'  # https://matplotlib.org/3.1.0/tutorials/colors/colormaps.h
 VIS_SHOW_GRID = False  # Visualzie with grid?
 VIS_SMOOTH_SHADING = False  # Smooth out the mesh before visualization?  Applicable only for 'mesh' method
 VIS_SHOW_EDGES = False  # Visualize with edges? Applicable only for 'mesh' method
+VIS_SHOW_NORMALS = False

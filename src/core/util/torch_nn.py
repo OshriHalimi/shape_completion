@@ -98,7 +98,7 @@ class PytorchNet(LightningModule):
         x = self._random_input(x_shape)
         y = self.forward(*x)
         if isinstance(y, dict):  # TODO - Is this truly needed?
-            y = y['completion']
+            y = y['completion_xyz']
         g = make_dot(y, params=None)
         g.format = frmt
         fp = g.view(filename=self.family_name(), cleanup=True)
@@ -108,7 +108,7 @@ class PytorchNet(LightningModule):
         x = self._random_input(x_shape)
         y = self.forward(*x)
         if isinstance(y, dict):  # TODO - Is this truly needed?
-            y = y['completion']
+            y = y['completion_xyz']
         out = tuple(y.size()[1:])
         if len(out) == 1:
             out = out[0]
