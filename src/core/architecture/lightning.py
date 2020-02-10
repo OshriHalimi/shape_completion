@@ -123,8 +123,8 @@ class CompletionLightningModel(PytorchNet):
                                           verbose=True, prefix='weight', monitor='val_loss', mode='min', period=1)
 
         logging.info(f'Current run directory: {str(self.exp_dp)}')
-        if hp.use_auto_tensorboard:
-            self.tb_sub = TensorboardSupervisor()
+        if hp.use_auto_tensorboard >0:
+            self.tb_sub = TensorboardSupervisor(mode=hp.use_auto_tensorboard)
 
         # Support for completions:
         if hp.save_completions > 0:

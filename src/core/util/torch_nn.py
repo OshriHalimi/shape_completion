@@ -276,21 +276,29 @@ def worker_init_closure(seed=None):
 # ----------------------------------------------------------------------------------------------------------------------
 
 class TensorboardSupervisor:
-    def __init__(self, log_dp=None):
+    def __init__(self, log_dp=None, mode=3):
+        # 'Mode: 0 - Does nothing. 1 - Opens up only server. 2 - Opens up only chrome. 3- Opens up both '
         super().__init__()
+        self.mode = mode
+        if mode not in [1, 2, 3]:
+            raise ValueError(f'Invalid mode: {mode}')
         if os.name != 'nt':
             raise NotImplementedError("No support for Linux")
         if log_dp is None:
             from cfg import PRIMARY_RESULTS_DIR
             log_dp = PRIMARY_RESULTS_DIR
-        self.server = TensorboardServer(log_dp)
-        self.chrome = ChromeProcess()
-        self.server.start()
-        self.chrome.start()
+        if mode != 2:
+            self.server = TensorboardServer(log_dp)
+            self.server.start()
+        if mode != 1:
+            self.chrome = ChromeProcess()
+            self.chrome.start()
 
     def finalize(self):
-        # self.server.join()
-        self.chrome.join()
+        if self.mode != 2:
+            self.server.join()
+        if self.mode != 1:
+            self.chrome.join()
 
 
 class TensorboardServer(Process):
