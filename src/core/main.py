@@ -7,7 +7,9 @@ from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
 from architecture.lightning import lightning_trainer, test_lightning
 from dataset.transforms import *
-
+# import sys
+# import pathlib
+# sys.path.append(str(pathlib.Path(__file__).parents[0]))
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
 
