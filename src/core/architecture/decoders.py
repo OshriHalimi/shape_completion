@@ -84,8 +84,8 @@ class Regressor(nn.Module):
 class Template:
     def __init__(self, in_channels, dev):
         from cfg import UNIVERSAL_PRECISION, SMPL_TEMPLATE_PATH
-        from mesh.io import read_ply
-        from mesh.ops import batch_vnrmls
+        from util.mesh.io import read_ply
+        from util.mesh.ops import batch_vnrmls
 
         vertices, faces, colors = read_ply(SMPL_TEMPLATE_PATH)
         self.vertices = torch.tensor(vertices, dtype=getattr(torch, UNIVERSAL_PRECISION)).unsqueeze(0)

@@ -3,7 +3,7 @@ from dataset.abstract import ParametricCompletionDataset
 from dataset.index import HierarchicalIndexTree
 from pickle import load
 import numpy as np
-from mesh.io import read_npz_mask, read_off_verts
+from util.mesh.io import read_npz_mask, read_off_verts
 import scipy.io as sio
 import re
 

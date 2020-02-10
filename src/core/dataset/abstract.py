@@ -8,7 +8,7 @@ from util.string_op import warn, banner
 from util.func import time_me
 from util.fs import convert_bytes
 from util.container import split_frac
-from mesh.plot import plot_mesh
+from util.mesh.plot import plot_mesh
 # from mesh.ops import trunc_to_vertex_mask
 from pickle import load
 from dataset.transforms import *

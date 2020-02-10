@@ -1,7 +1,7 @@
 import random
 import numbers
 from itertools import repeat
-from mesh.ops import vnrmls, moments, padded_part_by_mask, flip_vertex_mask
+from util.mesh.ops import vnrmls, moments, padded_part_by_mask, flip_vertex_mask
 import numpy as np
 import math
 
@@ -261,7 +261,7 @@ def align_channels(v, f, req_in_channels):
 
 def test_suite():
     from dataset.datasets import FullPartDatasetMenu
-    from mesh.plot import plot_mesh
+    from util.mesh.plot import plot_mesh
     ds = FullPartDatasetMenu.get('FaustPyProj')
     single_ldr = ds.split_loaders(s_nums=1000, s_shuffle=True, s_transform=[],
                                   n_channels=6, method='f2p', batch_size=1, device='cpu-single')

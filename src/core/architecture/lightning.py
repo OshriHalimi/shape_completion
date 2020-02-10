@@ -5,10 +5,8 @@ import architecture.loss
 from pytorch_lightning import Trainer
 from pytorch_lightning.logging import TestTubeLogger
 from pytorch_lightning.callbacks import EarlyStopping, ModelCheckpoint
-import mesh.io
-from mesh.plot import CompletionPlotter
+import util.mesh.io
 from util.torch_nn import PytorchNet
-from util.string_op import banner
 from util.func import all_variables_by_module_name
 from util.container import first
 from copy import deepcopy
@@ -16,7 +14,6 @@ from pathlib import Path
 import os.path as osp
 from util.torch_nn import TensorboardSupervisor
 import logging
-from functools import reduce
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -121,12 +118,12 @@ class CompletionLightningModel(PytorchNet):
             self.test_ds_name = self.hparams.test_ds['dataset_name']
             self.completions_dp = self.exp_dp / f'{self.test_ds_name}_completions'
             self.completions_dp.mkdir(parents=True, exist_ok=True)
-            self.save_func = getattr(mesh.io, f'write_{hp.SAVE_MESH_AS}')
+            self.save_func = getattr(util.mesh.io, f'write_{hp.SAVE_MESH_AS}')
 
         # Support for parallel plotter:
         if hp.use_parallel_plotter:
             # logging.info('Initializing Parallel Plotter')
-            plt_class = getattr(mesh.plot, hp.plotter_class)
+            plt_class = getattr(util.mesh.plot, hp.plotter_class)
             self.plt = plt_class(faces=self.f, n_verts=self.n_v)
 
     def configure_optimizers(self):

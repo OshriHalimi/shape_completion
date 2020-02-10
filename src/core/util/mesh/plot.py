@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import pyvista as pv
 import math
-from mesh.ops import face_barycenters, vertex_mask_indicator
+from util.mesh.ops import face_barycenters, vertex_mask_indicator
 from multiprocessing import Process, Manager
 from copy import deepcopy
 from abc import ABC
@@ -264,7 +264,6 @@ class CompletionPlotter(ParallelPlotterBase):
 
 def visuals_tester():
     from dataset.datasets import FullPartDatasetMenu
-    from mesh.ops import vnrmls, fnrmls
     ds = FullPartDatasetMenu.get('FaustPyProj')
     samp = ds.sample(15)  # dim:
     vv = samp['gt'][0, :, :3]
