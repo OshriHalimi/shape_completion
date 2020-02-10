@@ -17,8 +17,9 @@ class F2PEncoderDecoder(CompletionLightningModel):
                                     out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
 
     def _init_model(self):
-        self.encoder.init_weights()
-        self.decoder.init_weights()
+        pass # Default Kaiming init is better than Gaussian
+        # self.encoder.init_weights()
+        # self.decoder.init_weights()
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -67,9 +68,10 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
                                         num_convl=self.hparams.rec_decoder_convl)
 
     def _init_model(self):
-        self.encoder.init_weights()
-        self.comp_decoder.init_weights()
-        self.rec_decoder.init_weights()
+        pass # Default Kaiming Init is better than Gaussian
+        # self.encoder.init_weights()
+        # self.comp_decoder.init_weights()
+        # self.rec_decoder.init_weights()
 
     @staticmethod
     def add_model_specific_args(parent_parser):
@@ -123,8 +125,9 @@ class F2PEncoderDecoderVerySkeptic(CompletionLightningModel):
         self.regressor = Regressor(code_size=self.hparams.code_size)
 
     def _init_model(self):
-        self.encoder.init_weights()
-        self.decoder.init_weights()
+        pass # Default Kaiming init is better than Gaussian
+        # self.encoder.init_weights()
+        # self.decoder.init_weights()
         # TODO: (optionally) non default weight init of regressor
 
     @staticmethod

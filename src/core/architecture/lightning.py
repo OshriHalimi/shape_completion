@@ -176,7 +176,7 @@ class CompletionLightningModel(PytorchNet):
     def validation_end(self, outputs):
         # average the values with same keys
 
-        avg_loss_dict = {f'{k}_val': torch.stack([x[k] for x in outputs]).mean() for k in outputs[0].keys}
+        avg_loss_dict = {f'{k}_val': torch.stack([x[k] for x in outputs]).mean() for k in outputs[0].keys()}
         avg_val_loss = avg_loss_dict['total_loss_val']
         lr = self.learning_rate(self.opt)  # Also log learning rate
         avg_loss_dict['lr'] = lr
@@ -195,7 +195,7 @@ class CompletionLightningModel(PytorchNet):
         return self.loss.compute(b, pred)
 
     def test_end(self, outputs):
-        avg_loss_dict = {f'{k}_test': torch.stack([x[k] for x in outputs]).mean() for k in outputs[0].keys}
+        avg_loss_dict = {f'{k}_test': torch.stack([x[k] for x in outputs]).mean() for k in outputs[0].keys()}
         avg_test_loss = avg_loss_dict['total_loss_test']
 
         return {"test_loss": avg_test_loss,

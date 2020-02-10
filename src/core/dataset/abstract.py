@@ -285,7 +285,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
 
         return self._loader_cls(FullPartTorchDataset(self, transforms, method), batch_size=batch_size,
                                 sampler=data_sampler, num_workers=n_workers, pin_memory=pin_memory,
-                                collate_fn=completion_collate)
+                                collate_fn=completion_collate,drop_last=True)
 
     def _datapoint_via_full(self, csi):
         return self._full_dict_by_hi(self._hit.csi2chi(csi))
