@@ -30,6 +30,8 @@ def parser():
 
     # Architecture
     p.add_argument('--dense_encoder', type=bool, default=True, help='If true uses dense encoder architecture')
+    p.add_argument('--use_default_init', type=bool,default=True,help='If true, using .init_weights(). Else, use default'
+                                                                     'kaiming init')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.

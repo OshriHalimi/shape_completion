@@ -295,7 +295,7 @@ def append_config_args(hp, arch):
             hp.exp_name = 'default_exp'
 
         # Weight Init Flag
-        setattr(hp, 'do_weight_init', hp.resume_version is None)
+        setattr(hp, 'do_weight_init', hp.resume_version is None and hp.use_default_init is False)
 
         # Correctness of config parameters:
         assert hp.VIS_N_MESH_SETS <= hp.batch_size, \
