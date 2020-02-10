@@ -171,7 +171,7 @@ class CompletionLightningModel(PytorchNet):
         # Called after all epochs, for cleanup
         if self.hparams.use_parallel_plotter and self.plt.is_alive():
             self.plt.finalize()
-        if self.hparams.use_auto_tensorboard > 0:  
+        if self.hparams.use_auto_tensorboard > 0:
             self.tb_sub.finalize()
 
     def validation_step(self, b, batch_idx):

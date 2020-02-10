@@ -294,8 +294,10 @@ class TensorboardSupervisor:
 
     def finalize(self):
         if self.mode != 2 and self.server.is_alive():
+            print('Joining Tensorboard Server')
             self.server.join()
         if self.mode != 1 and self.server.is_alive():
+            print('Joining Chrome Server')
             self.chrome.join()
 
 
