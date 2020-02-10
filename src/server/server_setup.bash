@@ -20,7 +20,7 @@ echo "======================================= Server Instructions ==============
 echo "Surf to $SERVER_IP:6006 using any browser to see tensorboard output"
 echo "Use the squeue command to see queue status"
 echo "Use the sinfo command to see the server status. down+drain = bad, mix + idle = good"
-echo "===================================================================================================="
+# echo "===================================================================================================="
 
 
 # Aliasing: 
