@@ -29,7 +29,7 @@ class SkepticLoss:
         # input retrieval
         completion_gt = input['gt']
         full = input['tp']
-        part_idx = input['gt_mask_vi']
+        part_idx = input['gt_mask']
 
         # output retrieval
         completion_rec = network_output['completion']
@@ -222,7 +222,7 @@ class ShapeDiffLoss:
         gtrb_xyz = gtrb[:, :, 0:3]
         gtb_xyz = b['gt'][:, :, 0:3]
         tpb_xyz = b['tp'][:, :, 0:3]
-        mask_vi = b['gt_mask_vi']
+        mask_vi = b['gt_mask']
         nv = gtrb.shape[1]
 
         loss = torch.zeros(1, device=self.dev, dtype=self.def_prec)

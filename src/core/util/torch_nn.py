@@ -97,6 +97,8 @@ class PytorchNet(LightningModule):
         # Possible Formats: https://www.graphviz.org/doc/info/output.html
         x = self._random_input(x_shape)
         y = self.forward(*x)
+        if isinstance(y, dict):  # TODO - Is this truly needed?
+            y = y['completion']
         g = make_dot(y, params=None)
         g.format = frmt
         fp = g.view(filename=self.family_name(), cleanup=True)
@@ -105,6 +107,8 @@ class PytorchNet(LightningModule):
     def output_size(self, x_shape=None):
         x = self._random_input(x_shape)
         y = self.forward(*x)
+        if isinstance(y, dict):  # TODO - Is this truly needed?
+            y = y['completion']
         out = tuple(y.size()[1:])
         if len(out) == 1:
             out = out[0]
@@ -267,6 +271,10 @@ def worker_init_closure(seed=None):
     return worker_init_fn
 
 
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                    Tensorboard
+# ----------------------------------------------------------------------------------------------------------------------
+
 class TensorboardSupervisor:
     def __init__(self, log_dp=None):
         super().__init__()
@@ -274,9 +282,10 @@ class TensorboardSupervisor:
             raise NotImplementedError("No support for Linux")
         if log_dp is None:
             from cfg import PRIMARY_RESULTS_DIR
-        #self.server = TensorboardServer(PRIMARY_RESULTS_DIR)
+            log_dp = PRIMARY_RESULTS_DIR
+        self.server = TensorboardServer(log_dp)
         self.chrome = ChromeProcess()
-        #self.server.start()
+        self.server.start()
         self.chrome.start()
 
     def finalize(self):

@@ -1,13 +1,12 @@
 from util.torch_nn import PytorchNet, set_determinsitic_run
-from dataset.datasets import PointDatasetMenu
+from dataset.datasets import FullPartDatasetMenu
 from util.string_op import banner, set_logging_to_stdout
 from util.func import tutorial
-from util.torch_data import none_or_int,none_or_str
+from util.torch_data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
 from architecture.lightning import lightning_trainer, test_lightning
 from dataset.transforms import *
-from dataset.abstract import InCfg
 
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
@@ -21,7 +20,7 @@ def parser():
     # Check-pointing
     # TODO - Don't forget to change me!
     p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_version', type=none_or_int, default=None, #TODO: resume is not working! It seems to write to the requested file but the training starts from Epoch=0 and high loss (previous weights are not loaded)
+    p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f)')
@@ -32,7 +31,7 @@ def parser():
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=3, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(None, None, None),
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(10, 10, 10),
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
                    help='Number of input channels')
@@ -51,13 +50,18 @@ def parser():
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
     # L2 Losses: Use 0 to ignore, >0 to compute
-    p.add_argument('--lambdas', nargs=4, type=float, default=(0, 0, 0, 1, 1, 0, 0),
-                   help='[XYZ,Normal,Moments,Euclid_distortion, Euclid_distortion normals,FaceAreas, Volume] loss multiplication modifiers')
-    # Loss Modifiers: # TODO - Implement for Euclid Maps & Face Areas as well.
-    p.add_argument('--mask_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0, 0),
-                   help='[XYZ,Normal,Moments,Euclid_distortion, Euclid_distortion normals, FaceAreas, Volume] increased weight on mask vertices. Use val <= 1 to disable')
-    p.add_argument('--dist_v_penalties', nargs=3, type=float, default=(0, 0, 0, 0, 0, 0, 0),
-                   help='[XYZ,Normal,Moments,Euclid_distortion, Euclid_distortion normals, FaceAreas, Volume] increased weight on distant vertices. Use val <= 1 to disable')
+    p.add_argument('--lambdas', nargs=7, type=float, default=(1, 0, 0, 0, 0, 0, 0),
+                   help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap,FaceAreas,Volume]'
+                        'loss multiplication modifiers')
+    p.add_argument('--mask_penalties', nargs=7, type=float, default=(0, 0, 0, 0, 0, 0, 0),
+                   help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap,FaceAreas,Volume]'
+                        'increased weight on mask vertices. Use val <= 1 to disable')
+    p.add_argument('--dist_v_penalties', nargs=7, type=float, default=(0, 0, 0, 0, 0, 0, 0),
+                   help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap, FaceAreas, Volume]'
+                        'increased weight on distant vertices. Use val <= 1 to disable')
+    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss'], default='BasicLoss',
+                   help='The loss class')
+    # TODO - is this the right way to go?
 
     # Computation
     p.add_argument('--gpus', type=none_or_int, default=-1, help='Use -1 to use all available. Use None to run on CPU')
@@ -66,12 +70,13 @@ def parser():
     p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
     # Visualization
-    p.add_argument('--use_tensorboard', type=bool, default=True,  # TODO - Not in use
-                   help='Whether to log information to tensorboard or not')
-    p.add_argument('--parallel_plotter', type=none_or_str, choices=[None,'CompletionPlotter'],
-                   help='The plotter class or None for no plot')
-    p.add_argument('--loss_class',type=str,choices=['BasicLoss','SkepticLoss'],
-                   help='The loss class')
+    p.add_argument('--use_auto_tensorboard', type=bool, default=True,
+                   help='Whether to automatically open up the tensorboard server and chrome process')
+    p.add_argument('--use_logger', type=bool, default=True,  # TODO - Not in use
+                   help='Whether to log information or not')
+    p.add_argument('--plotter_class', type=none_or_str, choices=[None, 'CompletionPlotter'],
+                   default='CompletionPlotter',
+                   help='The plotter class or None for no plot')  # TODO - is this the right way to go?
 
     return [p]
 
@@ -86,9 +91,10 @@ def train_main():
 
     hp = nn.hyper_params()
     # Init loaders and faces:
-    ds = PointDatasetMenu.get('FaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=hp.in_channels)
-    ldrs = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts,
-                            s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev)
+    ds = FullPartDatasetMenu.get('FaustPyProj')
+    ldrs = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts, s_shuffle=[True] * 3, s_transform=[Center()] * 3,
+                            batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels, method='f2p',
+                            s_dynamic=[False] * 3)
     nn.init_data(loaders=ldrs)
 
     trainer = lightning_trainer(nn, fast_dev_run=False)
@@ -96,17 +102,18 @@ def train_main():
     trainer.fit(nn)
     banner('Testing Phase')
     trainer.test(nn)
+    nn.finalize()
+
 
 def test_main():
-    # Decide Model:
     # TODO - Fix this
     nn = F2PEncoderDecoder(parser())
     hp = nn.hyper_params()
-    ds = PointDatasetMenu.get('DFaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=hp.in_channels)
-    test_ldr = ds._loader(ids=range(1000), transforms=None, batch_size=hp.batch_size, device=hp.dev)
+    ds = FullPartDatasetMenu.get('DFaustPyProj')
+    test_ldr = ds.split_loaders(s_nums=hp.counts[2], s_transform=[Center()], batch_size=hp.batch_size,
+                                device=hp.dev, n_channels=hp.in_channels, method='f2p')
     nn.init_data(loaders=[None, None, test_ldr])
     test_lightning(nn)
-
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -114,58 +121,86 @@ def test_main():
 # ----------------------------------------------------------------------------------------------------------------------
 @tutorial
 def dataset_tutorial():
-    # TODO - Fix Tutorial
     # Use the menu to see which datasets are implemented
-    print(PointDatasetMenu.which())
-    ds = PointDatasetMenu.get('FaustPyProj')  # This will fail if you don't have the data on disk
+    print(FullPartDatasetMenu.which())
+    ds = FullPartDatasetMenu.get('FaustPyProj')  # This will fail if you don't have the data on disk
     ds.validate_dataset()  # Make sure all files are available - Only run this once, to make sure.
+
     banner('The HIT')
     ds.report_index_tree()  # Take a look at how the dataset is indexed - using the hit [HierarchicalIndexTree]
 
     banner('Collateral Info')
     print(f'Dataset Name = {ds.name()}')
-    print(f'Number of available Point Clouds = {ds.num_pnt_clouds()}')
-    print(f'Expected Input Shape for a single mesh = {ds.shape()}')
+    print(f'Number of indexed files = {ds.num_indexed()}')
+    print(f'Number of full shapes = {ds.num_full_shapes()}')
+    print(f'Number of projections = {ds.num_projections()}')
     print(f'Required disk space in bytes = {ds.disk_space()}')
     # You can also request a summary printout with:
     ds.data_summary(with_tree=False)  # Don't print out the tree again
-    # For models with a single set of faces (SMPL or SMLR for example) you can request the face set directly:
+
+    # For models with a single set of faces (SMPL or SMLR for example) you can request the face set/number of vertices
+    # directly:
     banner('Face Array')
     print(ds.faces())
-    # You can ask for a random sample of the data, under your needed transformations:
-    banner('Data sample')
-    print(ds.sample(num_samples=1, transforms=[Center()]))
-    # You can also ask for a simple loader, given by the ids you'd like to see.
-    # Pass ids = None to index the entire dataset, form point_cloud = 0 to point_cloud = num_point_clouds -1
-    my_loader = ds._loader(ids=None, transforms=[Center()], batch_size=16, device='cpu-single')
+    print(ds.num_faces())
+    print(ds.num_verts())
+    # You can also ask for the null-shape the dataset - with hi : [0,0...,0]
+    print(ds.null_shape(n_channels=6))
+    ds.plot_null_shape(strategy='spheres', with_vnormals=True)
+
+    # Let's look at the various sampling methods available to us:
+    print(ds.defined_methods())  # ('full', 'part', 'f2p', 'rand_f2p', 'p2p', 'rand_p2p')
+    # We can ask for a sample of the data with this sampling method:
+    banner('Data Sample')
+    samp = ds.sample(num_samples=2, transforms=[Center(keys=['gt'])], n_channels=6, method='full')
+    print(samp)  # Dict with gt_hi & gt
+    print(ds.num_datapoints_by_method('full'))  # 100
+
+    samp = ds.sample(num_samples=2, transforms=[Center(keys=['gt'])], n_channels=6, method='part')
+    print(samp)  # Dict with gt_hi & gt & gt_mask & gt_mask
+    print(ds.num_datapoints_by_method('part'))  # 1000
+
+    samp = ds.sample(num_samples=2, transforms=[Center(keys=['gt'])], n_channels=6, method='f2p')
+    print(samp)  # Dict with gt_hi & gt & gt_mask & gt_mask & tp
+    print(ds.num_datapoints_by_method('f2p'))  # 10000 tuples of (gt,tp) where the subjects are the same
+
+    # # You can also ask for a simple loader, given by the ids you'd like to see.
+    # # Pass ids = None to index the entire dataset, form point_cloud = 0 to point_cloud = num_datapoints_by_method -1
+    banner('Loaders')
+    single_ldr = ds.split_loaders(s_nums=1000, s_shuffle=True, s_transform=[Center()], n_channels=6, method='f2p',
+                                  batch_size=3, device='cpu-single')
+    for d in single_ldr:
+        print(d)
+        break
+
+    print(single_ldr.num_verts())
+    # There are also operations defined on the loaders themselves. See utils.torch_data for details
 
     # To receive train/validation splits or train/validation/test splits use:
-    my_loaders = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=[800, 100, 100],
-                                  s_shuffle=[True] * 3, s_transform=[Center()] * 3, global_shuffle=True)
+    my_loaders = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=[2000, 1000, 1000],
+                                  s_shuffle=[True] * 3, s_transform=[Center()] * 3, global_shuffle=True, method='p2p',
+                                  s_dynamic=[True, False, False])
+
+    # Please read the documentation of split_loaders for the exact details. In essence:
     # You'll receive len(split) dataloaders, where each part i is split[i]*num_point_clouds size. From this split,
     # s_nums[i] will be taken for the dataloader, and transformed by s_transform[i].
     # s_shuffle and global_shuffle controls the shuffling of the different partitions - see doc inside function
 
-    # You can see part of the actual dataset with strategies 'spheres','mesh' or 'cloud'
-    ds.show_sample(n_shapes=8, key='gt_part', strategy='cloud')
-
 
 @tutorial
 def pytorch_net_tutorial():
-    # TODO - Fix Tutorial
     # What is it? PyTorchNet is a derived class of LightningModule, allowing for extended operations on it
     # Let's see some of them:
-
     nn = F2PEncoderDecoder()  # Remember that F2PEncoderDecoder is a subclass of PytorchNet
     nn.identify_system()  # Outputs the specs of the current system - Useful for identifying existing GPUs
-    nn.summary(x_shape=(5, 6890, 3))
-    banner('General Net Info')
-    print(f'On GPU = {nn.ongpu()}')  # Whether the system is on the GPU or not. Will print False
-    target_input_size = ((6890, 3), (6890, 3))
-    nn.summary(print_it=True, batch_size=3, x_shape=target_input_size)
-    print(f'Output size = {nn.output_size(x_shape=target_input_size)}')
 
-    banner('Weight Print')
+    banner('General Net Info')
+    target_input_size = ((6890, 3), (6890, 3))
+    nn.summary(x_shape=target_input_size)
+    nn.summary(batch_size=3, x_shape=target_input_size)
+    print(f'On GPU = {nn.ongpu()}')  # Whether the system is on the GPU or not. Will print False
+    nn.print_memory_usage(device=0)  # Print GPU 0's memory consumption
+    print(f'Output size = {nn.output_size(x_shape=target_input_size)}')
     nn.print_weights()
     nn.visualize(x_shape=target_input_size, frmt='pdf')  # Prints PDF to current directory
 

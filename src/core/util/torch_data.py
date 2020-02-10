@@ -1,7 +1,7 @@
+import torch
 from torch.utils.data import DataLoader
+from torch.utils.data.sampler import Sampler
 from copy import deepcopy
-from tensorboard import default,program
-import logging
 
 
 def determine_worker_num(num_examples, batch_size):
@@ -15,15 +15,6 @@ def determine_worker_num(num_examples, batch_size):
             return int(batch_size / 2)
         else:
             return int(cpu_cnt / 2)
-
-
-def loader_ids(loader):
-    return list(loader.batch_sampler.sampler.indices)
-
-
-def exact_num_loader_obj(loader):
-    # This is more exact than len(loader)*batch_size - Seeing we don't round up the last batch to batch_size
-    return len(loader.dataset)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -54,3 +45,51 @@ class ReconstructableDataLoader(DataLoader):
 
     def recon_table(self):
         return deepcopy(self._recon_table)
+
+    def indices(self):
+        return list(self.batch_sampler.sampler.indices)
+
+    def num_indexed(self):
+        return len(self.batch_sampler.sampler.indices)
+
+    def num_in_iterable(self):
+        return self.batch_sampler.sampler.length  # Presuming SubsetChoiceSampler
+
+
+class ParametricLoader(ReconstructableDataLoader):
+    def faces(self):
+        return self.dataset._ds_inst.faces()
+
+    def num_verts(self):
+        return self.dataset._ds_inst.num_verts()
+
+    def num_faces(self):
+        return self.dataset._ds_inst.num_faces()
+
+    def null_shape(self, n_channels=None):
+        if n_channels is None:
+            n_channels = self._recon_table['n_channels']
+        return self.dataset._ds_inst.null_shape(n_channels)
+
+    def plot_null_shape(self, strategy='mesh', with_vnormals=False):
+        return self.dataset._ds_inst.plot_null_shape(strategy=strategy, with_vnormals=with_vnormals)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------------------------------------------------
+class SubsetChoiceSampler(Sampler):
+    def __init__(self, indices, length=None):
+        self.indices = indices
+        if length is None:
+            length = len(self.indices)
+        self.length = length
+
+    def __iter__(self):
+        # Inefficient, without replacement:
+        return (self.indices[i] for i in torch.randperm(len(self.indices))[:self.length])
+        # Efficient, with replacement:
+        # return (self.indices[i] for i in torch.randint(low=0,high=len(self.indices),size=(self.length,)))
+
+    def __len__(self):
+        return self.length

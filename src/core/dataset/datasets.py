@@ -1,5 +1,5 @@
 from abc import ABC
-from dataset.abstract import SMPLCompletionProjDataset, InCfg
+from dataset.abstract import ParametricCompletionDataset
 from dataset.index import HierarchicalIndexTree
 from pickle import load
 import numpy as np
@@ -12,7 +12,7 @@ import re
 #                                                     Abstract
 # ----------------------------------------------------------------------------------------------------------------------
 
-class FaustProjDataset(SMPLCompletionProjDataset, ABC):
+class FaustProjDataset(ParametricCompletionDataset, ABC):
     def _construct_hit(self):
         hit = {}
         for sub_id in range(10):
@@ -22,7 +22,7 @@ class FaustProjDataset(SMPLCompletionProjDataset, ABC):
         return HierarchicalIndexTree(hit, in_memory=True)
 
 
-class AmassProjDataset(SMPLCompletionProjDataset, ABC):
+class AmassProjDataset(ParametricCompletionDataset, ABC):
     def _construct_hit(self):
         hit_appender = re.search(r'Amass(.*)Py', self.__class__.__name__).group(1).lower()
         fp = self._data_dir / f'amass_{hit_appender}_hit.pkl'
@@ -35,10 +35,10 @@ class AmassProjDataset(SMPLCompletionProjDataset, ABC):
     def _hi2full_path(self, hi):
         return self._full_dir / f'subjectID_{hi[0]}_poseID_{hi[1]}.OFF'
 
-    def _proj2data(self, fp):
+    def _proj_path2data(self, fp):
         return read_npz_mask(fp)
 
-    def _full2data(self, fp):
+    def _full_path2data(self, fp):
         return read_off_verts(fp)
 
 
@@ -47,9 +47,8 @@ class AmassProjDataset(SMPLCompletionProjDataset, ABC):
 # ----------------------------------------------------------------------------------------------------------------------
 
 class FaustPyProj(FaustProjDataset):
-    def __init__(self, in_channels, in_cfg, data_dir_override):
-        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
-                         cls='synthetic', shape=(6890, in_channels), disk_space_bytes=67984856)
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=6890, disk_space_bytes=67984856)
 
     def _hi2proj_path(self, hi):
         return self._proj_dir / f'tr_reg_0{hi[0]}{hi[1]}_00{hi[2]}.npz'
@@ -57,17 +56,16 @@ class FaustPyProj(FaustProjDataset):
     def _hi2full_path(self, hi):
         return self._full_dir / f'tr_reg_0{hi[0]}{hi[1]}.off'
 
-    def _proj2data(self, fp):
+    def _proj_path2data(self, fp):
         return read_npz_mask(fp)
 
-    def _full2data(self, fp):
+    def _full_path2data(self, fp):
         return read_off_verts(fp)
 
 
 class FaustMatProj(FaustProjDataset):
-    def __init__(self, in_channels, in_cfg, data_dir_override):
-        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
-                         cls='synthetic', shape=(6890, in_channels), disk_space_bytes=300504051)
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=6890, disk_space_bytes=300504051)
 
     def _hi2proj_path(self, hi):
         return self._proj_dir / f'tr_reg_0{hi[0]}{hi[1]}_{hi[2] + 1:03d}.mat'
@@ -75,10 +73,10 @@ class FaustMatProj(FaustProjDataset):
     def _hi2full_path(self, hi):
         return self._full_dir / f'tr_reg_0{hi[0]}{hi[1]}.mat'
 
-    def _proj2data(self, fp):
+    def _proj_path2data(self, fp):
         return np.squeeze(sio.loadmat(fp)['part_mask'].astype(np.int32) - 1)
 
-    def _full2data(self, fp):
+    def _full_path2data(self, fp):
         return sio.loadmat(fp)['full_shape']
 
 
@@ -86,10 +84,10 @@ class FaustMatProj(FaustProjDataset):
 #                                           Implementations - DFaust
 # ----------------------------------------------------------------------------------------------------------------------
 
-class DFaustPyProj(SMPLCompletionProjDataset):
-    def __init__(self, in_channels, in_cfg, data_dir_override):
-        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
-                         cls='synthetic', shape=(6890, in_channels), disk_space_bytes=32911290368)
+class DFaustPyProj(ParametricCompletionDataset):
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=6890,
+                         disk_space_bytes=32911290368)
 
     def _construct_hit(self):
         with open(self._data_dir / 'DFaust_hit.pkl', "rb") as f:
@@ -101,10 +99,10 @@ class DFaustPyProj(SMPLCompletionProjDataset):
     def _hi2full_path(self, hi):
         return self._full_dir / hi[0] / hi[1] / f'{hi[2]:05}.OFF'
 
-    def _proj2data(self, fp):
+    def _proj_path2data(self, fp):
         return read_npz_mask(fp)
 
-    def _full2data(self, fp):
+    def _full_path2data(self, fp):
         return read_off_verts(fp)
 
 
@@ -113,28 +111,27 @@ class DFaustPyProj(SMPLCompletionProjDataset):
 # ----------------------------------------------------------------------------------------------------------------------
 
 class AmassTrainPyProj(AmassProjDataset, ABC):
-    def __init__(self, in_channels, in_cfg, data_dir_override):
-        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
-                         cls='synthetic', shape=(6890, in_channels), disk_space_bytes=90026754048)
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=6890,
+                         disk_space_bytes=90026754048)
 
 
 class AmassValdPyProj(AmassProjDataset, ABC):
-    def __init__(self, in_channels, in_cfg, data_dir_override):
-        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
-                         cls='synthetic', shape=(6890, in_channels), disk_space_bytes=8288399360)
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=6890,
+                         disk_space_bytes=8288399360)
 
 
 class AmassTestPyProj(AmassProjDataset, ABC):
-    def __init__(self, in_channels, in_cfg, data_dir_override):
-        super().__init__(data_dir_override=data_dir_override, in_channels=in_channels, in_cfg=in_cfg,
-                         cls='synthetic', shape=(6890, in_channels), disk_space_bytes=691769344)
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=6890, disk_space_bytes=691769344)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               	General
 # ----------------------------------------------------------------------------------------------------------------------
 
-class PointDatasetMenu:
+class FullPartDatasetMenu:
     _implemented = {
         'AmassTestPyProj': AmassTestPyProj,
         'AmassValdPyProj': AmassValdPyProj,
@@ -144,41 +141,69 @@ class PointDatasetMenu:
         'DFaustPyProj': DFaustPyProj,
     }
 
-    @staticmethod
-    def which():
-        return tuple(PointDatasetMenu._implemented.keys())
+    @classmethod
+    def which(cls):
+        return tuple(cls._implemented.keys())
 
-    @staticmethod
-    def get(dataset_name, in_channels=3, in_cfg=InCfg.FULL2PART, data_dir_override=None):
-        return PointDatasetMenu._implemented[dataset_name](in_channels=in_channels, in_cfg=in_cfg,
-                                                           data_dir_override=data_dir_override)
+    @classmethod
+    def get(cls, dataset_name, data_dir_override=None):
+        return cls._implemented[dataset_name](data_dir_override=data_dir_override)
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                Test Module
 # ----------------------------------------------------------------------------------------------------------------------
 def test_dataset():
-    print(PointDatasetMenu.which())
-    ds = PointDatasetMenu.get('DFaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=12)
-    # ds.data_summary(with_tree=False)
-    # ds.validate_dataset()
-    ds.show_sample(n_shapes=8, strategy='mesh', key='gt_part', with_vnormals=True, grid_on=True)
-    # print(samp)
-    # t1,vl,tsl = ds.split_loaders(split=[0.5,0.4,0.1],s_nums=[100,200,300000],
-    # # s_shuffle=[True]*3,s_transform=[Center()]*3,global_shuffle=True)
-    # tl = ds.split_loaders(s_nums=None , s_shuffle=True , s_transform=[Center()],device='cpu-single',batch_size=5)
-    # #
-    # # # ids = get_loader_ids(tl)
-    # from timeit import default_timer as timer
-    # start = timer()
-    # for obj in tl:
-    #     obj['gt'].to('cuda')
-    #     obj['tp'].to('cuda')
-    #     end = timer()
-    #     print(f'Load & Transfer Time: {end - start}')
-    #     start = end
+    from dataset.transforms import Center
+    ds = FullPartDatasetMenu.get('FaustPyProj')
+    # for ds_name in FullPartDatasetMenu.which():
+    #     ds = FullPartDatasetMenu.get(ds_name)
+    #     print(ds.num_datapoints_by_method('f2p') , ds._hit_in_memory)
+    #     ldr = ds._loader(method='f2p', transforms=None, n_channels=6, ids=None, batch_size=12, device='cpu-single')
+    #     for d in ldr:
+    #         print(d)
+    #         break
+    # ds.data_summary()
+    # print(ds.num_projections())
+    # print(ds.num_full_shapes())
+    # print(ds.num_indexed())
+    # for meth in ds.defined_methods():
+    #     print(f"{meth} :: {ds.num_datapoints_by_method(meth)} Examples")
+    # # ds.validate_dataset()
+    # print(ds.num_verts())
+    # print(ds.num_faces())
+    # print(ds.null_shape(n_channels=12))
+    # ds.plot_null_shape()
+    # ds.plot_null_shape(strategy='spheres')
+    # ds.plot_null_shape(strategy='cloud',with_vnormals=True)
+    # def split_loaders(self, s_nums=None, s_shuffle=True, s_transform=(Center(),), split=(1,),
+    #                   global_shuffle=False, batch_size=16, device='cuda', method='f2p', n_channels=6)
 
-    # (trainl, num_train), (validl, num_valid) = ds.testloader()
+    # # for meth in ds.defined_methods()
+    # for i in range(ds.num_projections()):
+    #     for j in range(ds.num_full_shapes()):
+    #         if ds._hit.csi2chi(j)[0] == ds._hit.si2hi(i)[0]:  # Same subject
+    #             print(ds._hit.csi2chi(j),(i,j),ds._hit.si2hi(i))
+    # ldr = ds._loader(method='f2p',transforms=None,n_channels=6,ids=None,batch_size=12,device='cpu-single')
+    # for d in ldr:
+    #     print(d)
+    #     break
+    #     print(ldr.num_datapoints())
+    #     print(ldr.num_verts())
+    #     print(ldr.num_faces())
+    #     ldr.plot_null_shape()
+    ldrs = ds.split_loaders(split=[0.5, 0.3, 0.2], s_shuffle=[False] * 3, s_transform=[Center()] * 3,
+                            s_nums=[10, 10, 10],
+                            batch_size=10, device='cpu-single', method='f2p', n_channels=6,
+                            s_dynamic=[True, False, False])
+    #
+    for ldr in ldrs:
+        print(ldr.num_indexed())
+        print(ldr.num_in_iterable())
+        # d = 0
+        for c in ldr:
+            print(c['gt_hi'])
+            print(c['tp_hi'])
 
 
 if __name__ == "__main__":

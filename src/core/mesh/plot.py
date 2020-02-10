@@ -12,31 +12,34 @@ from abc import ABC
 #                                                    Visualization Functions
 # ----------------------------------------------------------------------------------------------------------------------#
 # noinspection PyIncorrectDocstring
-def plot_mesh(*args, **kwargs):
+def plot_mesh(v, f=None, n=None, strategy='mesh', grid_on=False, clr='lightcoral', normal_clr='lightblue',
+              label=None, smooth_shade_on=False, show_edges=False, cmap=None, normal_scale=1):
     """
     :param v: tensor - A numpy or torch [nv x 3] vertex tensor
     :param f: tensor |  None - (optional) A numpy or torch [nf x 3] vertex tensor OR None
     :param n: tensor |  None - (optional) A numpy or torch [nf x 3] or [nv x3] vertex or face normals. Must input f
     when inputting a face-normal tensor
-    :param spheres_on: bool - Plots cloud points as spheres. When f is inputted, does nothing. Default is True
+    :param strategy: One of ['spheres','cloud','mesh']
     :param grid_on: bool - Plots an xyz grid with the mesh. Default is False
     :param clr: str or [R,G,B] float list or tensor - Plots  mesh with color clr. clr = v is cool
     :param normal_clr: str or [R,G,B] float list or tensor - Plots  mesh normals with color normal_clr
     :param label: str - (optional) - When inputted, displays a legend with the title label
     :param smooth_shade_on: bool - Plot a smooth version of the facets - just like 3D-Viewer
-    :param show_edges: bool - Show edges in black. Only applicable for the full mesh plot
+    :param show_edges: bool - Show edges in black. Only applicable for strategy == 'mesh'
     For color list, see pyvista.plotting.colors
     * For windows keyboard options, see: https://docs.pyvista.org/plotting/plotting.html
     """
     pv.set_plot_theme("document")  # White background
     p = pv.Plotter()
-    _append_mesh(p, *args, **kwargs)
+    _append_mesh(p, v=v, f=f, n=n, grid_on=grid_on, strategy=strategy, clr=clr, normal_clr=normal_clr,
+                 label=label, smooth_shade_on=smooth_shade_on, show_edges=show_edges, cmap=cmap,
+                 normal_scale=normal_scale)
     p.show()
 
 
 # noinspection PyIncorrectDocstring
-def plot_mesh_montage(vb, fb=None, nb=None, labelb=None, spheres_on=True, grid_on=False, clr='lightcoral',
-                      normal_clr='lightblue', smooth_shade_on=False, show_edges=False):
+def plot_mesh_montage(vb, fb=None, nb=None, strategy='mesh', labelb=None, grid_on=False, clr='lightcoral',
+                      normal_clr='lightblue', smooth_shade_on=False, show_edges=False, normal_scale=1):
     """
     :param vb: tensor | list - [b x nv x 3] batch of meshes or list of length b with tensors [nvx3]
     :param fb: tensor | list | None - (optional) [b x nf x 3]
@@ -62,7 +65,7 @@ def plot_mesh_montage(vb, fb=None, nb=None, labelb=None, spheres_on=True, grid_o
         n = nb if nb is None else nb[i]
         label = labelb if labelb is None else labelb[i]
         p.subplot(r[i], c[i])
-        _append_mesh(p, v=vb[i], f=f, n=n, label=label, spheres_on=spheres_on, grid_on=grid_on,
+        _append_mesh(p, v=vb[i], f=f, n=n, strategy=strategy, label=label, grid_on=grid_on, normal_scale=normal_scale,
                      clr=clr, normal_clr=normal_clr, smooth_shade_on=smooth_shade_on, show_edges=show_edges)
 
     p.link_views()
@@ -73,14 +76,22 @@ def plot_mesh_montage(vb, fb=None, nb=None, labelb=None, spheres_on=True, grid_o
 #                                                    Helper Functions
 # ----------------------------------------------------------------------------------------------------------------------#
 
-def _append_mesh(p, v, f=None, n=None, spheres_on=True, grid_on=False, clr='lightcoral',
-                 normal_clr='lightblue', label=None, smooth_shade_on=False, show_edges=False, cmap=None):
+def _append_mesh(p, v, f=None, n=None, strategy='mesh', grid_on=False, clr='lightcoral',
+                 normal_clr='lightblue', label=None, smooth_shade_on=False, show_edges=False, cmap=None,
+                 normal_scale=1):
     # Align arrays:
     v = v.numpy() if torch.is_tensor(v) else v
     f = f.numpy() if torch.is_tensor(f) else f
     n = n.numpy() if torch.is_tensor(n) else n
     clr = clr.numpy() if torch.is_tensor(clr) else clr
     normal_clr = normal_clr.numpy() if torch.is_tensor(normal_clr) else normal_clr
+
+    # Align strategy
+    if strategy == 'mesh':
+        assert f is not None, "Must supply faces for mesh strategy"
+    else:
+        f = None  # Destroy the face information
+    spheres_on = (strategy == 'spheres')
 
     # Create Data object:
     if f is not None:
@@ -114,7 +125,8 @@ def _append_mesh(p, v, f=None, n=None, spheres_on=True, grid_on=False, clr='ligh
             pnt_cloud = pv.PolyData(face_barycenters(v, f))
         pnt_cloud['normals'] = n
         # noinspection PyTypeChecker
-        arrows = pnt_cloud.glyph(orient='normals', scale=False, factor=0.03)
+        arrows = pnt_cloud.glyph(orient='normals', scale=False, factor=0.03 * normal_scale)
+        # TODO - Dynamic computation of normal_scale
         if isinstance(normal_clr, str) or len(normal_clr) == 3:
             color = normal_clr
             scalars = None
@@ -136,7 +148,7 @@ def _append_mesh(p, v, f=None, n=None, spheres_on=True, grid_on=False, clr='ligh
 # ----------------------------------------------------------------------------------------------------------------------#
 
 class ParallelPlotterBase(Process, ABC):
-    from cfg import VIS_CMAP, VIS_METHOD, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, VIS_N_MESH_SETS, VIS_SHOW_GRID
+    from cfg import VIS_CMAP, VIS_STRATEGY, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, VIS_N_MESH_SETS, VIS_SHOW_GRID
 
     def __init__(self, faces, n_verts):
         super().__init__()
@@ -146,10 +158,11 @@ class ParallelPlotterBase(Process, ABC):
 
         self.n_v = n_verts
         self.last_plotted_epoch = -1
-        self.f = faces if self.VIS_METHOD == 'mesh' else None
+        self.f = faces if self.VIS_STRATEGY == 'mesh' else None
         self.train_d, self.val_d, self.data_cache, self.plt_title = None, None, None, None
+
         self.kwargs = {'smooth_shade_on': self.VIS_SMOOTH_SHADING, 'show_edges': self.VIS_SHOW_EDGES,
-                       'spheres_on': (self.VIS_METHOD == 'spheres'), 'cmap': self.VIS_CMAP,
+                       'strategy': self.VIS_STRATEGY, 'cmap': self.VIS_CMAP,
                        'grid_on': self.VIS_SHOW_GRID}
 
     def run(self):
@@ -223,7 +236,7 @@ class CompletionPlotter(ParallelPlotterBase):
         for di, (d, set_name) in enumerate(zip([self.train_d, self.val_d], ['Train', 'Vald'])):
             for i in range(self.VIS_N_MESH_SETS):
                 subplt_row_id = i + di * self.VIS_N_MESH_SETS
-                mask_ind = vertex_mask_indicator(self.n_v, d['gt_mask_vi'][i])
+                mask_ind = vertex_mask_indicator(self.n_v, d['gt_mask'][i])
                 gtrb = d['gtrb'][i].squeeze()
                 gt = d['gt'][i].squeeze()
                 tp = d['tp'][i].squeeze()
@@ -250,16 +263,16 @@ class CompletionPlotter(ParallelPlotterBase):
 # ----------------------------------------------------------------------------------------------------------------------#
 
 def visuals_tester():
-    from dataset.datasets import PointDatasetMenu, InCfg
-    from mesh.ops import vnrmls  # , fnrmls
-    ds = PointDatasetMenu.get('FaustPyProj', in_channels=6, in_cfg=InCfg.FULL2PART)
+    from dataset.datasets import FullPartDatasetMenu
+    from mesh.ops import vnrmls, fnrmls
+    ds = FullPartDatasetMenu.get('FaustPyProj')
     samp = ds.sample(15)  # dim:
     vv = samp['gt'][0, :, :3]
     ff = ds.faces()
-    plot_mesh(v=vv, f=ff, n=vnrmls(vv, ff), label='Badass', grid_on=True)
+    # plot_mesh(v=vv, f=ff, n=fnrmls(vv, ff), label='Badass', grid_on=True)
     # # plot_mesh(v=vv, spheres_on=True, clr=vv)
     # plot_mesh_montage(samp['gt'][:, :, :3], ff)
-    # plot_mesh_montage(samp['gt'][:, :, :3])
+    plot_mesh_montage(samp['gt'][:, :, :3], strategy='spheres')
 
 
 if __name__ == '__main__':

@@ -26,7 +26,7 @@ def get_exp_version(cache_dir):
                 file_parts = f.split('_')
                 version = int(file_parts[-1])
                 last_version = max(last_version, version)
-    except:  # No such dir
+    except:  # No such dir # TODO - detect the explict error
         pass
 
     return last_version + 1

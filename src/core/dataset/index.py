@@ -5,7 +5,10 @@ from util.container import max_dict_depth, min_dict_depth, deep_dict_to_rdict
 from util.string_op import banner, warn
 from json import dumps
 import random
+from copy import deepcopy
 
+
+# from sortedcontainers import SortedDict
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                  Index Tree Mapping
@@ -28,7 +31,9 @@ class HierarchicalIndexTree:
         self._hit = hit
         self._in_memory = in_memory
         self._depth = max_depth
-        self._multid_list, self._num_objs = self._flatten()  # multid has two possible forms, in dependence of in_memory
+        # multid has two possible forms, in dependence of in_memory
+        self._multid_list, self._num_objs = self._flatten(self._in_memory)
+        self._csi_list = None
 
     def __str__(self):
         # pf = pformat(self._hit)
@@ -40,8 +45,13 @@ class HierarchicalIndexTree:
     def depth(self):
         return self._depth
 
-    def num_objects(self):
+    def num_indexed(self):
         return self._num_objs
+
+    def num_index_clusters(self):
+        if self._csi_list is None:
+            self.init_cluster_hi_list()
+        return len(self._csi_list)
 
     def random_path_from_partial_path(self, partial_path=tuple()):
         # Init
@@ -82,6 +92,15 @@ class HierarchicalIndexTree:
         reduced_hit = self._remove_ids_by_depth(self._hit, depth - 1, set(goners))
         return HierarchicalIndexTree(reduced_hit, self._in_memory)
 
+    def init_cluster_hi_list(self):
+        self._csi_list = self._flatten(in_memory=False)[0][1]
+
+    def in_memory(self):
+        return self._in_memory
+
+    def csi2chi(self, csi):
+        return self._csi_list[csi]
+
     def si2hi(self, si):
 
         if si > self._num_objs:
@@ -95,13 +114,13 @@ class HierarchicalIndexTree:
             multilevel_id.append(si - acc_cnt_for_bin_id)
             return tuple(multilevel_id)
 
-    def _flatten(self):
+    def _flatten(self, in_memory):
 
-        flat_hit = self._flatten_aux(self._hit, self._in_memory)
+        flat_hit = self._flatten_aux(self._hit, in_memory)
         flat_hit = [tuple(o) for o in flat_hit]  # Turn into tuple for correctness
         flat_hit = tuple(flat_hit)
 
-        if self._in_memory:
+        if in_memory:
             return flat_hit, len(flat_hit)
         else:
             acc_list = [[], []]  # Accumulation list, multi-index per bin
@@ -112,6 +131,42 @@ class HierarchicalIndexTree:
                 tot_obj_cnt += multindex[-1]
                 # Increase the accumulation by the last member in multilevel index tree - the object cnt
             return acc_list, tot_obj_cnt
+
+    def init_tuple_search_tree(self):
+        # TODO - Finish this
+        search_tree = self._build_tuple_search_tree_aux(deepcopy(self._hit), 0)
+
+    @staticmethod
+    def _build_tuple_search_tree_aux(hit, ind=0):
+        # TODO - Finish this
+        if isinstance(hit, MutableMapping):
+            local_list = []
+            i = ind
+            for key, value in hit.items():
+                if not isinstance(value, MutableMapping):
+                    hit.pop(key)  # Destroy the leaves
+                else:
+                    i = HierarchicalIndexTree._build_tuple_search_tree_aux(value, i)
+                    local_list.append(i)
+        else:  # Value
+            return ind
+
+    @staticmethod
+    def _flatten_aux(hit, extended_flatten):
+        if isinstance(hit, MutableMapping):
+            local_list = []  # Holder of all the sublists
+            for key, value in hit.items():
+                child_lists = HierarchicalIndexTree._flatten_aux(value, extended_flatten)
+                for l in child_lists:
+                    l.insert(0, key)
+                local_list += child_lists  # Append children's lists:
+            return local_list
+        else:  # is value
+            if extended_flatten:
+                assert isinstance(hit, int) and hit > 0  # Checks validity of structure
+                return [[i] for i in range(hit)]
+            else:
+                return [[hit]]
 
     @staticmethod
     def _get_id_union_by_depth(hit, depth, dump):
@@ -134,33 +189,15 @@ class HierarchicalIndexTree:
                     modified_dict[key] = value
         return modified_dict
 
-    @staticmethod
-    def _flatten_aux(hit, extended_flatten):
-        if isinstance(hit, MutableMapping):
-            local_list = []  # Holder of all the sublists
-            for key, value in hit.items():
-                child_lists = HierarchicalIndexTree._flatten_aux(value, extended_flatten)
-                for l in child_lists:
-                    l.insert(0, key)
-                local_list += child_lists  # Append children's lists:
-            return local_list
-        else:  # is value
-            if extended_flatten:
-                assert isinstance(hit, int) and hit > 0  # Checks validity of structure
-                return [[i] for i in range(hit)]
-            else:
-                return [[hit]]
-
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                    Utility Methods - TODO - migrate to Data Prep
 # ----------------------------------------------------------------------------------------------------------------------
 
-def construct_dfaust_hit_pickle():
+def construct_dfaust_hit_pickle(with_write=False):
     import re
     from cfg import PRIMARY_DATA_DIR
     from pathlib import Path
-    from pickle import dump
     dataset_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'DFaustPyProj'
     fp = dataset_fp / "dfaust_subjects_and_sequences.txt"
     assert fp.is_file(), "Could not find Dynamic Faust subjects_and_sequences.txt file"
@@ -185,22 +222,23 @@ def construct_dfaust_hit_pickle():
                 hit[last_subj][seq][i] = 10
 
     hit = HierarchicalIndexTree(hit, in_memory=False)
-
-    pkl_fp = dataset_fp / "DFaust_hit.pkl"
-    with open(pkl_fp, "wb") as f:
-        dump(hit, f)
-    print(f'Dumped Dynamic Faust HIT Pickle at {pkl_fp.resolve()}')
+    if with_write:
+        from pickle import dump
+        pkl_fp = dataset_fp / "DFaust_hit.pkl"
+        with open(pkl_fp, "wb") as f:
+            dump(hit, f)
+        print(f'Dumped Dynamic Faust HIT Pickle at {pkl_fp.resolve()}')
     return hit
 
 
-def construct_amass_hit_pickles():
+def construct_amass_hit_pickles(with_write=False):
     from pathlib import Path
     import json
-    from pickle import dump
     from cfg import PRIMARY_DATA_DIR
     train_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'AmassTrainPyProj' / 'train_dict.json'
     vald_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'AmassValdPyProj' / 'vald_dict.json'
     test_fp = Path(PRIMARY_DATA_DIR) / 'synthetic' / 'AmassTestPyProj' / 'test_dict.json'
+    hits = []
     for fp, appender in zip([train_fp, vald_fp, test_fp], ['train', 'vald', 'test']):
         with open(fp.resolve()) as f:
             hit = json.loads(f.read())
@@ -218,14 +256,15 @@ def construct_amass_hit_pickles():
             hit = HierarchicalIndexTree(hit, in_memory=True)
         else:
             hit = HierarchicalIndexTree(hit, in_memory=False)
+        hits.append(hit)
 
-        tgt_fp = fp.parents[0] / f'amass_{appender}_hit.pkl'
-        with open(tgt_fp, "wb") as file:
-            dump(hit, file)
-            print(f'Created index at {tgt_fp.resolve()}')
-
-        # print(hit)
-        # print(hit.num_objects())
+        if with_write:
+            from pickle import dump
+            tgt_fp = fp.parents[0] / f'amass_{appender}_hit.pkl'
+            with open(tgt_fp, "wb") as file:
+                dump(hit, file)
+                print(f'Created index at {tgt_fp.resolve()}')
+    return hits
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -263,12 +302,12 @@ def hit_test():
     banner('In Memory vs Out of Memory Tests')
     print(hit_mem)
     print(hit_mem.depth())
-    print(hit_mem.num_objects())
+    print(hit_mem.num_indexed())
     print(hit_out_mem)
     print(hit_out_mem.depth())
-    print(hit_out_mem.num_objects())
+    print(hit_out_mem.num_indexed())
 
-    ids = range(hit_mem.num_objects())
+    ids = range(hit_mem.num_indexed())
     for i in ids:
         # print(hit_mem.si2hi(i))
         # print(hit_out_mem.si2hi(i))
@@ -290,9 +329,27 @@ def hit_test():
     print(hit_mem.random_path_from_partial_path(('Subject1', 'Pose2')))
 
 
-if __name__ == "__main__":
-    hit_test()
+def hit_test2():
+    def construct_faust_hit():
+        hit = {}
+        for sub_id in range(10):
+            hit[sub_id] = {}
+            for pose_id in range(10):
+                hit[sub_id][pose_id] = 10
+        return HierarchicalIndexTree(hit, in_memory=True)
+
+    hit = construct_dfaust_hit_pickle()
+    hit.init_cluster_hi_list()
+    for i in range(hit.num_index_clusters()):
+        print(hit.csi2chi(i))
+    print(hit)
+
+    # hit_test()
     # example_hit = construct_dfaust_hit_pickle()
     # print(example_hit)
     # print(example_hit.num_objects())
     # construct_amass_hit_pickles()
+
+
+if __name__ == "__main__":
+    hit_test2()

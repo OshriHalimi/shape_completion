@@ -118,9 +118,29 @@ def teste2():
     second_list = [{'template_id': k[0], 'template_title': k[1], 'counts': v} for k, v in counts.items()]
     print(second_list)
 
+def testn():
+    from torch.utils.data.sampler import SubsetRandomSampler
+    from util.torch_data import SubsetChoiceSampler
+    from torch.utils.data import Dataset,DataLoader
+    from util.string_op import banner
 
+    class DS(Dataset):
+        def __len__(self):
+            return 10
+        def __getitem__(self,si):
+            return si
+
+    samp = SubsetChoiceSampler(indices=range(100),length=10)
+    for d in iter(samp):
+        print(d)
+
+    # ldr =  DataLoader(DS(), batch_size=1,sampler=samp)
+    # for i in range(3):
+    #     banner(f'{i}')
+    #     for n,d in enumerate(ldr):
+    #         print(f'{n} :: {d}')
 # -----------------------------------------------------------------------------------------------------------------------
 #
 # -----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    teste2()
+    testn()

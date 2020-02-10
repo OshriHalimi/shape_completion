@@ -2,29 +2,13 @@ import numpy as np
 from util.fs import align_file_extension
 from plyfile import PlyData
 
+# TODO - Consider migrating to meshio or PyMesh
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                   READ
 # ----------------------------------------------------------------------------------------------------------------------#
 def read_npz_mask(fp):
     return np.load(fp)["mask"]
 
-def read_ply(fp):
-    with open(fp, 'rb') as f:
-        plydata = PlyData.read(f)
-
-    x = plydata['vertex']['x']
-    y = plydata['vertex']['y']
-    z = plydata['vertex']['z']
-    vertices = np.column_stack((x,y,z))
-    try:
-        r = plydata['vertex']['red']
-        g = plydata['vertex']['green']
-        b = plydata['vertex']['blue']
-        rgb = np.column_stack((r,g,b))
-    except KeyError:
-        rgb = None
-    faces = np.stack(plydata['face']['vertex_indices'])
-    return vertices, faces, rgb
 
 def read_off_verts(fp):
     vbuf = []
@@ -67,6 +51,25 @@ def read_off(fp):
             fbuf.append([int(inds[1]), int(inds[2]), int(inds[3])])
 
     return np.array(vbuf), np.array(fbuf)
+
+
+def read_ply(fp):
+    with open(fp, 'rb') as f:
+        plydata = PlyData.read(f)
+
+    x = plydata['vertex']['x']
+    y = plydata['vertex']['y']
+    z = plydata['vertex']['z']
+    v = np.column_stack((x, y, z))
+    if 'red' in plydata['vertex']:
+        r = plydata['vertex']['red']
+        g = plydata['vertex']['green']
+        b = plydata['vertex']['blue']
+        rgb = np.column_stack((r, g, b))
+    else:
+        rgb = None
+    f = np.stack(plydata['face']['vertex_indices'])
+    return v, f, rgb
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -139,4 +142,4 @@ end_header
 # ----------------------------------------------------------------------------------------------------------------------#
 
 if __name__ == '__main__':
-    train_read_ply()
+    pass

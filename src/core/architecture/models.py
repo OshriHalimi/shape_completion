@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from mesh.io import read_ply
-from cfg import SMPL_TEMPLATE_PATH, UNIVERSAL_PRECISION_TORCH
+from cfg import SMPL_TEMPLATE_PATH
 from mesh.ops import batch_vnrmls
 
 
@@ -344,7 +344,8 @@ class DensePointNetFeatures(nn.Module):
 # ----------------------------------------------------------------------------------------------------------------------
 class Template():
     def __init__(self, vertices, faces, colors, in_channels, dev):
-        self.vertices = torch.tensor(vertices, dtype=UNIVERSAL_PRECISION_TORCH).unsqueeze(0)
+        from cfg import UNIVERSAL_PRECISION
+        self.vertices = torch.tensor(vertices, dtype=getattr(torch,UNIVERSAL_PRECISION)).unsqueeze(0)
         faces = torch.LongTensor(faces)  # Not a property
         self.in_channels = in_channels
         if self.in_channels == 6:

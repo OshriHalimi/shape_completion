@@ -4,59 +4,23 @@ import torch.nn.functional as F
 from util.data_ops import normr, index_sparse
 import cfg
 
-# ----------------------------------------------------------------------------------------------------------------------#
-#                                    Singleton Computes for Numpy/Pytorch Tensors
-# ----------------------------------------------------------------------------------------------------------------------#
-#TODO: validate me
-def calc_volume(v,f):
-    v1 = v[:,f[:,0],:]
-    v2 = v[:,f[:,1],:]
-    v3 = v[:,f[:,2],:]
-    a_vec = torch.cross(v2-v1, v3-v1, -1)
-    center = (v1+v2+v3)/3
-    volume = torch.sum(a_vec*center/6, dim=(1,2))
-    return volume
 
-def vf_adjacency(faces, n_faces, n_verts, device):
-    """
-    :param faces: dim: [N_faces x 3]
-    :param n_faces: number of faces
-    :param n_verts: number of vertices
-    :param dev: device to place tensors
-    :return: adjacency_vf: sparse integer adjacency matrix between vertices and faces, dim: [N_vertices x N_faces]
-    """
-    fvec = torch.arange(n_faces, device=device)
-    i0 = torch.stack((faces[:, 0], fvec), dim=1)
-    i1 = torch.stack((faces[:, 1], fvec), dim=1)
-    i2 = torch.stack((faces[:, 2], fvec), dim=1)
-    ind = torch.cat((i0, i1, i2), dim=0)
-    ones_vec = torch.ones([3 * n_faces], dtype=torch.int8, device=device)
-    adjacency_vf = torch.sparse.IntTensor(ind.t(), ones_vec, torch.Size([n_verts, n_faces]))
-    return adjacency_vf
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                    Singleton Computes - Hybrid Numpy & PyTorch
+# ----------------------------------------------------------------------------------------------------------------------#
 
-#TODO: validate me
 def face_barycenters(v, f):
     """
     :param v: vertices (numpy array or tensors), dim: [n_v x 3]
     :param f: faces (numpy array or tensors), dim: [n_f x 3]
     :return: face_centers (numpy array or tensors), dim: [n_f x 3]
     """
-    v1 = v[f[:, 0], :]  # dim: [n_faces x 3]
-    v2 = v[f[:, 1], :]  # dim: [n_faces x 3]
-    v3 = v[f[:, 2], :]  # dim: [n_faces x 3]
-
-    # center_x = v1[:, 0] + v2[:, 0] + v3[:, 0]
-    # center_y = v1[:, 1] + v2[:, 1] + v3[:, 1]
-    # center_z = v1[:, 2] + v2[:, 2] + v3[:, 2]
-    #
-    # centers = torch.stack((center_x, center_y, center_z), dim=1) if torch.is_tensor(center_x) \
-    #     else np.stack((center_x, center_y, center_z), axis=1)
-    # centers = (1 / 3) * centers  # Faster to do it here than for each center
-
-    centers = (v1 + v2 + v3)/3
-    return centers
+    return (1 / 3) * (v[f[:, 0], :] + v[f[:, 1], :] + v[f[:, 2], :])
 
 
+# ----------------------------------------------------------------------------------------------------------------------#
+#                                       Singleton Computes for Numpy Only
+# ----------------------------------------------------------------------------------------------------------------------#
 def fnrmls(v, f, normalized=True):
     # TODO - Deprecated if proven slow vs Oshri's version
     a = v[f[:, 0], :]
@@ -122,6 +86,38 @@ def trunc_to_vertex_mask(v, f, vi):
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
+#                                       Singleton Computes for Torch Only
+# ----------------------------------------------------------------------------------------------------------------------#
+# TODO: validate me
+def calc_volume(v, f):
+    v1 = v[:, f[:, 0], :]
+    v2 = v[:, f[:, 1], :]
+    v3 = v[:, f[:, 2], :]
+    a_vec = torch.cross(v2 - v1, v3 - v1, -1)
+    center = (v1 + v2 + v3) / 3
+    volume = torch.sum(a_vec * center / 6, dim=(1, 2))
+    return volume
+
+
+def vf_adjacency(faces, n_faces, n_verts, device):
+    """
+    :param faces: dim: [N_faces x 3]
+    :param n_faces: number of faces
+    :param n_verts: number of vertices
+    :param device: device to place tensors
+    :return: adjacency_vf: sparse integer adjacency matrix between vertices and faces, dim: [N_vertices x N_faces]
+    """
+    fvec = torch.arange(n_faces, device=device)
+    i0 = torch.stack((faces[:, 0], fvec), dim=1)
+    i1 = torch.stack((faces[:, 1], fvec), dim=1)
+    i2 = torch.stack((faces[:, 2], fvec), dim=1)
+    ind = torch.cat((i0, i1, i2), dim=0)
+    ones_vec = torch.ones([3 * n_faces], dtype=torch.int8, device=device)
+    adjacency_vf = torch.sparse.IntTensor(ind.t(), ones_vec, torch.Size([n_verts, n_faces]))
+    return adjacency_vf
+
+
+# ----------------------------------------------------------------------------------------------------------------------#
 #                                       PyTorch Batch Computations
 # ----------------------------------------------------------------------------------------------------------------------#
 def batch_euclid_dist_mat(vb):
@@ -140,9 +136,9 @@ def batch_moments(vb):
 
 def batch_fnrmls_fareas(vb, f, return_normals=True):
     """ # TODO - Allow also [n_verts x 3]. Write another function called batch_fnrmls if we only need those
-    :param return_vb:
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
     :param f: faces matrix,we assume all the shapes have the same connectivity, dim: [n_faces x 3], dtype = torch.long
+    :param return_normals : Whether to return the normals or not
     :return face_normals_b: batch of face normals, dim: [batch_size x n_faces x 3]
             face_areas_b: batch of face areas, dim: [batch_size x n_faces x 1]
             is_valid_fnb: boolean matrix indicating if the normal is valid,
@@ -155,10 +151,7 @@ def batch_fnrmls_fareas(vb, f, return_normals=True):
     v2 = vb[:, f[:, 1], :]  # dim: [batch_size x n_faces x 3]
     v3 = vb[:, f[:, 2], :]  # dim: [batch_size x n_faces x 3]
 
-    edge_12 = v2 - v1  # dim: [batch_size x n_faces x 3]
-    edge_23 = v3 - v2  # dim: [batch_size x n_faces x 3]
-
-    face_normals_b = torch.cross(edge_12, edge_23)
+    face_normals_b = torch.cross(v2 - v1, v3 - v2)
     face_areas_b = torch.norm(face_normals_b, dim=2, keepdim=True) / 2
     if not return_normals:
         return face_areas_b
@@ -168,10 +161,12 @@ def batch_fnrmls_fareas(vb, f, return_normals=True):
     fnb_out[is_valid_fnb, :] = face_normals_b[is_valid_fnb, :] / (2 * face_areas_b[is_valid_fnb, :])
     return fnb_out, face_areas_b, is_valid_fnb
 
-def batch_vnrmls(vb, f, return_f_areas = True):
+
+def batch_vnrmls(vb, f, return_f_areas=False):
     """
     :param vb: batch of shape vertices, dim: [batch_size x n_vertices x 3]
     :param f: faces matrix, here we assume all the shapes have the same sonnectivity, dim: [n_faces x 3]
+    :param return_f_areas: Whether to return the face areas or not
     :return: vnb:  batch of shape normals, per vertex, dim: [batch_size x n_vertices x 3]
     :return: is_valid_vnb: boolean matrix indicating if the normal is valid, magnitude greater than zero
     [batch_size x n_vertices].
@@ -182,13 +177,15 @@ def batch_vnrmls(vb, f, return_f_areas = True):
     n_faces = f.shape[0]
     n_batch = vb.shape[0]
 
-    face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f) # non valid face normals are: [0, 0, 0], due to batch_fnrmls_fareas
+    face_normals_b, face_areas_b, is_valid_fnb = batch_fnrmls_fareas(vb, f)
+    # non valid face normals are: [0, 0, 0], due to batch_fnrmls_fareas
     face_normals_b *= face_areas_b  # weight each normal with the corresponding face area
 
     face_normals_b = face_normals_b.repeat(1, 3, 1)  # repeat face normals 3 times along the face dimension
     f = f.t().contiguous().view(3 * n_faces)  # dim: [n_faces x 3] --> [(3*n_faces)]
     f = f.expand(n_batch, -1)  # dim: [B x (3*n_faces)]
-    f = f.unsqueeze(2).expand(n_batch, 3 * n_faces, 3)  # dim: [B x (3*n_faces) x 3], last dimension (xyz dimension) is repeated
+    f = f.unsqueeze(2).expand(n_batch, 3 * n_faces, 3)
+    # dim: [B x (3*n_faces) x 3], last dimension (xyz dimension) is repeated
 
     # For each vertex, sum all the normals of the adjacent faces (weighted by their areas)
     vnb = torch.zeros_like(vb)  # dim: [batch_size x n_vertices x 3]
@@ -208,12 +205,12 @@ def batch_vnrmls(vb, f, return_f_areas = True):
 # ----------------------------------------------------------------------------------------------------------------------
 
 def bring_in_test_data():
-    from dataset.datasets import PointDatasetMenu, InCfg
+    from dataset.datasets import FullPartDatasetMenu
     from dataset.transforms import Center
-    ds = PointDatasetMenu.get('FaustPyProj', in_channels=12, in_cfg=InCfg.FULL2PART)
-    samp = ds.sample(num_samples=2, transforms=[Center()])  # dim:
+    ds = FullPartDatasetMenu.get('FaustPyProj')
+    samp = ds.sample(num_samples=5, transforms=[Center()], method='f2p')  # dim:
     vb = samp['gt'][:, :, :3]
-    f = ds.faces().long()
+    f = torch.from_numpy(ds.faces()).long()
     return vb, f
 
 
@@ -229,7 +226,7 @@ def test_vnrmls_grad():
     # evaluated with these tensors are close enough to numerical
     # approximations and returns True if they all verify this condition.
     x = (vb.requires_grad_(True).double(), f)
-    test = gradcheck(batch_vnrmls_, x, eps=1e-6, atol=1e-4, check_sparse_nnz=True)
+    test = gradcheck(batch_vnrmls, x, eps=1e-6, atol=1e-4, check_sparse_nnz=True)
     print(test)
 
 
@@ -250,17 +247,15 @@ def test_vnrmls_visually():
 def test_fnrmls_visually():
     from mesh.plot import plot_mesh
     vb, f = bring_in_test_data()
-    face_normals, is_valid_fnb, face_areas_b = batch_fnrmls_fareas(vb, f)
+    fn, is_valid_fnb, face_areas_b = batch_fnrmls_fareas(vb, f)
     # magnitude = torch.norm(face_normals, dim=2)  # Debug: assert the values are equal to 1.000
     v = vb[4, :, :]
-    n = face_normals[4, :, :]
+    n = fn[4, :, :]
     plot_mesh(v, f, n)
 
 
 if __name__ == '__main__':
-    test_fnrmls_visually()
-
-
+    test_vnrmls_visually()
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                        Graveyard
