@@ -44,7 +44,7 @@ class SkepticLoss:
         loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
         loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
         loss_dict_full = self.shape_diff.compute(full, full_rec,w=1)
-        loss_dict_gt = self.shape_diff.compute(gt_rec, completion_rec, w=1)
+        loss_dict_gt = self.shape_diff.compute(completion_gt, gt_rec, w=1) # bring gt_rec close to gt
 
         loss_dict_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
         loss_dict_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
@@ -58,7 +58,7 @@ class SkepticLoss:
         loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'])
         return loss_dict
 
-class SuperLoss:
+class TBasedLoss:
     def __init__(self, hp, f):
         self.shape_diff = ShapeDiffLoss(hp, f)
         self.code_loss = CodeLoss()
@@ -84,7 +84,7 @@ class SuperLoss:
         loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
         loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
         loss_dict_full = self.shape_diff.compute(full, full_rec,w=1)
-        loss_dict_gt = self.shape_diff.compute(gt_rec, completion_rec, w=1)
+        loss_dict_gt = self.shape_diff.compute(gt_rec, completion_rec, w=1) #bring completion_rec close to gt_rec (gt_rec always better than completion_rec in template based decoder)
 
         loss_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
         loss_part = {f'{k}_part': v for k, v in loss_dict_part.items()}

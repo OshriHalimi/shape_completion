@@ -111,7 +111,7 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
 # ----------------------------------------------------------------------------------------------------------------------
-class F2PEncoderRegressorDecoderQBased(CompletionLightningModel):
+class F2PEncoderRegressorDecoderSkeptic(CompletionLightningModel):
     def _build_model(self):
         # Encoder takes a 3D point cloud as an input.
         # Note that a linear layer is applied to the global feature vector
@@ -163,12 +163,12 @@ class F2PEncoderRegressorDecoderQBased(CompletionLightningModel):
         comp_code = comp_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         gt_code = gt_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
 
-        #all reconsturction (also completion are achieved by FIXED template deformation)
+        completion = self.comp_decoder(torch.cat((full, comp_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+
         template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
         full_rec = self.rec_decoder(torch.cat((template, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
         part_rec = self.rec_decoder(torch.cat((template, part_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
         gt_rec = self.rec_decoder(torch.cat((template, gt_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        completion = self.comp_decoder(torch.cat((full, comp_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
 
         output_dict.update({'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec, 'gt_rec': gt_rec})
         return output_dict

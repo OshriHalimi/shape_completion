@@ -4,7 +4,7 @@ from util.string_op import banner, set_logging_to_stdout
 from util.func import tutorial
 from util.torch_data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
-from architecture.models import F2PEncoderRegressorDecoderQBased
+from architecture.models import F2PEncoderRegressorDecoderSkeptic
 from architecture.lightning import lightning_trainer, test_lightning
 from dataset.transforms import *
 from dataset.index import HierarchicalIndexTree # Keep this here
@@ -19,7 +19,7 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='full_based_regressor_architecture_exp', help='The experiment name. Leave empty for default')
+    p.add_argument('--exp_name', type=str, default='skeptic_regressor_architecture_exp', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=2,
@@ -61,7 +61,7 @@ def parser():
     p.add_argument('--dist_v_penalties', nargs=7, type=float, default=(0, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap, FaceAreas, Volume]'
                         'increased weight on distant vertices. Use val <= 1 to disable')
-    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss','SuperLoss'], default='SuperLoss',
+    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss','SuperLoss'], default='SkepticLoss',
                    help='The loss class')
     # TODO - is this the right way to go?
 
@@ -89,7 +89,7 @@ def parser():
 # ----------------------------------------------------------------------------------------------------------------------
 def train_main():
     banner('Network Init')
-    nn = F2PEncoderRegressorDecoderQBased(parser())
+    nn = F2PEncoderRegressorDecoderSkeptic(parser())
     nn.identify_system()
 
     hp = nn.hyper_params()

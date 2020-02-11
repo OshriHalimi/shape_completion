@@ -61,7 +61,7 @@ def parser():
     p.add_argument('--dist_v_penalties', nargs=7, type=float, default=(0, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap, FaceAreas, Volume]'
                         'increased weight on distant vertices. Use val <= 1 to disable')
-    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss','SuperLoss'], default='SuperLoss',
+    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss','TBasedLoss'], default='TBasedLoss',
                    help='The loss class')
     # TODO - is this the right way to go?
 
