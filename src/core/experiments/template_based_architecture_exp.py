@@ -19,7 +19,7 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='template_cased_architecture_exp', help='The experiment name. Leave empty for default')
+    p.add_argument('--exp_name', type=str, default='template_based_architecture_exp', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=2,
@@ -61,7 +61,7 @@ def parser():
     p.add_argument('--dist_v_penalties', nargs=7, type=float, default=(0, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap, FaceAreas, Volume]'
                         'increased weight on distant vertices. Use val <= 1 to disable')
-    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss','TBasedLoss'], default='TBasedLoss',
+    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss','SuperLoss'], default='SuperLoss',
                    help='The loss class')
     # TODO - is this the right way to go?
 
@@ -106,17 +106,6 @@ def train_main():
     banner('Testing Phase')
     trainer.test(nn)
     nn.finalize()
-
-
-def test_main():
-    # TODO - Fix this
-    nn = F2PEncoderDecoderSkeptic(parser())
-    hp = nn.hyper_params()
-    ds = FullPartDatasetMenu.get('DFaustPyProj')
-    test_ldr = ds.loaders(s_nums=hp.counts[2], s_transform=[Center()], batch_size=hp.batch_size,
-                          device=hp.dev, n_channels=hp.in_channels, method='f2p')
-    nn.init_data(loaders=[None, None, test_ldr])
-    test_lightning(nn)
 
 
 if __name__ == '__main__':

@@ -58,7 +58,7 @@ class SkepticLoss:
         loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'])
         return loss_dict
 
-class TBasedLoss:
+class SuperLoss:
     def __init__(self, hp, f):
         self.shape_diff = ShapeDiffLoss(hp, f)
         self.code_loss = CodeLoss()
