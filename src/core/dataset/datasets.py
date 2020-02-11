@@ -163,6 +163,12 @@ def test_dataset():
     #     for d in ldr:
     #         print(d)
     #         break
+    for meth in ds.defined_methods():
+        ldr = ds.loaders(s_nums=1000,batch_size=10, device='cpu-single', method=meth, n_channels=6,
+                          s_dynamic=True)
+        for d in ldr:
+            print(d)
+            break
     # ds.data_summary()
     # print(ds.num_projections())
     # print(ds.num_full_shapes())
@@ -192,18 +198,18 @@ def test_dataset():
     #     print(ldr.num_verts())
     #     print(ldr.num_faces())
     #     ldr.plot_null_shape()
-    ldrs = ds.loaders(split=[0.5, 0.3, 0.2], s_shuffle=[False] * 3, s_transform=[Center()] * 3,
-                      s_nums=[10, 10, 10],
-                      batch_size=10, device='cpu-single', method='f2p', n_channels=6,
-                      s_dynamic=[True, False, False])
-    #
-    for ldr in ldrs:
-        print(ldr.num_indexed())
-        print(ldr.num_in_iterable())
-        # d = 0
-        for c in ldr:
-            print(c['gt_hi'])
-            print(c['tp_hi'])
+    # ldrs = ds.loaders(split=[0.5, 0.3, 0.2], s_shuffle=[False] * 3, s_transform=[Center()] * 3,
+    #                   s_nums=[10, 10, 10],
+    #                   batch_size=10, device='cpu-single', method='f2p', n_channels=6,
+    #                   s_dynamic=[True, False, False])
+    # #
+    # for ldr in ldrs:
+    #     print(ldr.num_indexed())
+    #     print(ldr.num_in_iterable())
+    #     # d = 0
+    #     for c in ldr:
+    #         print(c['gt_hi'])
+    #         print(c['tp_hi'])
 
 
 if __name__ == "__main__":

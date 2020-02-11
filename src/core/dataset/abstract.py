@@ -85,7 +85,7 @@ class HitIndexedDataset(ABC):
 #
 # ----------------------------------------------------------------------------------------------------------------------
 class FullPartCompletionDataset(HitIndexedDataset, ABC):
-    DEFINED_SAMP_METHODS = ('full', 'part', 'f2p', 'rand_f2p', 'p2p', 'rand_p2p')
+    DEFINED_SAMP_METHODS = ('full', 'part', 'f2p', 'rand_f2p','frand_f2p', 'p2p', 'rand_p2p','frand_p2p')
 
     @classmethod
     def defined_methods(cls):
@@ -128,7 +128,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
             if self._tup_index_map is None:
                 self._build_tupled_index()
             return len(self._tup_index_map)
-        elif method == 'rand_p2p' or method == 'rand_f2p':
+        elif method in ['rand_f2p','rand_p2p','frand_f2p','frand_p2p']:
             return self.num_projections()  # This is big enough, but still a lie
 
     def data_summary(self, with_tree=False):
@@ -175,6 +175,22 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
     def show_sample(self, num_samples=4, strategy='mesh', with_vnormals=False, method='f2p'):
         raise NotImplementedError  # TODO
 
+    def rand_loader(self,num_samples=None,transforms=(Center(),),batch_size=16,n_channels=6,mode='f2p',
+                    device='cuda'):
+        """
+        :param num_samples: Number of samples in the dataloader, drawn at random from the entire dataset.
+        This draw is down subject first->pose-> etc
+        :param transforms: A list of the transforms you'd like to add, or None
+        :param batch_size: The batch size
+        :param n_channels: The number of input channels
+        :param mode: Either f2p or p2p
+        :param device: Insert a torch device/the string 'cuda','cpu' or 'cpu-single'
+        :return: The dataloader
+        """
+        assert mode in ['f2p','p2p'], "Must choose one of ['f2p','p2p']"
+        return self.loaders(s_nums=num_samples,s_transform=transforms,batch_size=batch_size,n_channels=n_channels,
+                            method=f'frand_{mode}',device=device)
+
     def loaders(self, s_nums=None, s_shuffle=True, s_transform=None, split=(1,), s_dynamic=False,
                 global_shuffle=False, batch_size=16, device='cuda', method='f2p', n_channels=6):
         """
@@ -194,7 +210,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         :param global_shuffle: If True, shuffles the entire set before split
         :param batch_size: Integer > 0
         :param device: 'cuda' or 'cpu' or 'cpu-single' or pytorch device
-        :param method: One of ['full','part','f2p','p2p']
+        :param method: One of ('full', 'part', 'f2p', 'rand_f2p','frand_f2p', 'p2p', 'rand_p2p','frand_p2p')
         :param n_channels: One of cfg.SUPPORTED_IN_CHANNELS - The number of channels required per datapoint
         :return: A list of (loaders,num_samples)
         """
@@ -206,13 +222,16 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         if not isinstance(s_nums, Sequence):
             s_nums = [s_nums]
         if s_transform is None or not s_transform:
-            s_transform = [None]
+            s_transform = [None]*len(split)
             # Transforms must be a list, all others are non-Sequence
         assert sum(split) == 1, "Split fracs must sum to 1"
+        # TODO - Clean up this function
         if (method == 'f2p' or method == 'p2p') and not self._hit_in_memory:
             method = 'rand_' + method
             warn(f'Tuple dataset index is too big for this dataset. Reverting to {method} instead')
-
+        if (method == 'frand_f2p' or method == 'frand_p2p') and len(split) != 1:
+            raise ValueError("Seeing the fully-rand methods have no connection to the partition, we cannot support "
+                             "a split dataset here")
         # Logic:
         ids = list(range(self.num_datapoints_by_method(method)))
         if global_shuffle:
@@ -333,7 +352,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         gt_dict['tp'], gt_dict['tp_hi'] = tp_dict['gt'], tp_dict['gt_hi']
         return gt_dict
 
-    def _datapoint_via_rand_f2p(self, _):
+    def _datapoint_via_frand_f2p(self, _):
         # gt_dict = self._datapoint_via_part(si)  # si is gt_si
         gt_hi = self._hit.random_path_from_partial_path()
         gt_dict = self._full_dict_by_hi(gt_hi)
@@ -343,6 +362,14 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         gt_dict['tp'], gt_dict['tp_hi'] = tp_dict['gt'], tp_dict['gt_hi']
         return gt_dict
 
+    def _datapoint_via_rand_f2p(self, si):
+        gt_dict = self._datapoint_via_part(si)  # si is gt_si
+        tp_hi = self._hit.random_path_from_partial_path([gt_dict['gt_hi'][0]])[:-1]  # Shorten hi by 1
+        tp_dict = self._full_dict_by_hi(tp_hi)
+        gt_dict['tp'], gt_dict['tp_hi'] = tp_dict['gt'], tp_dict['gt_hi']
+        return gt_dict
+
+
     def _datapoint_via_p2p(self, si):
         si_gt, si_tp = self._tupled_index_map(si)
         tp_dict = self._datapoint_via_part(si_tp)
@@ -351,7 +378,16 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         gt_dict['tp'], gt_dict['tp_hi'], gt_dict['tp_mask'] = tp_dict['gt'], tp_dict['gt_hi'], tp_dict['gt_mask']
         return gt_dict
 
-    def _datapoint_via_rand_p2p(self, _):
+    def _datapoint_via_rand_p2p(self, si):
+        gt_dict = self._datapoint_via_part(si)  # si is the gt_si
+        tp_hi = self._hit.random_path_from_partial_path([gt_dict['gt_hi'][0]])
+        tp_dict = self._full_dict_by_hi(tp_hi)
+        tp_dict['gt_mask'] = self._mask_by_hi(tp_hi)
+
+        gt_dict['tp'], gt_dict['tp_hi'], gt_dict['tp_mask'] = tp_dict['gt'], tp_dict['gt_hi'], tp_dict['gt_mask']
+        return gt_dict
+
+    def _datapoint_via_frand_p2p(self, _):
         # gt_dict = self._datapoint_via_part(si)  # si is the gt_si
         gt_hi = self._hit.random_path_from_partial_path()
         gt_dict = self._full_dict_by_hi(gt_hi)
@@ -373,9 +409,9 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
             align_keys, compiler_keys = ['gt'], None
         elif method == 'part':
             align_keys, compiler_keys = ['gt'], [['gt_part', 'gt_mask', 'gt']]
-        elif method == 'f2p' or method == 'rand_f2p':
+        elif method in ['f2p','rand_f2p','frand_f2p']:
             align_keys, compiler_keys = ['gt', 'tp'], [['gt_part', 'gt_mask', 'gt']]
-        elif method == 'p2p' or method == 'rand_p2p':
+        elif method in ['p2p','rand_p2p','frand_p2p']:
             align_keys, compiler_keys = ['gt', 'tp'], [['gt_part', 'gt_mask', 'gt'], ['tp_part', 'tp_mask', 'tp']]
         else:
             raise AssertionError
