@@ -67,12 +67,13 @@ class TBasedLoss:
         # input retrieval
         completion_gt = input['gt']
         full = input['tp']
-        part_idx = input['gt_mask_vi']
+        part_idx = input['gt_mask']
 
         # output retrieval
         completion_rec = network_output['completion_xyz']
         part_rec = network_output['part_rec']
         full_rec = network_output['full_rec']
+        gt_rec = network_output['gt_rec']
         comp_code = network_output['comp_code']
         gt_code = network_output['gt_code']
 
@@ -88,7 +89,7 @@ class TBasedLoss:
         loss_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
         loss_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
         loss_full = {f'{k}_full': v for k, v in loss_dict_full.items()}
-        loss_gt = {f'{k}_full': v for k, v in loss_dict_gt.items()}
+        loss_gt = {f'{k}_gt': v for k, v in loss_dict_gt.items()}
 
         loss_code = self.code_loss.compute(comp_code, gt_code)
 
