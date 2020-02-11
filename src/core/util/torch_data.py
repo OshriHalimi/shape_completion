@@ -12,9 +12,9 @@ def determine_worker_num(num_examples, batch_size):
     else:
         cpu_cnt = psutil.cpu_count(logical=False)
         if batch_size < cpu_cnt:
-            return int(batch_size / 2)
+            return int(batch_size)
         else:
-            return int(cpu_cnt / 2)
+            return int(cpu_cnt)
 
 
 # ----------------------------------------------------------------------------------------------------------------------

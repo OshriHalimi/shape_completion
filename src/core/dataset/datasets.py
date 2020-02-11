@@ -192,10 +192,10 @@ def test_dataset():
     #     print(ldr.num_verts())
     #     print(ldr.num_faces())
     #     ldr.plot_null_shape()
-    ldrs = ds.split_loaders(split=[0.5, 0.3, 0.2], s_shuffle=[False] * 3, s_transform=[Center()] * 3,
-                            s_nums=[10, 10, 10],
-                            batch_size=10, device='cpu-single', method='f2p', n_channels=6,
-                            s_dynamic=[True, False, False])
+    ldrs = ds.loaders(split=[0.5, 0.3, 0.2], s_shuffle=[False] * 3, s_transform=[Center()] * 3,
+                      s_nums=[10, 10, 10],
+                      batch_size=10, device='cpu-single', method='f2p', n_channels=6,
+                      s_dynamic=[True, False, False])
     #
     for ldr in ldrs:
         print(ldr.num_indexed())

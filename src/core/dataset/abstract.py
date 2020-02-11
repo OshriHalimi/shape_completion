@@ -74,7 +74,7 @@ class HitIndexedDataset(ABC):
     def show_sample(self, num_samples):
         raise NotImplementedError
 
-    def split_loaders(self):
+    def loaders(self):
         raise NotImplementedError
 
     def _construct_hit(self):
@@ -175,8 +175,8 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
     def show_sample(self, num_samples=4, strategy='mesh', with_vnormals=False, method='f2p'):
         raise NotImplementedError  # TODO
 
-    def split_loaders(self, s_nums=None, s_shuffle=True, s_transform=None, split=(1,), s_dynamic=False,
-                      global_shuffle=False, batch_size=16, device='cuda', method='f2p', n_channels=6):
+    def loaders(self, s_nums=None, s_shuffle=True, s_transform=None, split=(1,), s_dynamic=False,
+                global_shuffle=False, batch_size=16, device='cuda', method='f2p', n_channels=6):
         """
         # s for split
         :param split: A list of fracs summing to 1: e.g.: [0.9,0.1] or [0.8,0.15,0.05]. Don't specify anything for a
@@ -285,7 +285,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
 
         return self._loader_cls(FullPartTorchDataset(self, transforms, method), batch_size=batch_size,
                                 sampler=data_sampler, num_workers=n_workers, pin_memory=pin_memory,
-                                collate_fn=completion_collate,drop_last=True)
+                                collate_fn=completion_collate, drop_last=True)
 
     def _datapoint_via_full(self, csi):
         return self._full_dict_by_hi(self._hit.csi2chi(csi))
@@ -333,8 +333,11 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         gt_dict['tp'], gt_dict['tp_hi'] = tp_dict['gt'], tp_dict['gt_hi']
         return gt_dict
 
-    def _datapoint_via_rand_f2p(self, si):
-        gt_dict = self._datapoint_via_part(si)  # si is gt_si
+    def _datapoint_via_rand_f2p(self, _):
+        # gt_dict = self._datapoint_via_part(si)  # si is gt_si
+        gt_hi = self._hit.random_path_from_partial_path()
+        gt_dict = self._full_dict_by_hi(gt_hi)
+        gt_dict['gt_mask'] = self._mask_by_hi(gt_hi)
         tp_hi = self._hit.random_path_from_partial_path([gt_dict['gt_hi'][0]])[:-1]  # Shorten hi by 1
         tp_dict = self._full_dict_by_hi(tp_hi)
         gt_dict['tp'], gt_dict['tp_hi'] = tp_dict['gt'], tp_dict['gt_hi']
@@ -348,8 +351,11 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         gt_dict['tp'], gt_dict['tp_hi'], gt_dict['tp_mask'] = tp_dict['gt'], tp_dict['gt_hi'], tp_dict['gt_mask']
         return gt_dict
 
-    def _datapoint_via_rand_p2p(self, si):
-        gt_dict = self._datapoint_via_part(si)  # si is the gt_si
+    def _datapoint_via_rand_p2p(self, _):
+        # gt_dict = self._datapoint_via_part(si)  # si is the gt_si
+        gt_hi = self._hit.random_path_from_partial_path()
+        gt_dict = self._full_dict_by_hi(gt_hi)
+        gt_dict['gt_mask'] = self._mask_by_hi(gt_hi)
         tp_hi = self._hit.random_path_from_partial_path([gt_dict['gt_hi'][0]])
         tp_dict = self._full_dict_by_hi(tp_hi)
         tp_dict['gt_mask'] = self._mask_by_hi(tp_hi)

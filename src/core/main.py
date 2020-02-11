@@ -7,9 +7,7 @@ from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
 from architecture.lightning import lightning_trainer, test_lightning
 from dataset.transforms import *
-# import sys
-# import pathlib
-# sys.path.append(str(pathlib.Path(__file__).parents[0]))
+from dataset.index import HierarchicalIndexTree # Keep this here
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
 
@@ -98,9 +96,9 @@ def train_main():
     hp = nn.hyper_params()
     # Init loaders and faces:
     ds = FullPartDatasetMenu.get('FaustPyProj')
-    ldrs = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts, s_shuffle=[True] * 3, s_transform=[Center()] * 3,
-                            batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels, method='f2p',
-                            s_dynamic=[False] * 3)
+    ldrs = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts, s_shuffle=[True] * 3, s_transform=[Center()] * 3,
+                      batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels, method='f2p',
+                      s_dynamic=[False] * 3)
     nn.init_data(loaders=ldrs)
 
     trainer = lightning_trainer(nn, fast_dev_run=False)
@@ -116,8 +114,8 @@ def test_main():
     nn = F2PEncoderDecoder(parser())
     hp = nn.hyper_params()
     ds = FullPartDatasetMenu.get('DFaustPyProj')
-    test_ldr = ds.split_loaders(s_nums=hp.counts[2], s_transform=[Center()], batch_size=hp.batch_size,
-                                device=hp.dev, n_channels=hp.in_channels, method='f2p')
+    test_ldr = ds.loaders(s_nums=hp.counts[2], s_transform=[Center()], batch_size=hp.batch_size,
+                          device=hp.dev, n_channels=hp.in_channels, method='f2p')
     nn.init_data(loaders=[None, None, test_ldr])
     test_lightning(nn)
 
@@ -173,8 +171,8 @@ def dataset_tutorial():
     # # You can also ask for a simple loader, given by the ids you'd like to see.
     # # Pass ids = None to index the entire dataset, form point_cloud = 0 to point_cloud = num_datapoints_by_method -1
     banner('Loaders')
-    single_ldr = ds.split_loaders(s_nums=1000, s_shuffle=True, s_transform=[Center()], n_channels=6, method='f2p',
-                                  batch_size=3, device='cpu-single')
+    single_ldr = ds.loaders(s_nums=1000, s_shuffle=True, s_transform=[Center()], n_channels=6, method='f2p',
+                            batch_size=3, device='cpu-single')
     for d in single_ldr:
         print(d)
         break
@@ -183,9 +181,9 @@ def dataset_tutorial():
     # There are also operations defined on the loaders themselves. See utils.torch_data for details
 
     # To receive train/validation splits or train/validation/test splits use:
-    my_loaders = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=[2000, 1000, 1000],
-                                  s_shuffle=[True] * 3, s_transform=[Center()] * 3, global_shuffle=True, method='p2p',
-                                  s_dynamic=[True, False, False])
+    my_loaders = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=[2000, 1000, 1000],
+                            s_shuffle=[True] * 3, s_transform=[Center()] * 3, global_shuffle=True, method='p2p',
+                            s_dynamic=[True, False, False])
 
     # Please read the documentation of split_loaders for the exact details. In essence:
     # You'll receive len(split) dataloaders, where each part i is split[i]*num_point_clouds size. From this split,

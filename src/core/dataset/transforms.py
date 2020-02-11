@@ -263,8 +263,8 @@ def test_suite():
     from dataset.datasets import FullPartDatasetMenu
     from util.mesh.plot import plot_mesh
     ds = FullPartDatasetMenu.get('FaustPyProj')
-    single_ldr = ds.split_loaders(s_nums=1000, s_shuffle=True, s_transform=[],
-                                  n_channels=6, method='f2p', batch_size=1, device='cpu-single')
+    single_ldr = ds.loaders(s_nums=1000, s_shuffle=True, s_transform=[],
+                            n_channels=6, method='f2p', batch_size=1, device='cpu-single')
     for dp in single_ldr:
         dp['gt'] = dp['gt'].squeeze()
         gt = dp['gt']

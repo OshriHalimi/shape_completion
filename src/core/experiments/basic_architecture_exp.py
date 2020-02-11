@@ -87,8 +87,8 @@ def train_main():
     hp = nn.hyper_params()
     # Init loaders and faces:
     ds = PointDatasetMenu.get('FaustPyProj', in_cfg=InCfg.FULL2PART, in_channels=hp.in_channels)
-    ldrs = ds.split_loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts,
-                            s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev)
+    ldrs = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts,
+                      s_shuffle=[True] * 3, s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev)
     nn.init_data(loaders=ldrs)
 
     trainer = lightning_trainer(nn, fast_dev_run=False)
