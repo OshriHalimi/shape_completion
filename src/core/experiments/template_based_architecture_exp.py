@@ -62,7 +62,7 @@ def parser():
     p.add_argument('--dist_v_penalties', nargs=7, type=float, default=(0, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap, FaceAreas, Volume]'
                         'increased weight on distant vertices. Use val <= 1 to disable')
-    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss'], default='SkepticLoss',
+    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss','TBasedLoss'], default='TBasedLoss',
                    help='The loss class')
     # TODO - is this the right way to go?
 
@@ -73,7 +73,7 @@ def parser():
     p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
     # Visualization
-    p.add_argument('--use_auto_tensorboard', type=bool, default=1,
+    p.add_argument('--use_auto_tensorboard', type=bool, default=3,
                    help='Mode: 0 - Does nothing. 1 - Opens up only server. 2 - Opens up only chrome. 3- Opens up both '
                         'chrome and server')
     p.add_argument('--use_logger', type=bool, default=True,  # TODO - Not in use
@@ -90,7 +90,7 @@ def parser():
 # ----------------------------------------------------------------------------------------------------------------------
 def train_main():
     banner('Network Init')
-    nn = F2PEncoderDecoderSkeptic(parser())
+    nn = F2PEncoderDecoderTBased(parser())
     nn.identify_system()
 
     hp = nn.hyper_params()

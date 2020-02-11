@@ -23,7 +23,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
     @staticmethod
     def add_model_specific_args(parent_parser):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
-        p.add_argument('--code_size', default=1024, type=int)
+        p.add_argument('--code_size', default=512, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--decoder_convl', default=5, type=int)
         if not parent_parser:  # Name clash with parent
@@ -74,7 +74,7 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
     @staticmethod
     def add_model_specific_args(parent_parser):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
-        p.add_argument('--code_size', default=1024, type=int)
+        p.add_argument('--code_size', default=512, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--comp_decoder_convl', default=5, type=int)
         p.add_argument('--rec_decoder_convl', default=3, type=int)
@@ -85,33 +85,33 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
     def forward(self, input_dict):
         part = input_dict['gt_part']
         full = input_dict['tp']
+        gt = input_dict['gt']
         # part, full [bs x nv x in_channels]
         bs = part.size(0)
         nv = part.size(1)
 
         part_code = self.encoder(part)  # [b x code_size]
         full_code = self.encoder(full)  # [b x code_size]
+        gt_code = self.encoder(gt)  # [b x code_size]
 
         part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         full_code = full_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        gt_code = gt_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
 
-        x = torch.cat((full, part_code, full_code), 2).contiguous()  # [b x nv x (in_channels + 2*code_size)]
-        completion = self.comp_decoder(x)
+        completion = self.comp_decoder(torch.cat((full, part_code, full_code), 2).contiguous() )
 
         template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
-        y = torch.cat((template, full_code), 2).contiguous()  # [b x nv x (in_channels + code_size)]
-        full_rec = self.rec_decoder(y)
+        full_rec = self.rec_decoder(torch.cat((template, full_code), 2).contiguous())
+        part_rec = self.rec_decoder(torch.cat((template, part_code), 2).contiguous())
+        gt_rec = self.rec_decoder(torch.cat((template, gt_code), 2).contiguous())
 
-        z = torch.cat((template, part_code), 2).contiguous()  # [b x nv x (in_channels + code_size)]
-        part_rec = self.rec_decoder(z)
-
-        return {'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec}
+        return {'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec, 'gt_rec': gt_rec}
 
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
 # ----------------------------------------------------------------------------------------------------------------------
-class F2PEncoderDecoderVerySkeptic(CompletionLightningModel):
+class F2PEncoderDecoderTBased(CompletionLightningModel):
     def _build_model(self):
         # Encoder takes a 3D point cloud as an input.
         # Note that a linear layer is applied to the global feature vector
@@ -130,9 +130,9 @@ class F2PEncoderDecoderVerySkeptic(CompletionLightningModel):
     @staticmethod
     def add_model_specific_args(parent_parser):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
-        p.add_argument('--code_size', default=1024, type=int)
+        p.add_argument('--code_size', default=512, type=int)
         p.add_argument('--out_channels', default=3, type=int)
-        p.add_argument('--decoder_convl', default=5, type=int)
+        p.add_argument('--decoder_convl', default=3, type=int)
         if not parent_parser:  # Name clash with parent
             p.add_argument('--in_channels', default=3, type=int)
         return p
@@ -155,14 +155,14 @@ class F2PEncoderDecoderVerySkeptic(CompletionLightningModel):
         part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         full_code = full_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         comp_code = comp_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        gt_code = gt_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
 
+        #all reconsturction (also completion are achieved by FIXED template deformation)
         template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
-        full_rec = self.decoder(
-            torch.cat((template, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        part_rec = self.decoder(
-            torch.cat((template, part_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        completion = self.decoder(
-            torch.cat((template, comp_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        full_rec = self.decoder(torch.cat((template, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        part_rec = self.decoder(torch.cat((template, part_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        gt_rec = self.decoder(torch.cat((template, gt_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        completion = self.decoder(torch.cat((template, comp_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
 
-        output_dict.update({'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec})
+        output_dict.update({'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec, 'gt_rec': gt_rec})
         return output_dict
