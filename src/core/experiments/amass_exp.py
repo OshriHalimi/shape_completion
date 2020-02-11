@@ -99,13 +99,13 @@ def train_main():
 
     tr_ds = FullPartDatasetMenu.get('AmassTrainPyProj')
     tr_ldr = tr_ds.loaders(s_nums=hp.counts[0], s_transform=[Center()], batch_size=hp.batch_size, device=hp.dev,
-                           n_channels=hp.in_channels, method='rand_f2p', s_dynamic=True)
+                           n_channels=hp.in_channels, method='frand_f2p')
     val_ds = FullPartDatasetMenu.get('AmassValdPyProj')
     val_ldr = val_ds.loaders(s_nums=hp.counts[1], s_transform=[Center()], batch_size=hp.batch_size, device=hp.dev,
-                             n_channels=hp.in_channels, method='rand_f2p', s_dynamic=False)
+                             n_channels=hp.in_channels, method='rand_f2p')
     ts_ds = FullPartDatasetMenu.get('AmassTestPyProj')
     ts_ldr = ts_ds.loaders(s_nums=hp.counts[2], s_transform=[Center()], batch_size=hp.batch_size, device=hp.dev,
-                           n_channels=hp.in_channels, method='rand_f2p', s_dynamic=False)
+                           n_channels=hp.in_channels, method='rand_f2p')
 
     nn.init_data(loaders=[tr_ldr, val_ldr, ts_ldr])
 
