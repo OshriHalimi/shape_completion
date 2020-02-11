@@ -27,8 +27,8 @@ def parser():
                         'Use 3 for gt,tp,gt_part,tp_part save as well.')
 
     # Architecture
-    p.add_argument('--dense_encoder', type=bool, default=True, help='If true uses dense encoder architecture')
-    p.add_argument('--use_default_init', type=bool,default=True,help='If true, using default kaiming init. Else - '
+    p.add_argument('--dense_encoder', type=bool, default=False, help='If true uses dense encoder architecture')
+    p.add_argument('--use_default_init', type=bool,default=False,help='If true, using default kaiming init. Else - '
                                                                       'using our .init_weights()')
 
     # Dataset Config:
