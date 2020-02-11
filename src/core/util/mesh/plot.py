@@ -190,9 +190,9 @@ class ParallelPlotterBase(Process, ABC):
             self.last_plotted_epoch = current_epoch
             self.train_d, self.val_d = deepcopy(self.sd['data'])
         if final:
-            self.plt_title = f'Visualization for Epoch {self.last_plotted_epoch}'
+            self.plt_title = f'Final visualization before closing for Epoch {self.last_plotted_epoch}'
         else:
-            self.plt_title = f'Final visualziation before closing for Epoch {self.last_plotted_epoch}'
+            self.plt_title = f'Visualization for Epoch {self.last_plotted_epoch}'
 
             # Update version with one single read
         # Slight problem of atomicity here - with respect to current_epoch. Data may have changed in the meantime -

@@ -73,7 +73,7 @@ def parser():
     p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
     # Visualization
-    p.add_argument('--use_auto_tensorboard', type=bool, default=1,
+    p.add_argument('--use_auto_tensorboard', type=bool, default=3,
                    help='Mode: 0 - Does nothing. 1 - Opens up only server. 2 - Opens up only chrome. 3- Opens up both '
                         'chrome and server')
     p.add_argument('--use_logger', type=bool, default=True,  # TODO - Not in use
@@ -107,6 +107,7 @@ def train_main():
     banner('Testing Phase')
     trainer.test(nn)
     nn.finalize()
+    banner()
 
 
 def test_main():

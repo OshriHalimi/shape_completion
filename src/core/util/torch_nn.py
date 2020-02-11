@@ -7,6 +7,7 @@ from util.fs import convert_bytes
 from util.func import list_class_declared_methods
 import types
 from pathlib import Path
+import logging
 from lightning import LightningModule
 from collections.abc import Sequence
 from inspect import signature
@@ -288,17 +289,20 @@ class TensorboardSupervisor:
         if mode != 2:
             self.server = TensorboardServer(log_dp)
             self.server.start()
+            logging.info("Started Tensorboard Server")
         if mode != 1:
             self.chrome = ChromeProcess()
             self.chrome.start()
+            logging.info("Opened Chrome Tab")
 
     def finalize(self):
-        # if self.mode != 2 and self.server.is_alive():
-        #     print('Joining Tensorboard Server')
-        #     self.server.join()
-        if self.mode != 1 and self.server.is_alive():
-            print('Joining Chrome Server')
-            self.chrome.join()
+        if self.mode != 2 and self.server.is_alive():
+            logging.info('Killing Tensorboard Server')
+            self.server.terminate()
+        # Chrome is automatically joined
+        # if self.mode != 1 and self.chrome.is_alive():
+        #     print('Joining Chrome browser')
+        #     self.chrome.join()
 
 
 class TensorboardServer(Process):
@@ -306,6 +310,7 @@ class TensorboardServer(Process):
         super().__init__()
         self.os_name = os.name
         self.log_dp = str(log_dp)
+        self.daemon = True
 
     def run(self):
         if self.os_name == 'nt':  # Windows
@@ -320,6 +325,7 @@ class ChromeProcess(Process):
     def __init__(self):
         super().__init__()
         self.os_name = os.name
+        self.daemon = True
 
     def run(self):
         if self.os_name == 'nt':  # Windows

@@ -126,9 +126,13 @@ class CompletionLightningModel(PytorchNet):
         if hp.use_auto_tensorboard > 0:
             self.tb_sub = TensorboardSupervisor(mode=hp.use_auto_tensorboard)
 
+        if self.hparams.test_ds is not None:
+            self.test_ds_name = self.hparams.test_ds['dataset_name']
+        if self.hparams.vald_ds is not None:
+            self.vald_ds_name = self.hparams.vald_ds['dataset_name']
+
         # Support for completions:
         if hp.save_completions > 0:
-            self.test_ds_name = self.hparams.test_ds['dataset_name']
             self.completions_dp = self.exp_dp / f'{self.test_ds_name}_completions'
             self.completions_dp.mkdir(parents=True, exist_ok=True)
             self.save_func = getattr(util.mesh.io, f'write_{hp.SAVE_MESH_AS}')
@@ -173,6 +177,8 @@ class CompletionLightningModel(PytorchNet):
             self.plt.finalize()
         if self.hparams.use_auto_tensorboard > 0:
             self.tb_sub.finalize()
+        logging.info("Emptying CUDA memory")
+        torch.cuda.empty_cache() # Clean GPU Memory
 
     def validation_step(self, b, batch_idx):
         pred = self.fforward(b)
@@ -186,8 +192,9 @@ class CompletionLightningModel(PytorchNet):
     def validation_end(self, outputs):
         # average the values with same keys
 
-        avg_loss_dict = {f'{k}_val': torch.stack([x[k] for x in outputs]).mean() for k in outputs[0].keys()}
-        avg_val_loss = avg_loss_dict['total_loss_val']
+        avg_loss_dict = {f'{k}_val_{self.vald_ds_name}': torch.stack([x[k] for x in outputs]).mean() for k in
+                         outputs[0].keys()}
+        avg_val_loss = avg_loss_dict[f'total_loss_val_{self.vald_ds_name}']
         lr = self.learning_rate(self.opt)  # Also log learning rate
         avg_loss_dict['lr'] = lr
 
@@ -205,8 +212,9 @@ class CompletionLightningModel(PytorchNet):
         return self.loss.compute(b, pred)
 
     def test_end(self, outputs):
-        avg_loss_dict = {f'{k}_test': torch.stack([x[k] for x in outputs]).mean() for k in outputs[0].keys()}
-        avg_test_loss = avg_loss_dict['total_loss_test']
+        avg_loss_dict = {f'{k}_test_{self.test_ds_name}': torch.stack([x[k] for x in outputs]).mean() for k in
+                         outputs[0].keys()}
+        avg_test_loss = avg_loss_dict[f'total_loss_test_{self.test_ds_name}']
 
         return {"test_loss": avg_test_loss,
                 "progress_bar": {'test_loss': avg_test_loss},
