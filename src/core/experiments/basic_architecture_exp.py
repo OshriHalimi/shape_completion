@@ -4,7 +4,7 @@ from util.string_op import banner, set_logging_to_stdout
 from util.func import tutorial
 from util.torch_data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
-from architecture.models import F2PEncoderDecoderSkeptic
+from architecture.models import F2PEncoderDecoder
 from architecture.lightning import lightning_trainer, test_lightning
 from dataset.transforms import *
 from dataset.index import HierarchicalIndexTree # Keep this here
@@ -20,7 +20,7 @@ def parser():
     # Check-pointing
     # TODO - Don't forget to change me!
     p.add_argument('--exp_name', type=str, default='basic_architecture_exp', help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_version', type=none_or_int, default=None,
+    p.add_argument('--resume_version', type=0, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f). '
