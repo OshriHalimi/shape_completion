@@ -1,13 +1,13 @@
-from util.torch_nn import set_determinsitic_run
+from util.torch_nn import PytorchNet, set_determinsitic_run
 from dataset.datasets import FullPartDatasetMenu
 from util.string_op import banner, set_logging_to_stdout
+from util.func import tutorial
 from util.torch_data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
-from architecture.lightning import lightning_trainer
+from architecture.lightning import lightning_trainer, test_lightning
 from dataset.transforms import *
-from dataset.index import HierarchicalIndexTree  # Keep this here
-
+from dataset.index import HierarchicalIndexTree # Keep this here
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
 
@@ -19,25 +19,23 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='Oshri_Amass', help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_version', type=none_or_int, default=None,
+    p.add_argument('--exp_name', type=str, default='amass_basic_architecture_exp', help='The experiment name. Leave empty for default')
+    p.add_argument('--resume_version', type=None, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f). '
                         'Use 3 for gt,tp,gt_part,tp_part save as well.')
 
     # Architecture
-    p.add_argument('--dense_encoder', type=bool, default=True, help='If true uses dense encoder architecture')
-    p.add_argument('--use_default_init', type=bool, default=False, help='If true, using default kaiming init. Else - '
-                                                                        'using our .init_weights()')
+    p.add_argument('--dense_encoder', type=bool, default=False, help='If true uses dense encoder architecture')
+    p.add_argument('--use_default_init', type=bool,default=False,help='If true, using default kaiming init. Else - '
+                                                                      'using our .init_weights()')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
-    p.add_argument('--batch_size', type=int, default=3, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(10000, 1000, 1000),
+    p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
+    p.add_argument('--counts', nargs=3, type=none_or_int, default=(10000, 1000, 1000), # TODO - If amass - edit this
                    help='[Train,Validation,Test] number of samples. Use None for all in partition')
-    # TODO - Oshri, keep the first number as 10000 - The partition is dynamic. The rest - decide how big you want
-    # validation and test to be
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
                    help='Number of input channels')
 
@@ -75,7 +73,7 @@ def parser():
     p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
     # Visualization
-    p.add_argument('--use_auto_tensorboard', type=bool, default=2,
+    p.add_argument('--use_auto_tensorboard', type=bool, default=1,
                    help='Mode: 0 - Does nothing. 1 - Opens up only server. 2 - Opens up only chrome. 3- Opens up both '
                         'chrome and server')
     p.add_argument('--use_logger', type=bool, default=True,  # TODO - Not in use
