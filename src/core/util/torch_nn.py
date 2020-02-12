@@ -316,7 +316,8 @@ class TensorboardServer(Process):
         if self.os_name == 'nt':  # Windows
             os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp} 2> NUL')
         elif self.os_name == 'posix':  # Linux
-            os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp} >/dev/null 2>&1')
+            os.system(f'{sys.executable} -m tensorboard.main --logdir={self.log_dp} '
+                      f'--host `hostname -I` >/dev/null 2>&1')
         else:
             raise NotImplementedError(f'No support for OS : {self.os_name}')
 
