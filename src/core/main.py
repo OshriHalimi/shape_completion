@@ -253,4 +253,4 @@ def shortcuts_tutorial():
 
 
 if __name__ == '__main__':
-    dataset_tutorial()
+    train_main()
