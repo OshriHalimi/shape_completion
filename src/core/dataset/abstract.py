@@ -579,8 +579,8 @@ def completion_collate(batch, stop=False):
         # A bit hacky - but works
         d = {}
         for k in elem:
-            for prefix in ['gt','tp']:
-                if k.startswith(prefix):
+            for suffix in ['_hi','_mask']:
+                if k.endswith(suffix):
                     stop = True
                     break
             else:
