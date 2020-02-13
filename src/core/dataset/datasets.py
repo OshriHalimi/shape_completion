@@ -163,12 +163,12 @@ def test_dataset():
     #     for d in ldr:
     #         print(d)
     #         break
-    for meth in ds.defined_methods():
-        ldr = ds.loaders(s_nums=1000,batch_size=10, device='cpu-single', method=meth, n_channels=6,
-                          s_dynamic=True)
-        for d in ldr:
-            print(d)
-            break
+
+    ldr = ds.loaders(s_nums=1000,batch_size=10, device='cpu-single', method='rand_ff2p', n_channels=6,
+                      s_dynamic=True)
+    for d in ldr:
+        print(d)
+        break
     # ds.data_summary()
     # print(ds.num_projections())
     # print(ds.num_full_shapes())

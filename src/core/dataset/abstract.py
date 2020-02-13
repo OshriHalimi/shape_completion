@@ -85,7 +85,7 @@ class HitIndexedDataset(ABC):
 #
 # ----------------------------------------------------------------------------------------------------------------------
 class FullPartCompletionDataset(HitIndexedDataset, ABC):
-    DEFINED_SAMP_METHODS = ('full', 'part', 'f2p', 'rand_f2p','frand_f2p', 'p2p', 'rand_p2p','frand_p2p')
+    DEFINED_SAMP_METHODS = ('full', 'part', 'f2p', 'rand_f2p', 'frand_f2p', 'p2p', 'rand_p2p', 'frand_p2p', 'rand_ff2p')
 
     @classmethod
     def defined_methods(cls):
@@ -128,7 +128,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
             if self._tup_index_map is None:
                 self._build_tupled_index()
             return len(self._tup_index_map)
-        elif method in ['rand_f2p','rand_p2p','frand_f2p','frand_p2p']:
+        elif method in ['rand_f2p', 'rand_p2p', 'frand_f2p', 'frand_p2p', 'rand_ff2p']:
             return self.num_projections()  # This is big enough, but still a lie
 
     def data_summary(self, with_tree=False):
@@ -175,7 +175,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
     def show_sample(self, num_samples=4, strategy='mesh', with_vnormals=False, method='f2p'):
         raise NotImplementedError  # TODO
 
-    def rand_loader(self,num_samples=None,transforms=(Center(),),batch_size=16,n_channels=6,mode='f2p',
+    def rand_loader(self, num_samples=None, transforms=(Center(),), batch_size=16, n_channels=6, mode='f2p',
                     device='cuda'):
         """
         :param num_samples: Number of samples in the dataloader, drawn at random from the entire dataset.
@@ -187,9 +187,9 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         :param device: Insert a torch device/the string 'cuda','cpu' or 'cpu-single'
         :return: The dataloader
         """
-        assert mode in ['f2p','p2p'], "Must choose one of ['f2p','p2p']"
-        return self.loaders(s_nums=num_samples,s_transform=transforms,batch_size=batch_size,n_channels=n_channels,
-                            method=f'frand_{mode}',device=device)
+        assert mode in ['f2p', 'p2p'], "Must choose one of ['f2p','p2p']"
+        return self.loaders(s_nums=num_samples, s_transform=transforms, batch_size=batch_size, n_channels=n_channels,
+                            method=f'frand_{mode}', device=device)
 
     def loaders(self, s_nums=None, s_shuffle=True, s_transform=None, split=(1,), s_dynamic=False,
                 global_shuffle=False, batch_size=16, device='cuda', method='f2p', n_channels=6):
@@ -222,7 +222,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         if not isinstance(s_nums, Sequence):
             s_nums = [s_nums]
         if s_transform is None or not s_transform:
-            s_transform = [None]*len(split)
+            s_transform = [None] * len(split)
             # Transforms must be a list, all others are non-Sequence
         assert sum(split) == 1, "Split fracs must sum to 1"
         # TODO - Clean up this function
@@ -369,6 +369,17 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         gt_dict['tp'], gt_dict['tp_hi'] = tp_dict['gt'], tp_dict['gt_hi']
         return gt_dict
 
+    def _datapoint_via_rand_ff2p(self, si):
+        gt_dict = self._datapoint_via_part(si)  # si is gt_si
+        tp_hi = self._hit.random_path_from_partial_path([gt_dict['gt_hi'][0]])[:-1]  # Shorten hi by 1
+        tp_dict = self._full_dict_by_hi(tp_hi)
+        gt_dict['tp1'], gt_dict['tp1_hi'] = tp_dict['gt'], tp_dict['gt_hi']
+
+        tp_hi = self._hit.random_path_from_partial_path([gt_dict['gt_hi'][0]])[:-1]  # Shorten hi by 1
+        tp_dict = self._full_dict_by_hi(tp_hi)
+        gt_dict['tp2'], gt_dict['tp2_hi'] = tp_dict['gt'], tp_dict['gt_hi']
+
+        return gt_dict
 
     def _datapoint_via_p2p(self, si):
         si_gt, si_tp = self._tupled_index_map(si)
@@ -409,10 +420,12 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
             align_keys, compiler_keys = ['gt'], None
         elif method == 'part':
             align_keys, compiler_keys = ['gt'], [['gt_part', 'gt_mask', 'gt']]
-        elif method in ['f2p','rand_f2p','frand_f2p']:
+        elif method in ['f2p', 'rand_f2p', 'frand_f2p']:
             align_keys, compiler_keys = ['gt', 'tp'], [['gt_part', 'gt_mask', 'gt']]
-        elif method in ['p2p','rand_p2p','frand_p2p']:
+        elif method in ['p2p', 'rand_p2p', 'frand_p2p']:
             align_keys, compiler_keys = ['gt', 'tp'], [['gt_part', 'gt_mask', 'gt'], ['tp_part', 'tp_mask', 'tp']]
+        elif method == 'rand_ff2p':
+            align_keys, compiler_keys = ['gt', 'tp1','tp2'], [['gt_part', 'gt_mask', 'gt']]
         else:
             raise AssertionError
 
@@ -566,8 +579,10 @@ def completion_collate(batch, stop=False):
         # A bit hacky - but works
         d = {}
         for k in elem:
-            if k in ['gt_hi', 'gt_mask', 'tp_hi', 'tp_mask']:
-                stop = True
+            for prefix in ['gt','tp']:
+                if k.startswith(prefix):
+                    stop = True
+                    break
             else:
                 stop = False
             d[k] = completion_collate([d[k] for d in batch], stop)
