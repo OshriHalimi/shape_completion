@@ -20,7 +20,7 @@ def parser():
     # Check-pointing
     # TODO - Don't forget to change me!
     p.add_argument('--exp_name', type=str, default='amass_skeptic_architecture_exp', help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_version', type=None, default=None,
+    p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f). '
