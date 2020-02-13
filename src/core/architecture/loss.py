@@ -82,29 +82,33 @@ class JointDecoderSkepticLoss:
         nv = completion_gt.shape[1]
         w_part = self.shape_diff._mask_part_weight(part_idx, nv)
 
+        # Loss terms calculation
         loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec_1, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
         loss_dict_comp_2 = self.shape_diff.compute(completion_gt, completion_rec_2, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
         loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
         loss_dict_full = self.shape_diff.compute(full_1, full_rec_1, w=1)
         loss_dict_full_2 = self.shape_diff.compute(full_2, full_rec_2, w=1)
         loss_dict_gt = self.shape_diff.compute(completion_gt, gt_rec, w=1) # bring gt_rec close to gt
+        loss_dict_joint_decoder = self.shape_diff.compute(completion_rec_1, completion_rec_2,w=1)  # Here comes the joint term
 
+        # Dictionary formatting
         loss_dict_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
         loss_dict_comp_2 = {f'{k}_comp': v for k, v in loss_dict_comp_2.items()}
         loss_dict_comp = {k: 0.5 * (loss_dict_comp[k] + loss_dict_comp_2[k]) for k in loss_dict_comp.keys()}  # Use average loss of two completions
-
+        loss_dict_joint_decoder = {f'{k}_joint_decoder': v for k, v in loss_dict_joint_decoder.items()}
         loss_dict_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
         loss_dict_full = {f'{k}_full': v for k, v in loss_dict_full.items()}
         loss_dict_full_2 = {f'{k}_full': v for k, v in loss_dict_full_2.items()}
         loss_dict_full = {k: 0.5 * (loss_dict_full[k] + loss_dict_full_2[k]) for k in loss_dict_full.keys()}  # Use average loss of two full shape reconstructions
         loss_dict_gt = {f'{k}_gt': v for k, v in loss_dict_gt.items()}
 
+        # Dictionary update
         loss_dict = loss_dict_comp
         loss_dict.update(loss_dict_part)
         loss_dict.update(loss_dict_full)
         loss_dict.update(loss_dict_gt)
-        loss_dict.update("joint_decoder_loss" = self.shape_diff.compute(completion_rec_1, completion_rec_2, w=1))  # Here comes the joint term
-        loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'] + loss_dict['joint_decoder_loss'])
+        loss_dict.update(loss_dict_joint_decoder)
+        loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'] + loss_dict['total_loss_joint_decoder'])
         return loss_dict
 
 
