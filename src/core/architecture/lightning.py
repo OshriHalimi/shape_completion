@@ -191,7 +191,6 @@ class CompletionLightningModel(PytorchNet):
 
     def validation_end(self, outputs):
         # average the values with same keys
-
         avg_loss_dict = {f'{k}_val_{self.vald_ds_name}': torch.stack([x[k] for x in outputs]).mean() for k in
                          outputs[0].keys()}
         avg_val_loss = avg_loss_dict[f'total_loss_val_{self.vald_ds_name}']

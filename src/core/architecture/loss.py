@@ -59,6 +59,55 @@ class SkepticLoss:
         loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'])
         return loss_dict
 
+class JointDecoderSkepticLoss:
+    def __init__(self, hp, f):
+        self.shape_diff = ShapeDiffLoss(hp, f)
+
+    def compute(self, input, network_output):
+        # input retrieval
+        completion_gt = input['gt']
+        full_1 = input['tp1']
+        full_2 = input['tp2']
+        part_idx = input['gt_mask']
+
+        # output retrieval
+        completion_rec_1 = network_output['completion_xyz']
+        completion_rec_2 = network_output['completion_xyz_2']
+        part_rec = network_output['part_rec']
+        full_rec_1 = network_output['full_rec']
+        full_rec_2 = network_output['full_rec_2']
+        gt_rec = network_output['gt_rec']
+
+        # weights calculation
+        nv = completion_gt.shape[1]
+        w_part = self.shape_diff._mask_part_weight(part_idx, nv)
+
+        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec_1, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
+        loss_dict_comp_2 = self.shape_diff.compute(completion_gt, completion_rec_2, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
+        loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
+        loss_dict_full = self.shape_diff.compute(full_1, full_rec_1, w=1)
+        loss_dict_full_2 = self.shape_diff.compute(full_2, full_rec_2, w=1)
+        loss_dict_gt = self.shape_diff.compute(completion_gt, gt_rec, w=1) # bring gt_rec close to gt
+
+        loss_dict_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
+        loss_dict_comp_2 = {f'{k}_comp': v for k, v in loss_dict_comp_2.items()}
+        loss_dict_comp = {k: 0.5 * (loss_dict_comp[k] + loss_dict_comp_2[k]) for k in loss_dict_comp.keys()}  # Use average loss of two completions
+
+        loss_dict_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
+        loss_dict_full = {f'{k}_full': v for k, v in loss_dict_full.items()}
+        loss_dict_full_2 = {f'{k}_full': v for k, v in loss_dict_full_2.items()}
+        loss_dict_full = {k: 0.5 * (loss_dict_full[k] + loss_dict_full_2[k]) for k in loss_dict_full.keys()}  # Use average loss of two full shape reconstructions
+        loss_dict_gt = {f'{k}_gt': v for k, v in loss_dict_gt.items()}
+
+        loss_dict = loss_dict_comp
+        loss_dict.update(loss_dict_part)
+        loss_dict.update(loss_dict_full)
+        loss_dict.update(loss_dict_gt)
+        loss_dict.update("joint_decoder_loss" = self.shape_diff.compute(completion_rec_1, completion_rec_2, w=1))  # Here comes the joint term
+        loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'] + loss_dict['joint_decoder_loss'])
+        return loss_dict
+
+
 class TBasedLoss:
     def __init__(self, hp, f):
         self.shape_diff = ShapeDiffLoss(hp, f)
@@ -286,74 +335,74 @@ class CodeLoss():
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      Graveyard
 # ----------------------------------------------------------------------------------------------------------------------
-def compute_old(self, b, gtrb):
-    """
-    :param b: The input batch dictionary
-    :param gtrb: The batched ground truth reconstruction of dim: [b x nv x 3]
-    :return: The loss
-    """
-
-    # Aliasing. We can only assume that channels 0:3 definitely exist
-    gtrb_xyz = gtrb[:, :, 0:3]
-    gtb_xyz = b['gt'][:, :, 0:3]
-    tpb_xyz = b['tp'][:, :, 0:3]
-    mask_vi = b['gt_mask']
-    nv = gtrb.shape[1]
-
-    loss = torch.zeros(1, device=self.dev, dtype=self.def_prec)
-    loss_dict = {}
-    for i, lamb in enumerate(self.lambdas):
-        if lamb > 0:
-            w = self._mask_penalty_weight(mask_b=mask_vi, nv=nv, p=self.mask_penalties[i]) * \
-                self._distant_vertex_weight(gtb_xyz, tpb_xyz, self.dist_v_penalties[i])
-            if i == 0:  # XYZ
-                loss_xyz = self._l2_loss(gtb_xyz, gtrb_xyz, lamb=lamb, vertex_mask=w)
-                loss_dict['xyz'] = loss_xyz
-                loss += loss_xyz
-            elif i == 1:  # Normals
-                need_f_area = self.lambdas[5] > 0
-                out = batch_vnrmls(gtrb, self.torch_f, return_f_areas=need_f_area)
-                vnb, is_valid_vnb = out[0:2]
-                if need_f_area:
-                    f_area_gtrb = out[2]
-                loss_normals = self._l2_loss(b['gt'][:, :, 3:6], vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
-                loss_dict['normals'] = loss_normals
-                loss += loss_normals
-            elif i == 2:  # Moments:
-                loss_moments = self._l2_loss(b['gt'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
-                loss_dict['moments'] = loss_moments
-                loss += loss_moments
-            elif i == 3:  # Euclidean Distance Matrices (validated)
-                loss_euc_dist = self._l2_loss(batch_euclid_dist_mat(gtb_xyz), batch_euclid_dist_mat(gtrb_xyz), lamb=lamb)
-                loss_dict['EucDist'] = loss_euc_dist
-                loss += loss_euc_dist
-            elif i == 4:  # Euclidean Distance Matrices with normals (defined on Gauss map)
-                try:
-                    vnb
-                except NameError:
-                    need_f_area = self.lambdas[5] > 0
-                    out = batch_vnrmls(gtrb, self.torch_f, return_f_areas=need_f_area)
-                    vnb, is_valid_vnb = out[0:2]
-                    if need_f_area:
-                        f_area_gtrb = out[2]
-
-                loss_euc_dist_gauss = self._l2_loss(batch_euclid_dist_mat(b['gt'][:, :, 3:6]), batch_euclid_dist_mat(vnb), lamb=lamb)
-                loss_dict['EucDistGauss'] = loss_euc_dist_gauss
-                loss += loss_euc_dist_gauss
-            elif i == 5:  # Face Areas
-                f_area_gt = batch_fnrmls_fareas(gtb_xyz, self.torch_f, return_normals=False)
-                try:
-                    f_area_gtrb
-                except NameError:
-                    f_area_gtrb = batch_fnrmls_fareas(gtrb_xyz, self.torch_f, return_normals=False)
-                loss_areas = self._l2_loss(f_area_gt, f_area_gtrb, lamb=lamb, vertex_mask=w)
-                loss_dict['Areas'] = loss_areas
-                loss += loss_areas
-            elif i == 6:  # Volume:
-                pass
-            #TODO: implement chamfer distance loss
-            else:
-                raise AssertionError
-
-    loss_dict['total_loss'] = loss
-    return loss_dict
+# def compute_old(self, b, gtrb):
+#     """
+#     :param b: The input batch dictionary
+#     :param gtrb: The batched ground truth reconstruction of dim: [b x nv x 3]
+#     :return: The loss
+#     """
+#
+#     # Aliasing. We can only assume that channels 0:3 definitely exist
+#     gtrb_xyz = gtrb[:, :, 0:3]
+#     gtb_xyz = b['gt'][:, :, 0:3]
+#     tpb_xyz = b['tp'][:, :, 0:3]
+#     mask_vi = b['gt_mask']
+#     nv = gtrb.shape[1]
+#
+#     loss = torch.zeros(1, device=self.dev, dtype=self.def_prec)
+#     loss_dict = {}
+#     for i, lamb in enumerate(self.lambdas):
+#         if lamb > 0:
+#             w = self._mask_penalty_weight(mask_b=mask_vi, nv=nv, p=self.mask_penalties[i]) * \
+#                 self._distant_vertex_weight(gtb_xyz, tpb_xyz, self.dist_v_penalties[i])
+#             if i == 0:  # XYZ
+#                 loss_xyz = self._l2_loss(gtb_xyz, gtrb_xyz, lamb=lamb, vertex_mask=w)
+#                 loss_dict['xyz'] = loss_xyz
+#                 loss += loss_xyz
+#             elif i == 1:  # Normals
+#                 need_f_area = self.lambdas[5] > 0
+#                 out = batch_vnrmls(gtrb, self.torch_f, return_f_areas=need_f_area)
+#                 vnb, is_valid_vnb = out[0:2]
+#                 if need_f_area:
+#                     f_area_gtrb = out[2]
+#                 loss_normals = self._l2_loss(b['gt'][:, :, 3:6], vnb, lamb=lamb, vertex_mask=w*is_valid_vnb.unsqueeze(2))
+#                 loss_dict['normals'] = loss_normals
+#                 loss += loss_normals
+#             elif i == 2:  # Moments:
+#                 loss_moments = self._l2_loss(b['gt'][:, :, 6:12], batch_moments(gtrb), lamb=lamb, vertex_mask=w)
+#                 loss_dict['moments'] = loss_moments
+#                 loss += loss_moments
+#             elif i == 3:  # Euclidean Distance Matrices (validated)
+#                 loss_euc_dist = self._l2_loss(batch_euclid_dist_mat(gtb_xyz), batch_euclid_dist_mat(gtrb_xyz), lamb=lamb)
+#                 loss_dict['EucDist'] = loss_euc_dist
+#                 loss += loss_euc_dist
+#             elif i == 4:  # Euclidean Distance Matrices with normals (defined on Gauss map)
+#                 try:
+#                     vnb
+#                 except NameError:
+#                     need_f_area = self.lambdas[5] > 0
+#                     out = batch_vnrmls(gtrb, self.torch_f, return_f_areas=need_f_area)
+#                     vnb, is_valid_vnb = out[0:2]
+#                     if need_f_area:
+#                         f_area_gtrb = out[2]
+#
+#                 loss_euc_dist_gauss = self._l2_loss(batch_euclid_dist_mat(b['gt'][:, :, 3:6]), batch_euclid_dist_mat(vnb), lamb=lamb)
+#                 loss_dict['EucDistGauss'] = loss_euc_dist_gauss
+#                 loss += loss_euc_dist_gauss
+#             elif i == 5:  # Face Areas
+#                 f_area_gt = batch_fnrmls_fareas(gtb_xyz, self.torch_f, return_normals=False)
+#                 try:
+#                     f_area_gtrb
+#                 except NameError:
+#                     f_area_gtrb = batch_fnrmls_fareas(gtrb_xyz, self.torch_f, return_normals=False)
+#                 loss_areas = self._l2_loss(f_area_gt, f_area_gtrb, lamb=lamb, vertex_mask=w)
+#                 loss_dict['Areas'] = loss_areas
+#                 loss += loss_areas
+#             elif i == 6:  # Volume:
+#                 pass
+#             #TODO: implement chamfer distance loss
+#             else:
+#                 raise AssertionError
+#
+#     loss_dict['total_loss'] = loss
+#     return loss_dict

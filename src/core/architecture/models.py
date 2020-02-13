@@ -107,6 +107,69 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
 
         return {'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec, 'gt_rec': gt_rec}
 
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                      BASE
+# ----------------------------------------------------------------------------------------------------------------------
+class F2PEncoderJointDecoderSkeptic(CompletionLightningModel):
+    def _build_model(self):
+        # Encoder takes a 3D point cloud as an input.
+        # Note that a linear layer is applied to the global feature vector
+        self.template = Template(self.hparams.in_channels, self.hparams.dev)
+        self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size,
+                                    dense=self.hparams.dense_encoder)
+        self.comp_decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
+                                         out_channels=self.hparams.out_channels,
+                                         num_convl=self.hparams.comp_decoder_convl)
+        self.rec_decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + self.hparams.code_size,
+                                        out_channels=self.hparams.out_channels,
+                                        num_convl=self.hparams.rec_decoder_convl)
+
+    def _init_model(self):
+        self.encoder.init_weights()
+        self.comp_decoder.init_weights()
+        self.rec_decoder.init_weights()
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--code_size', default=512, type=int)
+        p.add_argument('--out_channels', default=3, type=int)
+        p.add_argument('--comp_decoder_convl', default=5, type=int)
+        p.add_argument('--rec_decoder_convl', default=3, type=int)
+        if not parent_parser:  # Name clash with parent
+            p.add_argument('--in_channels', default=3, type=int)
+        return p
+
+    def forward(self, input_dict):
+        part = input_dict['gt_part']
+        full_1 = input_dict['tp1']
+        full_2 = input_dict['tp2']
+        gt = input_dict['gt']
+        # part, full [bs x nv x in_channels]
+        bs = part.size(0)
+        nv = part.size(1)
+
+        part_code = self.encoder(part)  # [b x code_size]
+        full_code_1 = self.encoder(full_1)  # [b x code_size]
+        full_code_2 = self.encoder(full_2)  # [b x code_size]
+        gt_code = self.encoder(gt)  # [b x code_size]
+
+        part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        full_code_1 = full_code_1.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        full_code_2 = full_code_2.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        gt_code = gt_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+
+        completion_1 = self.comp_decoder(torch.cat((full_1, part_code, full_code_1), 2).contiguous())
+        completion_2 = self.comp_decoder(torch.cat((full_2, part_code, full_code_2), 2).contiguous())
+
+        template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
+        full_rec_1 = self.rec_decoder(torch.cat((template, full_code_1), 2).contiguous())
+        full_rec_2 = self.rec_decoder(torch.cat((template, full_code_2), 2).contiguous())
+        part_rec = self.rec_decoder(torch.cat((template, part_code), 2).contiguous())
+        gt_rec = self.rec_decoder(torch.cat((template, gt_code), 2).contiguous())
+
+        # TODO: What if the ntetwork returns more than one completion?
+        return {'completion_xyz': completion_1, 'completion_xyz_2': completion_2, 'full_rec': full_rec_1, 'full_rec_2': full_rec_2, 'part_rec': part_rec, 'gt_rec': gt_rec}
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
