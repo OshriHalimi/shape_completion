@@ -85,7 +85,8 @@ class HitIndexedDataset(ABC):
 #
 # ----------------------------------------------------------------------------------------------------------------------
 class FullPartCompletionDataset(HitIndexedDataset, ABC):
-    DEFINED_SAMP_METHODS = ('full', 'part', 'f2p', 'rand_f2p', 'frand_f2p', 'p2p', 'rand_p2p', 'frand_p2p', 'rand_ff2p')
+    DEFINED_SAMP_METHODS = ('full', 'part', 'f2p', 'rand_f2p', 'frand_f2p', 'p2p', 'rand_p2p', 'frand_p2p', 'rand_ff2p'
+                            ,'rand_ff2pp')
 
     @classmethod
     def defined_methods(cls):
@@ -126,9 +127,9 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         elif method == 'f2p' or method == 'p2p':
             assert self._hit_in_memory, "Full tuple indexing will take too much time"  # TODO - Can this be fixed?
             if self._tup_index_map is None:
-                self._build_tupled_index()
+                self._build_tupled_index() #TODO - Revise this for P2P
             return len(self._tup_index_map)
-        elif method in ['rand_f2p', 'rand_p2p', 'frand_f2p', 'frand_p2p', 'rand_ff2p']:
+        else:
             return self.num_projections()  # This is big enough, but still a lie
 
     def data_summary(self, with_tree=False):
@@ -381,6 +382,19 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
 
         return gt_dict
 
+    def _datapoint_via_rand_ff2pp(self,si):
+        ff2p_dict = self._datapoint_via_rand_ff2p(si)
+        # Change gt_mask -> gt_mask1, gt_hi->gt_hi1
+        ff2p_dict['gt_mask1'] = ff2p_dict['gt_mask']
+        ff2p_dict['gt_hi1'] = ff2p_dict['gt_hi']
+        del ff2p_dict['gt_mask'],ff2p_dict['gt_hi']
+        # Add in another mask:
+        gt_hi2 = self._hit.random_path_from_partial_path(ff2p_dict['gt_hi1'][:-1])  # All but proj id
+        ff2p_dict['gt_mask2'] = self._mask_by_hi(gt_hi2)
+        ff2p_dict['gt_hi2'] = gt_hi2
+        return ff2p_dict
+
+
     def _datapoint_via_p2p(self, si):
         si_gt, si_tp = self._tupled_index_map(si)
         tp_dict = self._datapoint_via_part(si_tp)
@@ -426,6 +440,9 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
             align_keys, compiler_keys = ['gt', 'tp'], [['gt_part', 'gt_mask', 'gt'], ['tp_part', 'tp_mask', 'tp']]
         elif method == 'rand_ff2p':
             align_keys, compiler_keys = ['gt', 'tp1','tp2'], [['gt_part', 'gt_mask', 'gt']]
+        elif method == 'rand_ff2pp':
+            align_keys, compiler_keys = ['gt', 'tp1', 'tp2'], \
+                                        [['gt_part1', 'gt_mask1', 'gt'],['gt_part2', 'gt_mask2', 'gt']]
         else:
             raise AssertionError
 
@@ -579,7 +596,7 @@ def completion_collate(batch, stop=False):
         # A bit hacky - but works
         d = {}
         for k in elem:
-            for suffix in ['_hi','_mask']:
+            for suffix in ['_hi','_mask','_mask1','_mask2']: # TODO
                 if k.endswith(suffix):
                     stop = True
                     break

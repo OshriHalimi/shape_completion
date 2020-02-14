@@ -164,7 +164,7 @@ def test_dataset():
     #         print(d)
     #         break
 
-    ldr = ds.loaders(s_nums=1000,batch_size=10, device='cpu-single', method='rand_ff2p', n_channels=6,
+    ldr = ds.loaders(s_nums=1000,batch_size=10, device='cpu-single', method='rand_ff2pp', n_channels=6,
                       s_dynamic=True)
     for d in ldr:
         print(d)
