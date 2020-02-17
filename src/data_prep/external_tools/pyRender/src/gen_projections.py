@@ -80,5 +80,7 @@ def run(filename, out_dir,error_path, scale):
 		#plot_mesh(V[mask,:], strategy='spheres', grid_on=True)
 
 		np.savez(out_name, mask=mask)
-		print(out_name)
-		render.Clear()
+		#print(out_name)
+
+	render.Clear()
+
