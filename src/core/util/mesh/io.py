@@ -1,5 +1,5 @@
 import numpy as np
-from util.fs import align_file_extension
+from core.util.fs import align_file_extension
 from plyfile import PlyData
 
 # TODO - Consider migrating to meshio or PyMesh

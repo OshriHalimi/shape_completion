@@ -26,12 +26,19 @@ sortedcontainers==2.1.0
 test-tube==0.7.5
 tensorboard==2.0.0
 # -----------------------------------------------------------------------------------#
+#                Important Notes (to save painful debugging)
+# -----------------------------------------------------------------------------------#
+# [5] Pyrender & glm dependency are provided under /data_prep/external_tools
+#     To generate a correct rendering the mesh must be provided with the following types
+#     vertices: float32, faces: int32
+#
+# -----------------------------------------------------------------------------------#
 #                            Collaterals - Windows only
 # -----------------------------------------------------------------------------------#
-# [5] Optional: If you want to support full tensoboard features, install tensorflow via: 
+# [6] Optional: If you want to support full tensoboard features, install tensorflow via:
 #     Command: pip install tensorflow
 #
-# [6] Optional: In order to support nn.visualize(), please install Graphviz
+# [7] Optional: In order to support nn.visualize(), please install Graphviz
 #  *  Surf to: https://graphviz.gitlab.io/_pages/Download/windows/graphviz-2.38.msi
 #  *  Install the application to C:\Program Files (x86)\Graphviz2.38
 #  *  Add to your PATH variable: "C:\Program Files (x86)\Graphviz2.38\bin"
