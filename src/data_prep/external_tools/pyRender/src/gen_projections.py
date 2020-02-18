@@ -1,11 +1,10 @@
 import numpy as np
-import sys
 import os
 import os.path
 import trimesh
 import pathlib
-from core.util.mesh.plot import plot_mesh
-import matplotlib.pyplot as plt
+#from core.util.mesh.plot import plot_mesh
+#import matplotlib.pyplot as plt
 from data_prep.external_tools.pyRender.lib import render
 
 def run(filename, out_dir,error_path, scale):
