@@ -32,7 +32,11 @@ tensorboard==2.0.0
 #     To generate a correct rendering the mesh must be provided with the following types
 #     vertices: float32, faces: int32
 #
-# -----------------------------------------------------------------------------------#
+# *exectuables for pyrender are provided, but you might need to compile them 
+#  again on a different machine. Do it by placing the inner glm folder (glm\glm) 
+#  inside pyRender\lib and running compile.sh 
+# -----------------------------------------------------------------------------------
+#
 #                            Collaterals - Windows only
 # -----------------------------------------------------------------------------------#
 # [6] Optional: If you want to support full tensoboard features, install tensorflow via:
