@@ -1,7 +1,7 @@
 import torch
 from util.mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_fnrmls_fareas, batch_moments
 from util.string_op import warn
-
+from architecture.decoders import Template
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                           Full Losses (different architecture might have different losses)
@@ -109,6 +109,53 @@ class JointDecoderSkepticLoss:
         loss_dict.update(loss_dict_gt)
         loss_dict.update(loss_dict_joint_decoder)
         loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'] + loss_dict['total_loss_joint_decoder'])
+        return loss_dict
+
+
+class PointContextLoss:
+    def __init__(self, hp, f):
+        self.shape_diff = ShapeDiffLoss(hp, f)
+        self.template = Template(hp.in_channels, hp.dev)
+        self.out_channels = hp.out_channels
+
+    def compute(self, input, network_output):
+        # input retrieval
+        completion_gt = input['gt']
+        full = input['tp']
+        part_idx = input['gt_mask']
+
+        bs = completion_gt.shape[0]
+        nv = completion_gt.shape[1]
+        # output retrieval
+        completion_rec = network_output['completion_xyz']
+        part_rec = network_output['part_rec']
+        full_rec = network_output['full_rec']
+        gt_rec = network_output['gt_rec']
+        point_context = network_output['point_context']
+
+        # weights calculation
+        nv = completion_gt.shape[1]
+        w_part = self.shape_diff._mask_part_weight(part_idx, nv)
+
+        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty (only for completion)
+        template = self.template.vertices.expand(bs, nv, self.out_channels)
+        loss_dict_context = self.shape_diff.compute(template, point_context, w=1)
+        loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
+        loss_dict_full = self.shape_diff.compute(full, full_rec,w=1)
+        loss_dict_gt = self.shape_diff.compute(gt_rec, completion_rec, w=1) #bring completion_rec close to gt_rec (gt_rec always better than completion_rec in template based decoder)
+
+        loss_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
+        loss_context = {f'{k}_context': v for k, v in loss_dict_context.items()}
+        loss_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
+        loss_full = {f'{k}_full': v for k, v in loss_dict_full.items()}
+        loss_gt = {f'{k}_gt': v for k, v in loss_dict_gt.items()}
+
+        loss_dict = loss_comp
+        loss_dict.update(loss_context)
+        loss_dict.update(loss_part)
+        loss_dict.update(loss_full)
+        loss_dict.update(loss_gt)
+        loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_context'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'])
         return loss_dict
 
 

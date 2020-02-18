@@ -4,7 +4,7 @@ from util.string_op import banner, set_logging_to_stdout
 from util.func import tutorial
 from util.torch_data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
-from architecture.models import F2PEncoderDecoder
+from architecture.models import PointContextNet
 from architecture.lightning import lightning_trainer, test_lightning
 from dataset.transforms import *
 from dataset.index import HierarchicalIndexTree # Keep this here
@@ -19,8 +19,8 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='dfaust_basic_arch_exp', help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_version', type=None, default=None,
+    p.add_argument('--exp_name', type=str, default='amass_point_context_learning', help='The experiment name. Leave empty for default')
+    p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f). '
@@ -28,7 +28,7 @@ def parser():
 
     # Architecture
     p.add_argument('--dense_encoder', type=bool, default=False, help='If true uses dense encoder architecture')
-    p.add_argument('--use_default_init', type=bool,default=False,help='If true, using default kaiming init. Else - '
+    p.add_argument('--use_default_init', type=bool,default=False, help='If true, using default kaiming init. Else - '
                                                                       'using our .init_weights()')
 
     # Dataset Config:
@@ -62,7 +62,7 @@ def parser():
     p.add_argument('--dist_v_penalties', nargs=7, type=float, default=(0, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap, FaceAreas, Volume]'
                         'increased weight on distant vertices. Use val <= 1 to disable')
-    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss'], default='BasicLoss',
+    p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss', 'TBasedLoss', 'PointContextLoss'], default='PointContextLoss',
                    help='The loss class')
     # TODO - is this the right way to go?
 
@@ -70,7 +70,7 @@ def parser():
     p.add_argument('--gpus', type=none_or_int, default=-1, help='Use -1 to use all available. Use None to run on CPU')
     p.add_argument('--distributed_backend', type=str, default='dp',
                    help='supports three options dp, ddp, ddp2')  # TODO - ddp2,ddp Untested
-    p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Not expected to work with torch
+    p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
 
     # Visualization
     p.add_argument('--use_auto_tensorboard', type=bool, default=1,
@@ -90,16 +90,22 @@ def parser():
 # ----------------------------------------------------------------------------------------------------------------------
 def train_main():
     banner('Network Init')
-    nn = F2PEncoderDecoder(parser())  # TODO - Change me Oshri
+    nn = PointContextNet(parser())  # TODO - Change me Oshri
     nn.identify_system()
 
     hp = nn.hyper_params()
-    ds = FullPartDatasetMenu.get('DFaustPyProj')
-    ldrs = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts, s_shuffle=[True] * 3, s_transform=[Center()] * 3,
-                      batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels, method='rand_f2p',
-                      s_dynamic=[True,False,False])
 
-    nn.init_data(loaders=ldrs)
+    tr_ds = FullPartDatasetMenu.get('AmassTrainPyProj')
+    tr_ldr = tr_ds.loaders(s_dynamic=True, s_nums=hp.counts[0], s_transform=[Center()], batch_size=hp.batch_size, device=hp.dev,
+                           n_channels=hp.in_channels, method='rand_f2p')
+    val_ds = FullPartDatasetMenu.get('AmassValdPyProj')
+    val_ldr = val_ds.loaders(s_nums=hp.counts[1], s_transform=[Center()], batch_size=hp.batch_size, device=hp.dev,
+                             n_channels=hp.in_channels, method='rand_f2p') # Should have been f2p, but it is too big
+    ts_ds = FullPartDatasetMenu.get('AmassTestPyProj')
+    ts_ldr = ts_ds.loaders(s_nums=hp.counts[2], s_transform=[Center()], batch_size=hp.batch_size, device=hp.dev,
+                           n_channels=hp.in_channels, method='f2p')
+
+    nn.init_data(loaders=[tr_ldr, val_ldr, ts_ldr])
 
     trainer = lightning_trainer(nn, fast_dev_run=False)
     banner('Training Phase')

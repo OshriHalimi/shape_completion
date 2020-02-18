@@ -1,8 +1,8 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
-from core.util.data_ops import normr, index_sparse
-import core.cfg
+from util.data_ops import normr, index_sparse
+import cfg
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
