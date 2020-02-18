@@ -69,9 +69,9 @@ def run(filename, out_dir, error_path, scale, cam2world, info):
 
 # from data_prep.external_tools.pyRender.src import gen_projections
 
-read_path = '/run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/Blender/MPI-FAUST/'
-save_path = '/run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/Projections/MPI-FAUST/'
-error_path = '/run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/error_files.txt'
+read_path = '/run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/Blender/MPI-FAUST/000/'
+save_path = '/run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/Projections/MPI-FAUST/000/'
+error_path = '/run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/error_files_000.txt'
 
 # set up camera information,
 info = {'Height': 480, 'Width': 640, 'fx': 575, 'fy': 575, 'cx': 319.5, 'cy': 239.5}
@@ -88,7 +88,7 @@ Rx = np.array([[1, 0, 0, 0],
 cam2world = np.matmul(Rx, cam2world)
 
 count = 0
-flag = False
+flag = True
 for root, dirnames, filenames in os.walk(read_path):
     for filename in fnmatch.filter(filenames, '*.obj*'):
         if flag == False:
