@@ -85,6 +85,14 @@ def trunc_to_vertex_mask(v, f, vi):
     return v2, f2
 
 
+def box_center(v):
+    bbox_x = [np.min(v[:, 0]), np.max(v[:, 0])]
+    bbox_y = [np.min(v[:, 1]), np.max(v[:, 1])]
+    bbox_z = [np.min(v[:, 2]), np.max(v[:, 2])]
+    center = 0.5 * np.array([bbox_x[0] + bbox_x[1], bbox_y[0] + bbox_y[1], bbox_z[0] + bbox_z[1]])
+    return v - np.expand_dims(center, axis=0)
+
+
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                       Singleton Computes for Torch Only
 # ----------------------------------------------------------------------------------------------------------------------#

@@ -1,5 +1,5 @@
 from collections.abc import MutableMapping
-from collections import OrderedDict
+from collections import OrderedDict, Sequence
 import random
 import numpy as np
 
@@ -47,6 +47,12 @@ def first(iterable, condition=lambda x: True):
     * Raises `StopIteration` if no item satisfying the condition is found.
     """
     return next(x for x in iterable if condition(x))
+
+
+def to_list(l):
+    if not isinstance(l, Sequence):
+        l = [l]
+    return l
 
 
 # ----------------------------------------------------------------------------------------------------------------------

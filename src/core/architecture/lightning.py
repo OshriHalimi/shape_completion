@@ -9,7 +9,7 @@ import util.mesh.io
 from util.mesh.ops import batch_vnrmls, trunc_to_vertex_mask
 from util.torch_nn import PytorchNet
 from util.func import all_variables_by_module_name
-from util.container import first
+from util.container import first,to_list
 from copy import deepcopy
 from pathlib import Path
 import os.path as osp
@@ -91,14 +91,16 @@ class CompletionLightningModel(PytorchNet):
 
         return output_dict
 
-    def init_data(self, loaders):
+    def init_data(self, train,vald,test):
 
-        # Assign Loaders:
-        self.loaders = loaders
-        ldr = first(self.loaders, lambda x: x is not None)  # Assuming Test,Train,Vald stem from the same param module
+        self.train_loaders = to_list(train)
+        self.vald_loaders = to_list(vald)
+        self.test_loaders = to_list(test)
+
+        ldr = self._find_non_empty_loader() # Assuming Test,Train,Vald stem from the same param module
 
         # Extend Hyper-Parameters:
-        self.hparams = append_data_args(self.hparams, loaders)
+        self.hparams = append_data_args(self.hparams, self.train_loaders,self.vald_loaders,self.test_loaders)
 
         # Assign faces & Number of vertices - TODO - Remember this strong assumption
         self.f = ldr.faces()
@@ -260,6 +262,10 @@ class CompletionLightningModel(PytorchNet):
 
             self.save_func(fp, gtr_v, self.f)
 
+    def _find_non_empty_loader(self):
+        # Assuming Test,Train,Vald stem from the same param module
+        return first(self.train_loaders+self.vald_loaders+self.test_loaders, lambda x: x is not None)
+
     def hyper_params(self):
         return deepcopy(self.hparams)
 
@@ -314,7 +320,7 @@ def append_config_args(hp, arch):
     return hp
 
 
-def append_data_args(hp, loaders):
+def append_data_args(hp, train_loaders,vald_loaders,test_loaders):
     for set_name, ldr in zip(('train_ds', 'vald_ds', 'test_ds'), loaders):
         table = None if ldr is None else ldr.recon_table()
         setattr(hp, set_name, table)

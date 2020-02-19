@@ -7,7 +7,7 @@ from util.torch_data import determine_worker_num, ReconstructableDataLoader, Par
 from util.string_op import warn, banner
 from util.func import time_me
 from util.fs import convert_bytes
-from util.container import split_frac
+from util.container import split_frac,to_list
 from util.mesh.plot import plot_mesh
 # from mesh.ops import trunc_to_vertex_mask
 from pickle import load
@@ -216,12 +216,9 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         :return: A list of (loaders,num_samples)
         """
         # Handle inpput arguments:
-        if not isinstance(s_shuffle, Sequence):
-            s_shuffle = [s_shuffle]
-        if not isinstance(s_dynamic, Sequence):
-            s_dynamic = [s_dynamic]
-        if not isinstance(s_nums, Sequence):
-            s_nums = [s_nums]
+        s_shuffle = to_list(s_shuffle)
+        s_dynamic = to_list(s_dynamic)
+        s_nums = to_list(s_nums)
         if s_transform is None or not s_transform:
             s_transform = [None] * len(split)
             # Transforms must be a list, all others are non-Sequence

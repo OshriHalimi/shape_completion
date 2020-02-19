@@ -2,12 +2,28 @@ import numpy as np
 from util.fs import align_file_extension
 from plyfile import PlyData
 
+
 # TODO - Consider migrating to meshio or PyMesh
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                   READ
 # ----------------------------------------------------------------------------------------------------------------------#
 def read_npz_mask(fp):
     return np.load(fp)["mask"]
+
+
+def read_obj_verts(fp, nv=6890):
+    v = np.zeros((nv, 3))
+    v_count = 0
+    with open(fp, 'r') as handle:
+        for l in handle:
+            words = [w for w in l.split(' ') if w != '']
+            if words[0] == 'v':
+                v[v_count, 0], v[v_count, 1], v[v_count, 2] = float(words[1]), float(words[2]), float(words[3])
+                v_count += 1
+            elif words[0] == 'f':
+                break
+    assert v_count == nv, f'Found {v_count} vert. Expected: {nv} verts'
+    return v.astype('float32')
 
 
 def read_off_verts(fp):

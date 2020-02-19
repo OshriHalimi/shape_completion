@@ -19,6 +19,9 @@ class BColors:
 #                                       Hacky, changes global behaviour
 # ----------------------------------------------------------------------------------------------------------------------
 
+def print_color(str):
+    print(BColors.WARNING + str + BColors.ENDC)
+
 def print_warning(message, category, filename, lineno, file=None, line=None):
     # if line is None:
     #     try:
@@ -35,7 +38,7 @@ def print_warning(message, category, filename, lineno, file=None, line=None):
     #     line = line.strip()
 
     filename = os.path.basename(filename)
-    print(BColors.WARNING + f'{filename}:{lineno}:\nWARNING: {message}' + BColors.ENDC)
+    print_color(f'{filename}:{lineno}:\nWARNING: {message}')
 
 
 warnings.showwarning = print_warning

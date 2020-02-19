@@ -211,20 +211,21 @@ def pytorch_net_tutorial():
 
     banner('General Net Info')
     target_input_size = ((6890, 3), (6890, 3))
-    nn.summary(x_shape=target_input_size)
-    nn.summary(batch_size=3, x_shape=target_input_size)
+    # nn.summary(x_shape=target_input_size)
+    # nn.summary(batch_size=3, x_shape=target_input_size)
     print(f'On GPU = {nn.ongpu()}')  # Whether the system is on the GPU or not. Will print False
     nn.print_memory_usage(device=0)  # Print GPU 0's memory consumption
-    print(f'Output size = {nn.output_size(x_shape=target_input_size)}')
+    # print(f'Output size = {nn.output_size(x_shape=target_input_size)}')
     nn.print_weights()
-    nn.visualize(x_shape=target_input_size, frmt='pdf')  # Prints PDF to current directory
+    # nn.visualize(x_shape=target_input_size, frmt='pdf')  # Prints PDF to current directory
 
     # Let's say we have some sort of nn.Module network:
     banner('Some network from the net usecase')
     import torchvision
-    nn = torchvision.models.resnet50(pretrained=False)
+    nn = torchvision.models.alexnet(pretrained=False)
     # We can extend it's functionality at runtime with a monkeypatch:
     py_nn = PytorchNet.monkeypatch(nn)
+    nn.print_weights()
     py_nn.summary(x_shape=(3, 28, 28), batch_size=64)
 
 
@@ -255,4 +256,4 @@ def shortcuts_tutorial():
 
 
 if __name__ == '__main__':
-    train_main()
+    pytorch_net_tutorial()
