@@ -1,7 +1,7 @@
 import random
 import numbers
 from itertools import repeat
-from util.mesh.ops import vnrmls, moments, padded_part_by_mask, flip_vertex_mask
+from util.mesh.ops import vnrmls, moments, padded_part_by_mask, flip_vertex_mask,trunc_to_vertex_mask
 import numpy as np
 import math
 
@@ -126,7 +126,7 @@ class RandomMaskFlip(Transform):
     def __init__(self, prob, keys=('gt',)):  # Probability of mask flip
         self._prob = prob
         self._keys = keys
-        self._mask_keys = [k + '_mask' for k in keys]
+        self._mask_keys = [k + '_mask' for k in keys]  # TODO - Review for more than one mask
 
     def __call__(self, x):
         for (k, mk) in zip(self._keys, self._mask_keys):
@@ -138,6 +138,25 @@ class RandomMaskFlip(Transform):
     def __repr__(self):
         return self.__class__.__name__ + f'(prob={self._prob},keys={self._keys})'
 
+
+class MaskDecimation(Transform):
+    def __init__(self, frac, keys=('gt',)):  # Probability of mask flip
+        assert frac <= 1 and frac > 0, "Invalid decimation fraction"
+        self._frac = frac
+        self._keys = keys
+        self._mask_keys = [k + '_mask' for k in keys]  # TODO - Review for more than one mask
+
+    def __call__(self, x):
+        for (k, mk) in zip(self._keys, self._mask_keys):
+            num_mask_vi = x[mk].shape[0]
+            num_to_remove = int(num_mask_vi * self._frac)
+            assert num_to_remove < num_mask_vi, "Decimated the entire mask - trying upping decimation frac"
+            keepers_i = sorted(np.random.choice(range(num_mask_vi), size=num_mask_vi - num_to_remove, replace=False))
+            x[mk] = x[mk][keepers_i]
+        return x
+
+    def __repr__(self):
+        return self.__class__.__name__ + f'(frac={self._frac},keys={self._keys})'
 
 class RandomScale(Transform):
     """
@@ -263,16 +282,19 @@ def test_suite():
     from dataset.datasets import FullPartDatasetMenu
     from util.mesh.plot import plot_mesh
     ds = FullPartDatasetMenu.get('FaustPyProj')
-    single_ldr = ds.loaders(s_nums=1000, s_shuffle=True, s_transform=[],
+    single_ldr = ds.loaders(s_nums=1000, s_shuffle=True, s_transform=[MaskDecimation(0.1)],
                             n_channels=6, method='f2p', batch_size=1, device='cpu-single')
     for dp in single_ldr:
         dp['gt'] = dp['gt'].squeeze()
         gt = dp['gt']
-        trans = RandomTranslate(0.01, keys=['gt'])
-        print(trans)
-        v = gt[:, :3]
-        n = gt[:, 3:6]
-        plot_mesh(v=v, n=n, f=ds.faces(), strategy='mesh')
+        mask = dp['gt_mask'][0]
+        gt_part = gt[mask,:]
+        # trans = RandomTranslate(0.01, keys=['gt'])
+        # print(trans)
+        v = gt_part[:, :3]
+        n = gt_part[:, 3:6]
+        _,f = trunc_to_vertex_mask(gt[:,:3],ds.faces(),mask)
+        plot_mesh(v=v, strategy='spheres')
         dp = trans(dp)
         v = gt[:, :3]
         n = gt[:, 3:6]

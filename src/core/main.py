@@ -95,7 +95,9 @@ def train_main():
 
     hp = nn.hyper_params()
     # Init loaders and faces:
-    ds = FullPartDatasetMenu.get('FaustPyProj')
+    ds = FullPartDatasetMenu.get('AmassTestPyProj')
+    ds.data_summary(True)
+    return
     ldrs = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts, s_shuffle=[True] * 3, s_transform=[Center()] * 3,
                       batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels, method='f2p',
                       s_dynamic=[False] * 3)
@@ -256,4 +258,4 @@ def shortcuts_tutorial():
 
 
 if __name__ == '__main__':
-    pytorch_net_tutorial()
+    train_main()
