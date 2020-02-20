@@ -23,7 +23,7 @@ def read_obj_verts(fp, nv=6890):
             elif words[0] == 'f':
                 break
     assert v_count == nv, f'Found {v_count} vert. Expected: {nv} verts'
-    return v.astype('float32')
+    return v
 
 
 def read_off_verts(fp):

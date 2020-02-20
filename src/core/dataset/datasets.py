@@ -3,7 +3,7 @@ from dataset.abstract import ParametricCompletionDataset
 from dataset.index import HierarchicalIndexTree
 from pickle import load
 import numpy as np
-from util.mesh.io import read_npz_mask, read_off_verts
+from util.mesh.io import read_npz_mask, read_off_verts, read_obj_verts
 import scipy.io as sio
 import re
 
@@ -128,6 +128,37 @@ class AmassTestPyProj(AmassProjDataset, ABC):
 
 
 # ----------------------------------------------------------------------------------------------------------------------
+#                                           Implementation - Mixamo
+# ----------------------------------------------------------------------------------------------------------------------
+
+class MixamoPyProj(ParametricCompletionDataset):  # Should be: MixamoPyProj_2k_10ang_1fr
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=6890,
+                         disk_space_bytes=2.4e+12)
+
+    def _construct_hit(self):
+        with open(self._data_dir / 'Mixamo_hit.pkl', "rb") as f:
+            return load(f)
+
+    def _hi2proj_path(self, hi):
+        for i in range(10):  # Num Angles. Hacky - but works. TODO - Should we rename?
+            fp = self._proj_dir / hi[0] / hi[1] / f'{hi[2]:03}_{hi[3]}_angi_{i}.npz'
+            if fp.is_file():
+                return fp
+        else:
+            raise AssertionError
+
+    def _hi2full_path(self, hi):
+        return self._full_dir / hi[0] / hi[1] / f'{hi[2]:03}.obj'
+
+    def _proj_path2data(self, fp):
+        return read_npz_mask(fp)
+
+    def _full_path2data(self, fp):
+        return read_obj_verts(fp)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
 #                                               	General
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -139,6 +170,7 @@ class FullPartDatasetMenu:
         'FaustPyProj': FaustPyProj,
         'FaustMatProj': FaustMatProj,
         'DFaustPyProj': DFaustPyProj,
+        'MixamoPyProj': MixamoPyProj
     }
 
     @classmethod
@@ -164,8 +196,8 @@ def test_dataset():
     #         print(d)
     #         break
 
-    ldr = ds.loaders(s_nums=1000,batch_size=10, device='cpu-single', method='rand_ff2pp', n_channels=6,
-                      s_dynamic=True)
+    ldr = ds.loaders(s_nums=1000, batch_size=10, device='cpu-single', method='rand_ff2pp', n_channels=6,
+                     s_dynamic=True)
     for d in ldr:
         print(d)
         break

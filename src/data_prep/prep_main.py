@@ -217,7 +217,7 @@ class MixamoCreator(DataCreator):
 
     def _deform_pose(self, pose_fp):
         # TODO - Generalize these two lines to other deformations
-        v = read_obj_verts(pose_fp) * self.PROJ_SCALE_BY
+        v = read_obj_verts(pose_fp).astype('float32') * self.PROJ_SCALE_BY
         # k = self.deformer.num_expected_deformations()  # HACK
         # return [(v, random.randint(0, self.deformer.num_angles)) for _ in range(k)]  # HACK
         v = box_center(v)
