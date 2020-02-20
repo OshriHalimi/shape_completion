@@ -70,7 +70,7 @@ class Projection(Deformation):
             if len(mask) < DANGEROUS_MASK_LEN:
                 masks.append(None)
             else:
-                masks.append(mask)
+                masks.append((mask,angi))
 
         # self._reset()
         return masks

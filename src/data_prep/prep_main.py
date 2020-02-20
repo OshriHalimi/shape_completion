@@ -8,10 +8,12 @@ from tqdm import tqdm
 from deformations import Projection
 from pathlib import Path
 import time
+import random
 
 sys.path.append(os.path.abspath(os.path.join('..', 'core')))
-from util.string_op import banner, print_color
+from util.string_op import banner, print_color, title
 from util.mesh.io import read_obj_verts
+from util.mesh.plot import plot_mesh
 from util.mesh.ops import box_center
 from util.fs import assert_new_dir
 
@@ -19,7 +21,7 @@ from util.fs import assert_new_dir
 #                                                       Globals
 # ----------------------------------------------------------------------------------------------------------------------#
 WORK_DIR = (Path(__file__).parents[0]).resolve()
-OUTPUT_DIR = WORK_DIR / 'outputs'
+OUTPUT_DIR = WORK_DIR / 'tmp_outputs'
 COLLATERALS_DIR = WORK_DIR / 'collaterals'
 
 if os.name == 'nt':
@@ -37,10 +39,13 @@ else:  # Presuming Linux
 # ----------------------------------------------------------------------------------------------------------------------#
 
 
-def main():
+def project_mixamo_main():
     banner('MIXAMO Creation')
-    m = MixamoCreator(deformer=Projection(num_angles=10, pick_k=2), pose_frac_from_sequence=1)
-    m.deform_subject('000')
+    deformer = Projection(num_angles=10, pick_k=2)
+    m = MixamoCreator(deformer=deformer, pose_frac_from_sequence=1)
+    for sub in m.subjects():
+        m.deform_subject(sub=sub, rerun_partial_seqs=True)
+        # We can break here, if we want to split the workload to many computers
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -71,7 +76,7 @@ class DataCreator:
 # ----------------------------------------------------------------------------------------------------------------------#
 
 class MixamoCreator(DataCreator):
-    MIXAMO_SUB_NAMES = [f'0{i}' for i in range(10)]  # General Usage
+    MIXAMO_SUB_NAMES = tuple(f'0{i}0' for i in range(10))  # General Usage
     LOWEST_COMPLETION_THRESH = 0.5  # Under this, the sequence will not be taken
     MIN_NUMBER_OF_POSES_PER_SEQUENCE = 10  # Will not take the sequence if under this
     PROJ_SCALE_BY = 100  # How much to scale the vertices by for PyRender deformation
@@ -92,6 +97,9 @@ class MixamoCreator(DataCreator):
                 self.f = pickle.load(f_file)  # Already int32
                 self.f.flags.writeable = False  # Make this a read-only numpy array
 
+    def subjects(self):
+        return self.MIXAMO_SUB_NAMES
+
     def deform_identifier(self):
         return f'{self.deformer.name()}_seq_frac_{self.pose_frac_from_sequence}'.replace('.', '_')
 
@@ -105,14 +113,18 @@ class MixamoCreator(DataCreator):
         assert fp.is_dir(), f"Could not find path {fp}"
         return list(fp.glob('*.obj'))  # glob actually returns a generator
 
-    def deform_subject(self, sub, try_partial=True):
+    def deform_subject(self, sub, rerun_partial_seqs=True):
+        banner(title(f'Mixamo Dataset :: Subject {sub} :: Deformation {self.deform_identifier()} Commencing'))
         lcd, lcd_fp = self._local_cache_dict(sub)
         # lcd_fp = str(lcd_fp) # Atomic write does not support pathlib
-        if try_partial:
+        if rerun_partial_seqs:
             seqs_todo = [k for k, v in lcd.items() if v < 1]
+            print('Compute Mode: Empty + Partial Sequences')
         else:
             seqs_todo = [k for k, v in lcd.items() if v == 0]
-        banner('Deformation Start')
+            print('Compute Mode: Empty')
+
+        banner('Computing Workload')
         (self.network_dump_dp / sub).mkdir(exist_ok=True)
 
         for seqi, seq in tqdm(enumerate(seqs_todo), file=sys.stdout, dynamic_ncols=True,
@@ -131,7 +143,9 @@ class MixamoCreator(DataCreator):
                 print_color(f'WARNING - Deformation success rate for {seq} is below threshold - skipping')
             else:  # -1 case
                 print_color(f'WARNING - Sequence {seq} has too few sequences - skipping')
-            self.deformer._reset()
+            # self.deformer._reset()
+        banner(f'Deformation of Subject {sub} - COMPLETED')
+        self._print_lcd_analysis(lcd, print_lcd=True)
 
     def _deform_and_locally_save_sequence(self, sub, seq):
 
@@ -164,16 +178,17 @@ class MixamoCreator(DataCreator):
                 if mask is not None:
                     completed += 1
                     i += 1
-                    np.savez(seq_dp / f'{pose}_{i}.npz')
+                    np.savez(seq_dp / f'{pose}_{i}_angi_{mask[1]}.npz', mask=mask[0])  # TODO - remove tuple assumption
 
         return completed / total
 
     def _deform_pose(self, pose_fp):
         # TODO - Generalize these two lines to other deformations
         v = read_obj_verts(pose_fp) * self.PROJ_SCALE_BY
-        # return [v for _ in range(10)]  # HACK
+        k = self.deformer.num_expected_deformations()  # HACK
+        return [(v, random.randint(0, self.deformer.num_angles)) for _ in range(k)]  # HACK
         v = box_center(v)
-        # plot_mesh(V[mask,:], strategy='spheres', grid_on=True)
+        # plot_mesh(v[mask,:], strategy='spheres', grid_on=True)
         return self.deformer.deform(v, self.f)
 
     def _transfer_local_deformed_sequence_to_network_area(self, sub, seq):
@@ -190,24 +205,29 @@ class MixamoCreator(DataCreator):
         if lcd_fp.is_file():
             with open(lcd_fp, 'r') as handle:
                 lcd = json.load(handle)
-            banner(f'Validation Cache Printout for Sub: {sub}')
-            # print(json.dumps(lcd, indent=4, sort_keys=True))  # JSON->String
-            # Analysis:
-            empty, completed, partial = 0, 0, 0
-            total = len(lcd)
-            for v in lcd.values():
-                empty += (v == 0)
-                completed += (v == 1)
-                partial += (v != 1 and v != 0)
-            print(f'Completed Sequences: {completed}/{total}')
-            print(f'Empty Sequences: {empty}/{total}')
-            print(f'Partial Sequences: {partial}/{total}')
+            self._print_lcd_analysis(lcd)
+
         else:  # Create it:
             lcd = {seq_fp.name: 0 for seq_fp in self.network_sequence_fp_list_per_subject(sub)}
             with open(lcd_fp, 'w') as handle:
                 json.dump(lcd, handle, sort_keys=True, indent=4)  # Dump as JSON for readability
                 print(f'Saved validation cache for subject {sub} at {lcd_fp}')
         return lcd, lcd_fp
+
+    def _print_lcd_analysis(self, lcd, print_lcd=False):
+        # Analysis:
+        print('Cache Status:')
+        empty, completed, partial = 0, 0, 0
+        total = len(lcd)
+        for v in lcd.values():
+            empty += (v == 0)
+            completed += (v == 1)
+            partial += (v != 1 and v != 0)
+        print(f'\t* Completed Sequences: {completed}/{total}')
+        print(f'\t* Empty Sequences: {empty}/{total}')
+        print(f'\t* Partial Sequences: {partial}/{total}')
+        if print_lcd:
+            print(json.dumps(lcd, indent=4, sort_keys=True))  # JSON->String
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -216,7 +236,7 @@ class MixamoCreator(DataCreator):
 
 
 if __name__ == '__main__':
-    main()
+    project_mixamo_main()
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #
