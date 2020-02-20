@@ -17,6 +17,26 @@ from util.mesh.plot import plot_mesh_montage, plot_mesh
 from util.mesh.ops import box_center
 from util.fs import assert_new_dir
 
+
+import os
+import sys
+import psutil
+
+def restart_program():
+    """Restarts the current program, with file objects and descriptors
+       cleanup
+    """
+
+    try:
+        p = psutil.Process(os.getpid())
+        for handler in p.open_files() + p.connections():
+            os.close(handler.fd)
+    except Exception as e:
+        print(e)
+
+    python = sys.executable
+    os.execl(python, python, *sys.argv)
+
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                       Globals
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -51,8 +71,9 @@ def project_mixamo_main():
     deformer = Projection(num_angles=10, pick_k=2)
     m = MixamoCreator(deformer=deformer, pose_frac_from_sequence=1)
     for sub in m.subjects():
-        if sub in ['060', '070', '080', '090']:
-            m.deform_subject(sub=sub, rerun_partial_seqs=True)
+        m.deform_subject(sub=sub, rerun_partial_seqs=True)
+        if sub == '005':
+            break
         # We can break here, if we want to split the workload to many computers
 
 
@@ -88,7 +109,7 @@ class MixamoCreator(DataCreator):
     LOWEST_COMPLETION_THRESH = 0.5  # Under this, the sequence will not be taken
     MIN_NUMBER_OF_POSES_PER_SEQUENCE = 10  # Will not take the sequence if under this
     PROJ_SCALE_BY = 100  # How much to scale the vertices by for PyRender deformation
-
+    MAX_FAILURE_THRESH = 10
     def __init__(self, deformer, pose_frac_from_sequence=1):
         self.pose_frac_from_sequence = pose_frac_from_sequence
         super().__init__(deformer)
@@ -135,6 +156,7 @@ class MixamoCreator(DataCreator):
         banner('Computing Workload')
         (self.network_dump_dp / sub).mkdir(exist_ok=True)
 
+        total_failures = 0
         for seqi, seq in tqdm(enumerate(seqs_todo), file=sys.stdout, dynamic_ncols=True,
                               total=len(seqs_todo), unit='sequence'):
             # print(f'{seqi}/{len(seqs_todo)} :: Deforming sequence {seq}')
@@ -149,9 +171,12 @@ class MixamoCreator(DataCreator):
                 # print(f'Recorded completion of {seq} with success rate = {comp_frac}')
             elif comp_frac >= 0:
                 print_error(f'\nWARNING - Deformation success rate for {seq} is below threshold - skipping')
+                total_failures += 1
+                if total_failures == self.MAX_FAILURE_THRESH:
+                    restart_program()
             else:  # -1 case
                 print_warning(f'\nWARNING - Sequence {seq} has too few poses - skipping')
-            self.deformer.reset()
+            # self.deformer.reset()
         banner(f'Deformation of Subject {sub} - COMPLETED')
         self._print_lcd_analysis(lcd, print_lcd=True)
 
