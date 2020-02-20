@@ -2,6 +2,7 @@ from ctypes import *
 import numpy as np
 import os
 from warnings import warn
+import torch
 
 LIB_PATH = os.path.dirname(os.path.abspath(__file__))
 try:
@@ -57,6 +58,7 @@ def clear():
 def reset():
     global Render
     del Render
+    torch.cuda.empty_cache()  # TODO - make sure this handles the memory bug
     Render = cdll.LoadLibrary(os.path.join(LIB_PATH, 'libRender.so'))
 
 

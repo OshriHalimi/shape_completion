@@ -78,9 +78,8 @@ class Projection(Deformation):
     def num_expected_deformations(self):
         return self.pick_k
 
-    def _reset(self):
+    def reset(self):
         render.reset()
-        torch.cuda.empty_cache()  # TODO - make sure this handles the memory bug
         render.setup(self.render_info)
 
     def _prep_world2cam_mats(self):

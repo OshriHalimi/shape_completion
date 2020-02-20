@@ -11,7 +11,7 @@ import time
 import random
 
 sys.path.append(os.path.abspath(os.path.join('..', 'core')))
-from util.string_op import banner, print_warning,print_error, title
+from util.string_op import banner, print_warning, print_error, title
 from util.mesh.io import read_obj_verts
 from util.mesh.plot import plot_mesh_montage, plot_mesh
 from util.mesh.ops import box_center
@@ -151,7 +151,7 @@ class MixamoCreator(DataCreator):
                 print_error(f'\nWARNING - Deformation success rate for {seq} is below threshold - skipping')
             else:  # -1 case
                 print_warning(f'\nWARNING - Sequence {seq} has too few poses - skipping')
-            self.deformer._reset()
+            self.deformer.reset()
         banner(f'Deformation of Subject {sub} - COMPLETED')
         self._print_lcd_analysis(lcd, print_lcd=True)
 
