@@ -143,7 +143,7 @@ class MixamoCreator(DataCreator):
                 print_color(f'WARNING - Deformation success rate for {seq} is below threshold - skipping')
             else:  # -1 case
                 print_color(f'WARNING - Sequence {seq} has too few sequences - skipping')
-            # self.deformer._reset()
+            self.deformer._reset()
         banner(f'Deformation of Subject {sub} - COMPLETED')
         self._print_lcd_analysis(lcd, print_lcd=True)
 
@@ -185,8 +185,8 @@ class MixamoCreator(DataCreator):
     def _deform_pose(self, pose_fp):
         # TODO - Generalize these two lines to other deformations
         v = read_obj_verts(pose_fp) * self.PROJ_SCALE_BY
-        k = self.deformer.num_expected_deformations()  # HACK
-        return [(v, random.randint(0, self.deformer.num_angles)) for _ in range(k)]  # HACK
+        # k = self.deformer.num_expected_deformations()  # HACK
+        # return [(v, random.randint(0, self.deformer.num_angles)) for _ in range(k)]  # HACK
         v = box_center(v)
         # plot_mesh(v[mask,:], strategy='spheres', grid_on=True)
         return self.deformer.deform(v, self.f)
