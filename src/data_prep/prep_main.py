@@ -182,9 +182,9 @@ class MixamoCreator(DataCreator):
             i = 0
             for mask in masks:
                 if mask is not None:
+                    np.savez(seq_dp / f'{pose}_{i}_angi_{mask[1]}.npz', mask=mask[0])  # TODO - remove tuple assumption
                     completed += 1
                     i += 1
-                    np.savez(seq_dp / f'{pose}_{i}_angi_{mask[1]}.npz', mask=mask[0])  # TODO - remove tuple assumption
 
         return completed / total
 
@@ -194,7 +194,6 @@ class MixamoCreator(DataCreator):
         # k = self.deformer.num_expected_deformations()  # HACK
         # return [(v, random.randint(0, self.deformer.num_angles)) for _ in range(k)]  # HACK
         v = box_center(v)
-        # plot_mesh(v[masks[0][0],:], strategy='spheres', grid_on=True)
         masks = self.deformer.deform(v, self.f)
         # parts = [v[masks[i][0],:] for i in range(self.deformer.num_expected_deformations())]
         # plot_mesh_montage(vb=parts,strategy='spheres')
