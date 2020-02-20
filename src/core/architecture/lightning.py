@@ -9,7 +9,7 @@ import util.mesh.io
 from util.mesh.ops import batch_vnrmls, trunc_to_vertex_mask
 from util.torch_nn import PytorchNet
 from util.func import all_variables_by_module_name
-from util.container import first, to_list
+from util.container import first
 from copy import deepcopy
 from pathlib import Path
 import os.path as osp
@@ -108,6 +108,8 @@ class CompletionLightningModel(PytorchNet):
             self.torch_f = torch.from_numpy(self.f).long().to(device=self.hparams.dev,
                                                               non_blocking=self.hparams.NON_BLOCKING)
 
+        self._init_trainer_collaterals()
+
     def _init_trainer_collaterals(self):
 
         hp = self.hparams
@@ -176,7 +178,7 @@ class CompletionLightningModel(PytorchNet):
         if self.hparams.use_auto_tensorboard > 0:
             self.tb_sub.finalize()
         logging.info("Emptying CUDA memory")
-        torch.cuda.empty_cache()  # Clean GPU Memory
+        torch.cuda.empty_cache() # Clean GPU Memory
 
     def validation_step(self, b, batch_idx):
         pred = self.fforward(b)
@@ -257,10 +259,6 @@ class CompletionLightningModel(PytorchNet):
                     self.save_func(tp_part_fp, tp_part_v, tp_part_f)
 
             self.save_func(fp, gtr_v, self.f)
-
-    def _find_non_empty_loader(self):
-        # Assuming Test,Train,Vald stem from the same param module
-        return first(self.train_loaders + self.vald_loaders + self.test_loaders, lambda x: x is not None)
 
     def hyper_params(self):
         return deepcopy(self.hparams)

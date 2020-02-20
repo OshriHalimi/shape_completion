@@ -19,7 +19,7 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
     # Check-pointing
     # TODO - Don't forget to change me!
-    p.add_argument('--exp_name', type=str, default='basic_architecture_exp', help='The experiment name. Leave empty for default')
+    p.add_argument('--exp_name', type=str, default='dgcnn_basic_architecture_exp', help='The experiment name. Leave empty for default')
     p.add_argument('--resume_version', type=none_or_int, default=None,
                    help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
     p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=2,
@@ -27,6 +27,7 @@ def parser():
                         'Use 3 for gt,tp,gt_part,tp_part save as well.')
 
     # Architecture
+    p.add_argument('--dgcnn_encoder', type=bool, default=True, help='Use DGCNN encoder?')
     p.add_argument('--dense_encoder', type=bool, default=False, help='If true uses dense encoder architecture')
     p.add_argument('--use_default_init', type=bool,default=False,help='If true, using default kaiming init. Else - '
                                                                       'using our .init_weights()')
