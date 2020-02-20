@@ -19,10 +19,13 @@ class BColors:
 #                                       Hacky, changes global behaviour
 # ----------------------------------------------------------------------------------------------------------------------
 
-def print_color(str):
+def print_warning(str):
     print(BColors.WARNING + str + BColors.ENDC)
 
-def print_warning(message, category, filename, lineno, file=None, line=None):
+def print_error(str):
+    print(BColors.FAIL + str + BColors.ENDC)
+
+def warn_overload(message, category, filename, lineno, file=None, line=None):
     # if line is None:
     #     try:
     #         import linecache
@@ -38,10 +41,10 @@ def print_warning(message, category, filename, lineno, file=None, line=None):
     #     line = line.strip()
 
     filename = os.path.basename(filename)
-    print_color(f'{filename}:{lineno}:\nWARNING: {message}')
+    print_warning(f'{filename}:{lineno}:\nWARNING: {message}')
 
 
-warnings.showwarning = print_warning
+warnings.showwarning = warn_overload
 
 
 # warnings.simplefilter('always', DeprecationWarning)
