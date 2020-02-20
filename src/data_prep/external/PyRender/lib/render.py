@@ -54,3 +54,9 @@ def colorize(VC, vindices, vweights, mask, cimage):
 def clear():
     Render.ClearData()
 
+def reset():
+    global Render
+    del Render
+    Render = cdll.LoadLibrary(os.path.join(LIB_PATH, 'libRender.so'))
+
+

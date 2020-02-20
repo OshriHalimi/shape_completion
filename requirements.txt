@@ -31,18 +31,20 @@ tensorboard==2.0.0
 # [5] Pyrender & glm dependency are provided under /data_prep/external_tools
 #     To generate a correct rendering the mesh must be provided with the following types
 #     vertices: float32, faces: int32
+# [6] Usage of PyRender - Only under Linux. Please take care to install CUDA runtime 10.2
+#     to enable compilation. We recommend the deb(local) setting. Please see data_prep/prep_main.py
+#     for more details.. 
+# [7] The executable for PyRender is supplied, but you might need to compile it again on
+#     a different machine. Remember to download glm and fix its include path in compile.sh
 #
-# *exectuables for pyrender are provided, but you might need to compile them 
-#  again on a different machine. Do it by placing the inner glm folder (glm\glm) 
-#  inside pyRender\lib and running compile.sh 
 # -----------------------------------------------------------------------------------
 #
 #                            Collaterals - Windows only
 # -----------------------------------------------------------------------------------#
-# [6] Optional: If you want to support full tensoboard features, install tensorflow via:
+# [8] Optional: If you want to support full tensoboard features, install tensorflow via:
 #     Command: pip install tensorflow
 #
-# [7] Optional: In order to support nn.visualize(), please install Graphviz
+# [9] Optional: In order to support nn.visualize(), please install Graphviz
 #  *  Surf to: https://graphviz.gitlab.io/_pages/Download/windows/graphviz-2.38.msi
 #  *  Install the application to C:\Program Files (x86)\Graphviz2.38
 #  *  Add to your PATH variable: "C:\Program Files (x86)\Graphviz2.38\bin"

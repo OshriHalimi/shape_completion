@@ -37,7 +37,10 @@ else:  # Presuming Linux
 # sudo apt install samba
 # sudo apt install cifs-utils
 # sudo mkdir /usr/samba_mount
-# sudo mount -t cifs -o username=mano,uid=$(id -u),gid=$(id -g) //132.68.36.59/data /usr/samba_mount/
+# sudo mount -t cifs -o auto,username=mano,uid=$(id -u),gid=$(id -g) //132.68.36.59/data /usr/samba_mount/
+# To install CUDA runtime 10.2 on the Linux Machine, go to:
+# https://developer.nvidia.com/cuda-downloads
+# And choose the deb(local) version 
 # ----------------------------------------------------------------------------------------------------------------------#
 #
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -48,9 +51,8 @@ def project_mixamo_main():
     deformer = Projection(num_angles=10, pick_k=2)
     m = MixamoCreator(deformer=deformer, pose_frac_from_sequence=1)
     for sub in m.subjects():
-        m.deform_subject(sub=sub, rerun_partial_seqs=True)
-        if sub == '050':
-            break
+        if sub in ['060', '070', '080', '090']:
+            m.deform_subject(sub=sub, rerun_partial_seqs=True)
         # We can break here, if we want to split the workload to many computers
 
 

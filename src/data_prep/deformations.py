@@ -5,8 +5,8 @@ import os
 import torch
 from external.PyRender.lib import render
 
-# sys.path.append(os.path.abspath(os.path.join('..', 'core'))) # For core.utils
-
+sys.path.append(os.path.abspath(os.path.join('..', 'core'))) # For core.utils
+from util.mesh.plot import plot_mesh_montage, plot_mesh
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #
@@ -79,8 +79,7 @@ class Projection(Deformation):
         return self.pick_k
 
     def _reset(self):
-        # print('Clearing renderer')
-        render.clear()
+        render.reset()
         torch.cuda.empty_cache()  # TODO - make sure this handles the memory bug
         render.setup(self.render_info)
 
