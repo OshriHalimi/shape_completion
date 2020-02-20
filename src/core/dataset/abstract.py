@@ -86,7 +86,7 @@ class HitIndexedDataset(ABC):
 # ----------------------------------------------------------------------------------------------------------------------
 class FullPartCompletionDataset(HitIndexedDataset, ABC):
     DEFINED_SAMP_METHODS = ('full', 'part', 'f2p', 'rand_f2p', 'frand_f2p', 'p2p', 'rand_p2p', 'frand_p2p', 'rand_ff2p'
-                            ,'rand_ff2pp')
+                            ,'rand_ff2pp','rand_f2p_seq')
 
     @classmethod
     def defined_methods(cls):
@@ -367,6 +367,13 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
         gt_dict['tp'], gt_dict['tp_hi'] = tp_dict['gt'], tp_dict['gt_hi']
         return gt_dict
 
+    def _datapoint_via_rand_f2p_seq(self, si):
+        gt_dict = self._datapoint_via_part(si)  # si is gt_si
+        tp_hi = self._hit.random_path_from_partial_path(gt_dict['gt_hi'][:2])[:-1]  # Shorten hi by 1
+        tp_dict = self._full_dict_by_hi(tp_hi)
+        gt_dict['tp'], gt_dict['tp_hi'] = tp_dict['gt'], tp_dict['gt_hi']
+        return gt_dict
+
     def _datapoint_via_rand_ff2p(self, si):
         gt_dict = self._datapoint_via_part(si)  # si is gt_si
         tp_hi = self._hit.random_path_from_partial_path([gt_dict['gt_hi'][0]])[:-1]  # Shorten hi by 1
@@ -431,7 +438,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
             align_keys, compiler_keys = ['gt'], None
         elif method == 'part':
             align_keys, compiler_keys = ['gt'], [['gt_part', 'gt_mask', 'gt']]
-        elif method in ['f2p', 'rand_f2p', 'frand_f2p']:
+        elif method in ['f2p', 'rand_f2p', 'frand_f2p','rand_f2p_seq']:
             align_keys, compiler_keys = ['gt', 'tp'], [['gt_part', 'gt_mask', 'gt']]
         elif method in ['p2p', 'rand_p2p', 'frand_p2p']:
             align_keys, compiler_keys = ['gt', 'tp'], [['gt_part', 'gt_mask', 'gt'], ['tp_part', 'tp_mask', 'tp']]

@@ -187,7 +187,7 @@ class FullPartDatasetMenu:
 # ----------------------------------------------------------------------------------------------------------------------
 def test_dataset():
     from dataset.transforms import Center
-    ds = FullPartDatasetMenu.get('FaustPyProj')
+    ds = FullPartDatasetMenu.get('DFaustPyProj')
     # for ds_name in FullPartDatasetMenu.which():
     #     ds = FullPartDatasetMenu.get(ds_name)
     #     print(ds.num_datapoints_by_method('f2p') , ds._hit_in_memory)
@@ -196,7 +196,7 @@ def test_dataset():
     #         print(d)
     #         break
 
-    ldr = ds.loaders(s_nums=1000, batch_size=10, device='cpu-single', method='rand_ff2pp', n_channels=6,
+    ldr = ds.loaders(s_nums=1000, batch_size=10, device='cpu-single', method='rand_f2p_seq', n_channels=6,
                      s_dynamic=True)
     for d in ldr:
         print(d)

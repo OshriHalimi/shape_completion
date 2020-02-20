@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from collections.abc import MutableMapping
 from bisect import bisect_right
-from util.container import max_dict_depth, min_dict_depth, deep_dict_to_rdict
+from util.container import max_dict_depth, min_dict_depth, deep_dict_to_rdict,to_list
 from util.string_op import banner, warn
 from json import dumps
 import random
@@ -56,7 +56,7 @@ class HierarchicalIndexTree:
     def random_path_from_partial_path(self, partial_path=tuple()):
         # Init
         partial_tree = self._rhit
-        path = list(partial_path)
+        path = to_list(partial_path)
 
         # Advance through the tree exactly len(partial_path) ids
         for index in partial_path:

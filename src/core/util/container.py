@@ -50,9 +50,12 @@ def first(iterable, condition=lambda x: True):
 
 
 def to_list(l):
-    if not isinstance(l, Sequence):
-        l = [l]
-    return l
+    if isinstance(l, list):
+        return l
+    elif isinstance(l, Sequence):
+        return list(l)
+    else:  # Presuming Scalar
+        return [l]
 
 
 # ----------------------------------------------------------------------------------------------------------------------
