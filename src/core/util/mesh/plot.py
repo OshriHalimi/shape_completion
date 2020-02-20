@@ -50,7 +50,10 @@ def plot_mesh_montage(vb, fb=None, nb=None, strategy='mesh', labelb=None, grid_o
     * For other arguments, see plot_mesh
     * For windows keyboard options, see: https://docs.pyvista.org/plotting/plotting.html
     """
-    n_meshes = vb.shape[0]
+    if isinstance(vb, (np.ndarray, np.generic)):
+        n_meshes = vb.shape[0]
+    else:
+        n_meshes = len(vb)
     pv.set_plot_theme("document")  # White background
     n_rows = math.floor(math.sqrt(n_meshes))
     n_cols = math.ceil(n_meshes / n_rows)
@@ -149,7 +152,7 @@ def _append_mesh(p, v, f=None, n=None, strategy='mesh', grid_on=False, clr='ligh
 
 class ParallelPlotterBase(Process, ABC):
     from cfg import VIS_CMAP, VIS_STRATEGY, VIS_SHOW_EDGES, VIS_SMOOTH_SHADING, \
-        VIS_N_MESH_SETS, VIS_SHOW_GRID,VIS_SHOW_NORMALS
+        VIS_N_MESH_SETS, VIS_SHOW_GRID, VIS_SHOW_NORMALS
 
     def __init__(self, faces, n_verts):
         super().__init__()
@@ -250,10 +253,10 @@ class CompletionPlotter(ParallelPlotterBase):
                 # TODO - Add support for normals & P2P
                 # TODO - Check why in mesh method + tensor colors, colors are interpolated onto the faces.
                 p.subplot(subplt_row_id, 0)  # GT Reconstructed with colored mask
-                _append_mesh(p, v=gtrb, f=self.f,n=gtr_vnb,
+                _append_mesh(p, v=gtrb, f=self.f, n=gtr_vnb,
                              clr=mask_ind, label=f'{set_name} Reconstruction {i}', **self.kwargs)
                 p.subplot(subplt_row_id, 1)  # GT with colored mask
-                _append_mesh(p, v=gt, f=self.f,n=gt_vnb,
+                _append_mesh(p, v=gt, f=self.f, n=gt_vnb,
                              clr=mask_ind, label=f'{set_name} GT {i}', **self.kwargs)
                 p.subplot(subplt_row_id, 2)  # TP with colored mask
                 _append_mesh(p, v=tp, f=self.f, clr=mask_ind, label=f'{set_name} TP {i}', **self.kwargs)

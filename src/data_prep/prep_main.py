@@ -13,7 +13,7 @@ import random
 sys.path.append(os.path.abspath(os.path.join('..', 'core')))
 from util.string_op import banner, print_color, title
 from util.mesh.io import read_obj_verts
-from util.mesh.plot import plot_mesh
+from util.mesh.plot import plot_mesh_montage, plot_mesh
 from util.mesh.ops import box_center
 from util.fs import assert_new_dir
 
@@ -28,12 +28,16 @@ if os.name == 'nt':
     MIXAMO_NETWORK_DIR = Path('Z:\ShapeCompletion\Mixamo\Blender\MPI-FAUST')
     MIXAMO_NETWORK_OUT_DIR = Path('Z:\ShapeCompletion\Mixamo')
 else:  # Presuming Linux
-    # /run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/Blender/MPI-FAUST/000/'
-    raise NotImplementedError  # TODO - Fix me
-    MIXAMO_NETWORK_DIR = Path('Z:\ShapeCompletion\Mixamo\Blender\MPI-FAUST')
-    MIXAMO_NETWORK_OUT_DIR = Path('Z:\ShapeCompletion\Mixamo')
+    MIXAMO_NETWORK_DIR = Path("/usr/samba_mount/ShapeCompletion/Mixamo/Blender/MPI-FAUST")
+    # r"/run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/Blender/MPI-FAUST"
+    MIXAMO_NETWORK_OUT_DIR = Path("/usr/samba_mount/ShapeCompletion/Mixamo")
 
 
+# Mounting Instructions: [shutil does not support samba soft-links]
+# sudo apt install samba
+# sudo apt install cifs-utils
+# sudo mkdir /usr/samba_mount
+# sudo mount -t cifs -o username=mano,uid=$(id -u),gid=$(id -g) //132.68.36.59/data /usr/samba_mount/
 # ----------------------------------------------------------------------------------------------------------------------#
 #
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -45,6 +49,8 @@ def project_mixamo_main():
     m = MixamoCreator(deformer=deformer, pose_frac_from_sequence=1)
     for sub in m.subjects():
         m.deform_subject(sub=sub, rerun_partial_seqs=True)
+        if sub == '050':
+            break
         # We can break here, if we want to split the workload to many computers
 
 
@@ -188,8 +194,11 @@ class MixamoCreator(DataCreator):
         # k = self.deformer.num_expected_deformations()  # HACK
         # return [(v, random.randint(0, self.deformer.num_angles)) for _ in range(k)]  # HACK
         v = box_center(v)
-        # plot_mesh(v[mask,:], strategy='spheres', grid_on=True)
-        return self.deformer.deform(v, self.f)
+        # plot_mesh(v[masks[0][0],:], strategy='spheres', grid_on=True)
+        masks = self.deformer.deform(v, self.f)
+        # parts = [v[masks[i][0],:] for i in range(self.deformer.num_expected_deformations())]
+        # plot_mesh_montage(vb=parts,strategy='spheres')
+        return masks
 
     def _transfer_local_deformed_sequence_to_network_area(self, sub, seq):
         local_dp = self.dump_dp / sub / seq

@@ -43,11 +43,9 @@ class Projection(Deformation):
         self.range = np.arange(num_angles)
         # Needed by Render
         self.render_info = {'Height': 480, 'Width': 640, 'fx': 575, 'fy': 575, 'cx': 319.5, 'cy': 239.5}
-        try:
-            render.setup(self.render_info)  # TODO - Make sure this works
-            self.world2cam_mats = self._prep_world2cam_mats()
-        except NameError:  # Quick fix for Windows testing
-            pass
+        render.setup(self.render_info)
+        self.world2cam_mats = self._prep_world2cam_mats()
+
 
     def name(self):
         return f'{super().name()}_{self.pick_k}_of_{self.num_angles}_angs'
@@ -62,6 +60,7 @@ class Projection(Deformation):
         else:
             angle_ids = sorted(np.random.choice(self.range, size=self.pick_k, replace=False))
         for angi in angle_ids:
+            # render.setup(self.render_info)
             context = render.set_mesh(v, f)
             render.render(context, self.world2cam_mats[angi])
             mask, _, _ = render.get_vmap(context, self.render_info)  # vindices, vweights, findices
@@ -72,7 +71,8 @@ class Projection(Deformation):
             else:
                 masks.append((mask,angi))
 
-        # self._reset()
+            # render.clear()
+
         return masks
 
     def num_expected_deformations(self):
