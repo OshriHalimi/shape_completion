@@ -148,7 +148,7 @@ class MixamoCreator(DataCreator):
             elif comp_frac >= 0:
                 print_color(f'WARNING - Deformation success rate for {seq} is below threshold - skipping')
             else:  # -1 case
-                print_color(f'WARNING - Sequence {seq} has too few sequences - skipping')
+                print_color(f'WARNING - Sequence {seq} has too few poses - skipping')
             self.deformer._reset()
         banner(f'Deformation of Subject {sub} - COMPLETED')
         self._print_lcd_analysis(lcd, print_lcd=True)
