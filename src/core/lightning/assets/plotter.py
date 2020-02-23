@@ -76,7 +76,7 @@ class ParallelPlotterBase(Process, ABC):
         self.sd['data'] = new_data
         self.sd['epoch'] = new_epoch
 
-        if old_epoch == 0:  # First push
+        if old_epoch == -1:  # First push
             self.start()
 
     def cache(self, data):

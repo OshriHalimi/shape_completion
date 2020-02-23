@@ -358,7 +358,8 @@ class TrainerEvaluationLoopMixin(ABC):
             for k, v in self.tqdm_metrics.items():
                 if k.startswith('val') or k.startswith('test'):
                     str_arr.append(f'{k}={v:.4f}')
-            log.info(f'Test Results : {", ".join(str_arr)}')
+                self.final_result_str = f'Test Results : {", ".join(str_arr)}'
+            log.info(self.final_result_str)
 
     def evaluation_forward(self, model, batch, batch_idx, dataloader_idx, test=False):
         # make dataloader_idx arg in validation_step optional

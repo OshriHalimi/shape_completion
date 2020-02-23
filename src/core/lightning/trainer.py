@@ -2,6 +2,7 @@ from lightning.pytorch_lightning.callbacks import ModelCheckpoint, EarlyStopping
 from lightning.pytorch_lightning.loggers import TestTubeLogger
 from lightning.pytorch_lightning import Trainer
 from lightning.assets.completion_saver import CompletionSaver
+from lightning.assets.emailer import TensorboardEmailer
 from collections.abc import Sequence
 from util.container import to_list, first
 import lightning.assets.plotter
@@ -37,6 +38,7 @@ class LightningTrainer:
         banner('Training Phase')
         if not self.trainer:
             self._init_training_assets()
+            log.info(f'Training on dataset: {self.data.curr_trainset_name()}')
 
         self._trainer(debug_mode).fit(self.nn, self.data.train_ldr, self.data.vald_ldrs, self.data.test_ldrs)
         # train_dataloader=None, val_dataloader=None, test_dataloader=None
@@ -52,6 +54,11 @@ class LightningTrainer:
         if self.tb_sup:
             self.tb_sup.finalize()
 
+        # If needed, send the final report via email:
+        if self.emailer:
+            # assert self.trainer.tqdm_metrics
+            self.emailer.send_report(self.trainer.final_result_str)
+
         log.info("Cleaning up GPU memory")
         torch.cuda.empty_cache()
 
@@ -64,6 +71,10 @@ class LightningTrainer:
         if self.hp.plotter_class:
             plt_class = getattr(lightning.assets.plotter, self.hp.plotter_class)
             self.plt = plt_class(faces=self.data.faces(), n_verts=self.data.num_verts())
+
+        if self.hp.email_report:
+            self.emailer = TensorboardEmailer(exp_dp=self.exp_dp)
+
 
     def _init_trainer(self, fast_dev_run):
 
@@ -135,6 +146,12 @@ class ParametricData:
 
     def valdset_names(self):
         return self.vald_set_names
+
+    def curr_trainset_name(self):
+        if self.num_train_loaders() == 0:
+            return None
+        else:
+            return self.train_ldr.set_name()
 
     def num_train_loaders(self):
         return 1 if self.train_ldr else 0

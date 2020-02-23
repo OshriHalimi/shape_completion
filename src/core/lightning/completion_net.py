@@ -102,6 +102,7 @@ class CompletionLightningModel(PytorchNet):
             progbar_dict[f'val_loss_{ds_name}'] = ds_val_loss
             if i == 0:  # Always use the first dataset as the validation loss
                 avg_val_loss = ds_val_loss
+                progbar_dict['val_loss'] = avg_val_loss
 
         lr = self.learning_rate(self.opt)  # Also log learning rate
         progbar_dict['lr'], log_dict['lr'] = lr, lr
@@ -131,6 +132,7 @@ class CompletionLightningModel(PytorchNet):
             progbar_dict[f'test_loss_{ds_name}'] = ds_test_loss
             if i == 0:  # Always use the first dataset as the test loss
                 avg_test_loss = ds_test_loss
+                progbar_dict['test_loss'] = avg_test_loss
 
         return {"test_loss": avg_test_loss,
                 "progress_bar": progbar_dict,

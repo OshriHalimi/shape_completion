@@ -358,6 +358,7 @@ class ModelCheckpoint(Callback):
                         else:
                             self.best = max(self.best_k_models.values())
                         if self.verbose > 0:
+                            print('',end='\r')
                             log.info(
                                 f'Epoch {epoch:05d}: {self.monitor} reached' # MANO - Remove \n
                                 f' {current:0.5f} (best {self.best:0.5f}), saving model to'
@@ -366,12 +367,13 @@ class ModelCheckpoint(Callback):
 
                     else:
                         if self.verbose > 0:
+                            print('',end='\r')
                             log.info(f'Epoch {epoch:05d}: {self.monitor} was not in top {self.save_top_k}')
                             # MANO - Remove \n
 
             else:
                 if self.verbose > 0:
-                    print('\n') # MANO - Removed \n, added print
+                    print('',end='\r') # MANO - Removed \n, added print
                     log.info(f'Epoch {epoch:05d}: saving model to {filepath}')
                 self._save_model(filepath)
 
