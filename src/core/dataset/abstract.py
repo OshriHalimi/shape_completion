@@ -1,10 +1,9 @@
 from torch.utils.data import Dataset
 from pathlib import Path
-from collections import Sequence
 from abc import ABC
 # from torch.utils.data.distributed import DistributedSampler
-from util.torch_data import determine_worker_num, ReconstructableDataLoader, ParametricLoader, SubsetChoiceSampler
-from util.string_op import warn, banner
+from util.torch.data import determine_worker_num, ReconstructableDataLoader, ParametricLoader, SubsetChoiceSampler
+from util.strings import warn, banner
 from util.func import time_me
 from util.fs import convert_bytes
 from util.container import split_frac,to_list
@@ -223,7 +222,7 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
             s_transform = [None] * len(split)
             # Transforms must be a list, all others are non-Sequence
         assert sum(split) == 1, "Split fracs must sum to 1"
-        # TODO - Clean up this function
+        # TODO - Clean up this function, add in smarter defaults, simplify
         if (method == 'f2p' or method == 'p2p') and not self._hit_in_memory:
             method = 'rand_' + method
             warn(f'Tuple dataset index is too big for this dataset. Reverting to {method} instead')

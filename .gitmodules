@@ -1,3 +1,0 @@
-[submodule "src/core/architecture/external_modules/https:/github.com/WangYueFt/dgcnn.git"]
-	path = src/core/architecture/external_modules/https:/github.com/WangYueFt/dgcnn.git
-	url = https://github.com/WangYueFt/dgcnn.git

@@ -1,13 +1,14 @@
-from util.torch_nn import PytorchNet, set_determinsitic_run
+from util.torch.nn import PytorchNet, set_determinsitic_run
 from dataset.datasets import FullPartDatasetMenu
-from util.string_op import banner, set_logging_to_stdout
+from util.strings import banner, set_logging_to_stdout
 from util.func import tutorial
-from util.torch_data import none_or_int, none_or_str
+from util.torch.data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderDecoder
-from architecture.lightning import lightning_trainer, test_lightning
+from lightning.trainer import LightningTrainer
+from dataset.index import HierarchicalIndexTree  # Needed for pickle
 from dataset.transforms import *
-from dataset.index import HierarchicalIndexTree # Keep this here
+
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
 
@@ -17,19 +18,20 @@ set_determinsitic_run()  # Set a universal random seed
 # ----------------------------------------------------------------------------------------------------------------------
 def parser():
     p = HyperOptArgumentParser(strategy='random_search')
+
     # Check-pointing
-    # TODO - Don't forget to change me!
     p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
-    p.add_argument('--resume_version', type=none_or_int, default=None,
-                   help='Try train resume of exp_name/version_{resume_version} checkpoint. Use None for no resume')
-    p.add_argument('--save_completions', type=int, choices=[0, 1, 2,3], default=2,
+    # TODO - Don't forget to change me!
+    p.add_argument('--version', type=none_or_int, default=None,
+                   help='Weights will be saved at weight_dir=exp_name/version_{version}. '
+                        'Use None to automatically choose an unused version')
+    p.add_argument('--resume_cfg', nargs=2, type=bool, default=(False, True),
+                   help='Only works if version != None and and weight_dir exists. '
+                        '1st Bool: Whether to attempt restore of early stopping callback. '
+                        '2nd Bool: Whether to attempt restore learning rate scheduler')
+    p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=3,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f). '
                         'Use 3 for gt,tp,gt_part,tp_part save as well.')
-
-    # Architecture
-    p.add_argument('--dense_encoder', type=bool, default=True, help='If true uses dense encoder architecture')
-    p.add_argument('--use_default_init', type=bool,default=True,help='If true, using default kaiming init. Else - '
-                                                                      'using our .init_weights()')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
@@ -42,17 +44,19 @@ def parser():
     # Train Config:
     p.add_argument('--force_train_epoches', type=int, default=1,
                    help="Force train for this amount. Usually we'd early stop using the callback. Use 1 to disable")
+    p.add_argument('--max_epochs', type=int, default=1,
+                   help='Maximum epochs to train for')
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
 
     # Optimizer
     p.add_argument("--weight_decay", type=float, default=0, help="Adam's weight decay - usually use 1e-4")
     p.add_argument("--plateau_patience", type=none_or_int, default=None,
                    help="Number of epoches to wait on learning plateau before reducing step size. Use None to shut off")
-    p.add_argument("--early_stop_patience", type=int, default=100,
+    p.add_argument("--early_stop_patience", type=int, default=100,  # TODO - Remember to setup resume_cfg correctly
                    help="Number of epoches to wait on learning plateau before stopping train")
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
-    # L2 Losses: Use 0 to ignore, >0 to compute
+    # L2 Losses: Use 0 to ignore, >0 to lightning
     p.add_argument('--lambdas', nargs=7, type=float, default=(1, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap,FaceAreas,Volume]'
                         'loss multiplication modifiers')
@@ -63,24 +67,20 @@ def parser():
                    help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap, FaceAreas, Volume]'
                         'increased weight on distant vertices. Use val <= 1 to disable')
     p.add_argument('--loss_class', type=str, choices=['BasicLoss', 'SkepticLoss'], default='BasicLoss',
-                   help='The loss class')
-    # TODO - is this the right way to go?
+                   help='The loss class')  # TODO - generalize this
 
     # Computation
     p.add_argument('--gpus', type=none_or_int, default=-1, help='Use -1 to use all available. Use None to run on CPU')
-    p.add_argument('--distributed_backend', type=str, default='dp',
-                   help='supports three options dp, ddp, ddp2')  # TODO - ddp2,ddp Untested
-    p.add_argument('--use_16b', type=bool, default=False, help='If true uses 16 bit precision')  # TODO - Untested
+    p.add_argument('--distributed_backend', type=str, default='dp', help='supports three options dp, ddp, ddp2')
+    # TODO - ddp2,ddp Untested
 
     # Visualization
     p.add_argument('--use_auto_tensorboard', type=bool, default=3,
                    help='Mode: 0 - Does nothing. 1 - Opens up only server. 2 - Opens up only chrome. 3- Opens up both '
                         'chrome and server')
-    p.add_argument('--use_logger', type=bool, default=True,  # TODO - Not in use
-                   help='Whether to log information or not')
     p.add_argument('--plotter_class', type=none_or_str, choices=[None, 'CompletionPlotter'],
                    default='CompletionPlotter',
-                   help='The plotter class or None for no plot')  # TODO - is this the right way to go?
+                   help='The plotter class or None for no plot')  # TODO - generalize this
 
     return [p]
 
@@ -93,36 +93,34 @@ def train_main():
     nn = F2PEncoderDecoder(parser())
     nn.identify_system()
 
-    hp = nn.hyper_params()
-    # Init loaders and faces:
-    ds = FullPartDatasetMenu.get('AmassTestPyProj')
-    ds.data_summary(True)
-    return
-    ldrs = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=hp.counts, s_shuffle=[True] * 3, s_transform=[Center()] * 3,
-                      batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels, method='f2p',
-                      s_dynamic=[False] * 3)
-    nn.init_data(loaders=ldrs)
+    # Bring in data:
+    ds = FullPartDatasetMenu.get('FaustPyProj')
+    ldrs1 = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=nn.hp.counts, s_shuffle=[True] * 3, s_transform=[Center()] * 3,
+                       batch_size=nn.hp.batch_size, device=nn.hp.dev, n_channels=nn.hp.in_channels, method='f2p',
+                       s_dynamic=[False] * 3)
+    ds = FullPartDatasetMenu.get('DFaustPyProj')
+    ldrs2 = ds.loaders(split=[0.7, 0.3], s_nums=[20, 20], s_shuffle=[True] * 2, s_transform=[Center()] * 2,
+                       batch_size=nn.hp.batch_size, device=nn.hp.dev, n_channels=nn.hp.in_channels, method='rand_f2p',
+                       s_dynamic=[False] * 2)
 
-    trainer = lightning_trainer(nn, fast_dev_run=False)
-    banner('Training Phase')
-    trainer.fit(nn)
-    banner('Testing Phase')
-    trainer.test(nn)
-    nn.finalize()
-    banner()
-
-
+    # Supply the network with the loaders:
+    trainer = LightningTrainer(nn, [ldrs1[0], [ldrs1[1], ldrs2[0]], [ldrs1[2], ldrs2[1]]])
+    # trainer = LightningTrainer(nn,ldrs1)
+    trainer.train()
+    trainer.test()
+    trainer.finalize()
 
 
 def test_main():
-    # TODO - Fix this
     nn = F2PEncoderDecoder(parser())
-    hp = nn.hyper_params()
+
     ds = FullPartDatasetMenu.get('DFaustPyProj')
-    test_ldr = ds.loaders(s_nums=hp.counts[2], s_transform=[Center()], batch_size=hp.batch_size,
-                          device=hp.dev, n_channels=hp.in_channels, method='f2p')
-    nn.init_data(loaders=[None, None, test_ldr])
-    test_lightning(nn)
+    test_ldr = ds.loaders(s_nums=nn.hp.counts[2], s_transform=[Center()], batch_size=nn.hp.batch_size,
+                          device=nn.hp.dev, n_channels=nn.hp.in_channels, method='f2p')
+
+    trainer = LightningTrainer(nn, [None, None, test_ldr])
+    trainer.test()
+    trainer.finalize()
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -136,8 +134,8 @@ def dataset_tutorial():
     # ds.validate_dataset()  # Make sure all files are available - Only run this once, to make sure.
 
     # For simplicity's sake, we support the old random dataloader as well:
-    ldr = ds.rand_loader(num_samples=1000,transforms=[Center()],batch_size=16,n_channels=6,
-                         device='cpu-single',mode='f2p')
+    ldr = ds.rand_loader(num_samples=1000, transforms=[Center()], batch_size=16, n_channels=6,
+                         device='cpu-single', mode='f2p')
     for point in ldr:
         print(point)
         break
@@ -203,7 +201,6 @@ def dataset_tutorial():
     # s_shuffle and global_shuffle controls the shuffling of the different partitions - see doc inside function
 
 
-
 @tutorial
 def pytorch_net_tutorial():
     # What is it? PyTorchNet is a derived class of LightningModule, allowing for extended operations on it
@@ -221,8 +218,8 @@ def pytorch_net_tutorial():
     nn.print_weights()
     # nn.visualize(x_shape=target_input_size, frmt='pdf')  # Prints PDF to current directory
 
-    # Let's say we have some sort of nn.Module network:
-    banner('Some network from the net usecase')
+    # Let's say we have some sort of nn.Module lightning:
+    banner('Some lightning from the net usecase')
     import torchvision
     nn = torchvision.models.alexnet(pretrained=False)
     # We can extend it's functionality at runtime with a monkeypatch:

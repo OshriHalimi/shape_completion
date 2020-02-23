@@ -1,13 +1,12 @@
-from util.torch_nn import PytorchNet, set_determinsitic_run
+from util.torch.nn import set_determinsitic_run
 from dataset.datasets import FullPartDatasetMenu
-from util.string_op import banner, set_logging_to_stdout
-from util.func import tutorial
-from util.torch_data import none_or_int, none_or_str
+from util.strings import banner, set_logging_to_stdout
+from util.torch.data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
-from architecture.models import F2PEncoderDecoder
-from architecture.lightning import lightning_trainer, test_lightning
+from architecture.models import F2PDGCNNEncoderDecoder
+from lightning.completion_net import init_trainer
 from dataset.transforms import *
-from dataset.index import HierarchicalIndexTree # Keep this here
+
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
 
@@ -27,7 +26,6 @@ def parser():
                         'Use 3 for gt,tp,gt_part,tp_part save as well.')
 
     # Architecture
-    p.add_argument('--dgcnn_encoder', type=bool, default=True, help='Use DGCNN encoder?')
     p.add_argument('--dense_encoder', type=bool, default=False, help='If true uses dense encoder architecture')
     p.add_argument('--use_default_init', type=bool,default=False,help='If true, using default kaiming init. Else - '
                                                                       'using our .init_weights()')
@@ -53,7 +51,7 @@ def parser():
                    help="Number of epoches to wait on learning plateau before stopping train")
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
-    # L2 Losses: Use 0 to ignore, >0 to compute
+    # L2 Losses: Use 0 to ignore, >0 to lightning
     p.add_argument('--lambdas', nargs=7, type=float, default=(1, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap,FaceAreas,Volume]'
                         'loss multiplication modifiers')
@@ -91,7 +89,7 @@ def parser():
 # ----------------------------------------------------------------------------------------------------------------------
 def train_main():
     banner('Network Init')
-    nn = F2PEncoderDecoder(parser())
+    nn = F2PDGCNNEncoderDecoder(parser())
     nn.identify_system()
 
     hp = nn.hyper_params()
@@ -102,7 +100,7 @@ def train_main():
                       s_dynamic=[False] * 3)
     nn.init_data(loaders=ldrs)
 
-    trainer = lightning_trainer(nn, fast_dev_run=False)
+    trainer = init_trainer(nn, fast_dev_run=False)
     banner('Training Phase')
     trainer.fit(nn)
     banner('Testing Phase')

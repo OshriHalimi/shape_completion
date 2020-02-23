@@ -1,6 +1,6 @@
 import torch
 from util.mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_fnrmls_fareas, batch_moments
-from util.string_op import warn
+from util.strings import warn
 from architecture.decoders import Template
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -13,7 +13,7 @@ class BasicLoss:
     def compute(self, input, network_output):
         """
         :param input: The input batch dictionary
-        :param network_output: The network output
+        :param network_output: The lightning output
         :return: loss
         """
         completion_gt = input['gt']
@@ -226,12 +226,12 @@ class ShapeDiffLoss:
         #TODO: we should have a transformation block operating on the initial data, adding input channels, scaling, rotating etc.
         #TODO: hp.in_channels should be defined with respect to transformed input data.
         # For example: the initial data might not have normals (initial input channels = 3), however in the input pipeline
-        # we add normals (before the network), making the input channel = 6. Now, assume we want to calculate normal loss.
+        # we add normals (before the lightning), making the input channel = 6. Now, assume we want to calculate normal loss.
         # If hp.in_channels refers to the initial input channels then the logic below won't work (the assert will fail).
         if self.lambdas[1] > 0 or self.lambdas[4]:
-            assert hp.in_channels >= 6, "Only makes sense to compute normal losses with normals available"
+            assert hp.in_channels >= 6, "Only makes sense to lightning normal losses with normals available"
         if self.lambdas[2] > 0:
-            assert hp.in_channels >= 12, "Only makes sense to compute moment losses with moments available"
+            assert hp.in_channels >= 12, "Only makes sense to lightning moment losses with moments available"
 
         # Sanity Check - Destroy dangling mask_penalties/distant_v_penalties
         for i, lamb in enumerate(self.lambdas[0:3]):  # TODO - Implement 0:5
@@ -243,10 +243,10 @@ class ShapeDiffLoss:
         for i in range(len(self.dist_v_penalties)):
             if 0 < self.dist_v_penalties[i] < 1:
                 warn(f'Found an invalid penalty in the distant vertex arg set: at {i} with val '
-                     f'{self.dist_v_penalties[i]}.\nPlease use 0 or 1 to remove this specific loss compute')
+                     f'{self.dist_v_penalties[i]}.\nPlease use 0 or 1 to remove this specific loss lightning')
             if 0 < self.mask_penalties[i] < 1:
                 warn(f'Found an invalid penalty in the distant vertex arg set: at {i} with val '
-                     f'{self.mask_penalties[i]}.\nPlease use 0 or 1 to remove this specific loss compute')
+                     f'{self.mask_penalties[i]}.\nPlease use 0 or 1 to remove this specific loss lightning')
 
         # Micro-Optimization - Reduce movement to the GPU:
         if [p for p in self.dist_v_penalties if p > 1]:  # if using_distant_vertex

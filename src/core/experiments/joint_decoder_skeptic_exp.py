@@ -1,13 +1,12 @@
-from util.torch_nn import PytorchNet, set_determinsitic_run
+from util.torch.nn import set_determinsitic_run
 from dataset.datasets import FullPartDatasetMenu
-from util.string_op import banner, set_logging_to_stdout
-from util.func import tutorial
-from util.torch_data import none_or_int, none_or_str
+from util.strings import banner, set_logging_to_stdout
+from util.torch.data import none_or_int, none_or_str
 from test_tube import HyperOptArgumentParser
 from architecture.models import F2PEncoderJointDecoderSkeptic
-from architecture.lightning import lightning_trainer, test_lightning
+from lightning.completion_net import init_trainer
 from dataset.transforms import *
-from dataset.index import HierarchicalIndexTree # Keep this here
+
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
 
@@ -52,7 +51,7 @@ def parser():
                    help="Number of epoches to wait on learning plateau before stopping train")
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
-    # L2 Losses: Use 0 to ignore, >0 to compute
+    # L2 Losses: Use 0 to ignore, >0 to lightning
     p.add_argument('--lambdas', nargs=7, type=float, default=(1, 0, 0, 0, 0, 0, 0),
                    help='[XYZ,Normal,Moments,EuclidDistMat,EuclidNormalDistMap,FaceAreas,Volume]'
                         'loss multiplication modifiers')
@@ -101,7 +100,7 @@ def train_main():
                       s_dynamic=[False] * 3)
     nn.init_data(loaders=ldrs)
 
-    trainer = lightning_trainer(nn, fast_dev_run=False)
+    trainer = init_trainer(nn, fast_dev_run=False)
     banner('Training Phase')
     trainer.fit(nn)
     banner('Testing Phase')

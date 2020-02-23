@@ -11,12 +11,10 @@ UNIVERSAL_PRECISION = 'float32'  # float64,float32 or float16. PyTorch defaults 
 NORMAL_MAGNITUDE_THRESH = 10 ** (-6)  # The minimal norm allowed for vertex normals to decide that they are too small
 DEF_LR_SCHED_COOLDOWN = 5  # Number of epoches to wait after reducing the step-size. Works only if LR sched is enabled
 DEF_MINIMAL_LR = 1e-6  # The smallest learning step allowed with LR sched. Works only if LR sched is enabled
-MAX_EPOCHS = 10000000000  # Maximum number of allowed epochs. We usually stop WAY before this due to early stop callback
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                    COMPLEXITY
 # ----------------------------------------------------------------------------------------------------------------------
 NON_BLOCKING = True  # Transfer to GPU in a non-blocking method
-REPORT_LOSS_PER_BATCH = False  # If True - will output train loss to logger on every batch. Otherwise - on every epoch
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      ERROR
 # ----------------------------------------------------------------------------------------------------------------------
@@ -28,9 +26,9 @@ DANGEROUS_MASK_THRESH = 100  # The minimal length allowed for mask vertex indice
 PRIMARY_RESULTS_DIR = (pathlib.Path(__file__).parents[0] / '..' / '..' / 'results').resolve()
 PRIMARY_DATA_DIR = (pathlib.Path(__file__).parents[0] / '..' / '..' / 'data').resolve()
 SMPL_TEMPLATE_PATH = PRIMARY_DATA_DIR / 'templates' / 'template_color.ply'
-SAVE_MESH_AS = 'obj'  # Currently implemented - ['obj','off']
+SAVE_MESH_AS = 'obj'  # Currently implemented - ['obj','off'] # For lightning.assets.completion_saver
 # ----------------------------------------------------------------------------------------------------------------------
-#                                                   VISUALIZATION
+#                                  VISUALIZATION - For lightning.assets.plotter
 # ----------------------------------------------------------------------------------------------------------------------
 VIS_N_MESH_SETS = 2  # Parallel plot will plot 8 meshes for each mesh set - 4 from train, 4 from vald
 VIS_STRATEGY = 'cloud'  # spheres,cloud,mesh  - Choose how to display the meshes

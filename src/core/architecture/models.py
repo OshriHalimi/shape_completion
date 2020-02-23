@@ -1,4 +1,4 @@
-from architecture.lightning import CompletionLightningModel
+from lightning.completion_net import CompletionLightningModel
 from test_tube import HyperOptArgumentParser
 import torch
 from architecture.encoders import ShapeEncoder, ShapeEncoderDGCNN
@@ -10,13 +10,10 @@ from architecture.decoders import ShapeDecoder, Template, Regressor
 # ----------------------------------------------------------------------------------------------------------------------
 class F2PEncoderDecoder(CompletionLightningModel):
     def _build_model(self):
-        # Encoder takes a 3D point cloud as an input. 
+        # Encoder takes a 3D point cloud as an input.
         # Note that a linear layer is applied to the global feature vector
-        if self.hparams.dgcnn_encoder:
-            self.encoder = ShapeEncoderDGCNN(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size, k=20, device=self.hparams.dev)
-        else:
-            self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size)
-
+        self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size,
+                                    dense=self.hparams.dense_encoder)
         self.decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
                                     out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
 
@@ -27,6 +24,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
     @staticmethod
     def add_model_specific_args(parent_parser):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--dense_encoder', default=False, type=bool)
         p.add_argument('--code_size', default=512, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--decoder_convl', default=5, type=int)
@@ -53,6 +51,13 @@ class F2PEncoderDecoder(CompletionLightningModel):
         return {'completion_xyz': y}
 
 
+class F2PDGCNNEncoderDecoder(F2PEncoderDecoder):
+    def _build_model(self):
+        self.encoder = ShapeEncoderDGCNN(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size,
+                                             k=20, device=self.hparams.dev)
+        self.decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
+                                    out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
 # ----------------------------------------------------------------------------------------------------------------------
@@ -78,6 +83,7 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
     @staticmethod
     def add_model_specific_args(parent_parser):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--dense_encoder', default=False, type=bool)
         p.add_argument('--code_size', default=512, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--comp_decoder_convl', default=5, type=int)
@@ -136,6 +142,7 @@ class F2PEncoderJointDecoderSkeptic(CompletionLightningModel):
     @staticmethod
     def add_model_specific_args(parent_parser):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--dense_encoder', default=False, type=bool)
         p.add_argument('--code_size', default=512, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--comp_decoder_convl', default=5, type=int)
@@ -202,6 +209,7 @@ class F2PEncoderRegressorDecoderSkeptic(CompletionLightningModel):
     @staticmethod
     def add_model_specific_args(parent_parser):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--dense_encoder', default=False, type=bool)
         p.add_argument('--code_size', default=512, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--comp_decoder_convl', default=3, type=int)
@@ -269,6 +277,7 @@ class PointContextNet(CompletionLightningModel):
     @staticmethod
     def add_model_specific_args(parent_parser):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--dense_encoder', default=False, type=bool)
         p.add_argument('--code_size', default=512, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--rec_decoder_convl', default=3, type=int)
@@ -331,6 +340,7 @@ class F2PEncoderDecoderTBased(CompletionLightningModel):
     @staticmethod
     def add_model_specific_args(parent_parser):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--dense_encoder', default=False, type=bool)
         p.add_argument('--code_size', default=512, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--decoder_convl', default=3, type=int)

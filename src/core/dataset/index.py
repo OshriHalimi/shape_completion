@@ -2,7 +2,7 @@ from collections import OrderedDict
 from collections.abc import MutableMapping
 from bisect import bisect_right
 from util.container import max_dict_depth, min_dict_depth, deep_dict_to_rdict,to_list
-from util.string_op import banner, warn
+from util.strings import banner, warn
 from json import dumps
 import random
 from copy import deepcopy

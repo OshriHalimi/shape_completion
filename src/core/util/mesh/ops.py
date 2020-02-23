@@ -1,7 +1,7 @@
 import torch
 import numpy as np
 import torch.nn.functional as F
-from util.data_ops import normr, index_sparse
+from util.matrix import normr, index_sparse
 import cfg
 
 
@@ -71,17 +71,20 @@ def vertex_mask_indicator(nv, vi):
 
 def trunc_to_vertex_mask(v, f, vi):
     # TODO: Warning supports only watertight meshes (not scans) - Need to remove vertices unref by f2
-    nv = v.shape[0]
-    # Compute new vertices:
-    v2 = v[vi, :]
-    # Compute map from old vertex indices to new vertex indices
-    vlut = np.full((nv,), fill_value=-1)
-    vlut[vi] = np.arange(len(vi))  # Bad vertices have no mapping, and stay -1.
+    if f is None:
+        return v[vi,:],None
+    else:
+        nv = v.shape[0]
+        # Compute new vertices:
+        v2 = v[vi, :]
+        # Compute map from old vertex indices to new vertex indices
+        vlut = np.full((nv,), fill_value=-1)
+        vlut[vi] = np.arange(len(vi))  # Bad vertices have no mapping, and stay -1.
 
-    # Change vertex labels in face array. Bad vertices have no mapping, and stay -1.
-    f2 = vlut[f]
-    # Keep only faces with valid vertices:
-    f2 = f2[np.sum(f2 == -1, axis=1) == 0, :]
+        # Change vertex labels in face array. Bad vertices have no mapping, and stay -1.
+        f2 = vlut[f]
+        # Keep only faces with valid vertices:
+        f2 = f2[np.sum(f2 == -1, axis=1) == 0, :]
     return v2, f2
 
 
