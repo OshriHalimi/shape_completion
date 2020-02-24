@@ -50,6 +50,54 @@ class F2PEncoderDecoder(CompletionLightningModel):
         y = self.decoder(y)
         return {'completion_xyz': y}
 
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                      BASE
+# ----------------------------------------------------------------------------------------------------------------------
+class F2PEncoderDecoderRealistic(CompletionLightningModel):
+    def _build_model(self):
+        # Encoder takes a 3D point cloud as an input.
+        # Note that a linear layer is applied to the global feature vector
+        self.encoder_full = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size,
+                                    dense=self.hparams.dense_encoder)
+        self.encoder_part = ShapeEncoder(in_channels=3, code_size=self.hparams.code_size,
+                                    dense=self.hparams.dense_encoder)
+        self.decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
+                                    out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
+
+    def _init_model(self):
+        self.encoder_full.init_weights()
+        self.encoder_part.init_weights()
+        self.decoder.init_weights()
+
+    @staticmethod
+    def add_model_specific_args(parent_parser):
+        p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
+        p.add_argument('--dense_encoder', default=False, type=bool)
+        p.add_argument('--code_size', default=512, type=int)
+        p.add_argument('--out_channels', default=3, type=int)
+        p.add_argument('--decoder_convl', default=5, type=int)
+        if not parent_parser:  # Name clash with parent
+            p.add_argument('--in_channels', default=3, type=int)
+        return p
+
+    def forward(self, input_dict):
+        part = input_dict['gt_part']
+        full = input_dict['tp']
+
+        # part, full [bs x nv x in_channels]
+        bs = part.size(0)
+        nv = part.size(1)
+
+        part_code = self.encoder_part(part[:,:,:3])  # [b x code_size]
+        full_code = self.encoder_full(full)  # [b x code_size]
+
+        part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+        full_code = full_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
+
+        y = torch.cat((full, part_code, full_code), 2).contiguous()  # [b x nv x (in_channels + 2*code_size)]
+        y = self.decoder(y)
+        return {'completion_xyz': y}
+
 
 class F2PDGCNNEncoderDecoder(F2PEncoderDecoder):
     def _build_model(self):
