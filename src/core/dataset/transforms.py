@@ -280,7 +280,7 @@ def align_channels(v, f, req_in_channels):
 
 def test_suite():
     from dataset.datasets import FullPartDatasetMenu
-    from util.mesh.plot import plot_mesh
+    from util.mesh.plots import plot_mesh
     ds = FullPartDatasetMenu.get('FaustPyProj')
     single_ldr = ds.loaders(s_nums=1000, s_shuffle=True, s_transform=[MaskDecimation(0.1)],
                             n_channels=6, method='f2p', batch_size=1, device='cpu-single')

@@ -146,17 +146,20 @@ def mesh_append(p, v, f=None, n=None, strategy='mesh', grid_on=False, clr='light
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                    Test Suite
 # ----------------------------------------------------------------------------------------------------------------------#
-
+from dataset.index import HierarchicalIndexTree
 def visuals_tester():
     from dataset.datasets import FullPartDatasetMenu
-    ds = FullPartDatasetMenu.get('FaustPyProj')
-    samp = ds.sample(15)  # dim:
-    vv = samp['gt'][0, :, :3]
-    ff = ds.faces()
-    # plot_mesh(v=vv, f=ff, n=fnrmls(vv, ff), label='Badass', grid_on=True)
-    # # plot_mesh(v=vv, spheres_on=True, clr=vv)
-    # plot_mesh_montage(samp['gt'][:, :, :3], ff)
-    plot_mesh_montage(samp['gt'][:, :, :3], strategy='spheres')
+    from dataset.transforms import Center
+
+    ds = FullPartDatasetMenu.get('DFaustPyProj')
+    samp = ds.sample(1,transforms=[Center()],n_channels=3,method='rand_f2p')  # dim:
+    gt = samp['gt'][0]
+    mask = samp['gt_mask'][0]
+    tp = samp['tp'][0]
+    gt_part = gt[mask,:]
+
+
+    plot_mesh_montage([tp,gt,gt_part], strategy='spheres',clr='lightblue')
 
 
 if __name__ == '__main__':

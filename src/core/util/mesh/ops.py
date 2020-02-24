@@ -242,7 +242,7 @@ def test_vnrmls_grad():
 
 
 def test_vnrmls_visually():
-    from util.mesh.plot import plot_mesh
+    from util.mesh.plots import plot_mesh
     vb, f = bring_in_test_data()
     # adjacency_VF = vf_adjacency(faces, n_faces, n_verts)
     # This operation can be calculated once for the whole training
@@ -256,7 +256,7 @@ def test_vnrmls_visually():
 
 
 def test_fnrmls_visually():
-    from util.mesh.plot import plot_mesh
+    from util.mesh.plots import plot_mesh
     vb, f = bring_in_test_data()
     fn, is_valid_fnb, face_areas_b = batch_fnrmls_fareas(vb, f)
     # magnitude = torch.norm(face_normals, dim=2)  # Debug: assert the values are equal to 1.000

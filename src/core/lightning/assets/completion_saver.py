@@ -1,12 +1,12 @@
 from util.mesh.ops import trunc_to_vertex_mask
-import util.mesh.mio
+import util.mesh.ios
 
 
 class CompletionSaver:
 
     def __init__(self, exp_dir, testset_names, extended_save, f):
         from cfg import SAVE_MESH_AS
-        self.save_func = getattr(util.mesh.mio, f'write_{SAVE_MESH_AS}')
+        self.save_func = getattr(util.mesh.ios, f'write_{SAVE_MESH_AS}')
         self.extended_save = extended_save
         self.f = f  # Might be None
 

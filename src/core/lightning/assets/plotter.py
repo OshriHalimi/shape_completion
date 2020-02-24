@@ -1,6 +1,6 @@
 import pyvista as pv
 from util.mesh.ops import vertex_mask_indicator
-from util.mesh.plot import mesh_append
+from util.mesh.plots import mesh_append
 from multiprocessing import Process, Manager
 from copy import deepcopy
 from abc import ABC

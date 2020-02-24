@@ -73,37 +73,19 @@ def read_ply(fp):
     with open(fp, 'rb') as f:
         plydata = PlyData.read(f)
 
-    # Load coordinates
     x = plydata['vertex']['x']
     y = plydata['vertex']['y']
     z = plydata['vertex']['z']
     v = np.column_stack((x, y, z))
-
-    # Load colors
-    try:
+    if 'red' in plydata['vertex']:
         r = plydata['vertex']['red']
         g = plydata['vertex']['green']
         b = plydata['vertex']['blue']
         rgb = np.column_stack((r, g, b))
-    except:
+    else:
         rgb = None
-
-    # Load normals
-    try:
-        nx = plydata['vertex']['nx']
-        ny = plydata['vertex']['ny']
-        nz = plydata['vertex']['nz']
-        vertex_normals = np.column_stack((nx, ny, nz))
-    except:
-        rgb = None
-
-    # Load faces
-    try:
-        f = np.stack(plydata['face']['vertex_indices'])
-    except:
-        f = None
-
-    return v, f, vertex_normals, rgb
+    f = np.stack(plydata['face']['vertex_indices'])
+    return v, f, rgb
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
