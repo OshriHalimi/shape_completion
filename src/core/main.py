@@ -44,8 +44,8 @@ def parser():
     # Train Config:
     p.add_argument('--force_train_epoches', type=int, default=1,
                    help="Force train for this amount. Usually we'd early stop using the callback. Use 1 to disable")
-    p.add_argument('--max_epochs', type=int, default=1, # Must be over 1
-                   help='Maximum epochs to train for')
+    p.add_argument('--max_epochs', type=int, default=5, # Must be over 1
+                   help='Maximum epochs to train for. Use None for close to infinite epochs')
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
 
     # Optimizer
@@ -108,9 +108,9 @@ def train_main():
                        s_dynamic=[False] * 2)
 
     # # Supply the network with the loaders:
-    # trainer = LightningTrainer(nn, [ldrs1[0], [ldrs1[1], ldrs2[0]], [ldrs1[2], ldrs2[1]]])
-    trainer = LightningTrainer(nn,[None,None,ldrs2[0]])
-    # trainer.train()
+    trainer = LightningTrainer(nn, [ldrs1[0], [ldrs1[1], ldrs2[0]], [ldrs1[2], ldrs2[1]]])
+    # trainer = LightningTrainer(nn,[None,None,ldrs2[0]])
+    trainer.train()
     trainer.test()
     trainer.finalize()
 

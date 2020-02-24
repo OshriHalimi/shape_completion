@@ -30,7 +30,7 @@ class LightningTrainer:
         # Training Asset place-holders:
         self.saver, self.early_stop = None, False  # Internal Trainer Assets are marked with False, not None
         # Testing Asset place-holders:
-        self.plt, self.tb_sup, self.emailer = None, None,None
+        self.plt, self.tb_sup, self.emailer = None, None, None
         # Additional Structures:
         self.trainer, self.exp_dp = None, None
 
@@ -55,10 +55,12 @@ class LightningTrainer:
             self.tb_sup.finalize()
 
         # If needed, send the final report via email:
-        if self.emailer:
-            log.info("Sending zip with experiment specs to configured inbox")
-            self.emailer.send_report(self.trainer.final_result_str)
-
+        if self.emailer:  # Long enough train, or test only - TODO - find some smarter way for only test
+            if self.nn.current_epoch >= self.hp.MIN_EPOCHS_NEEDED_SEND_EMAIL_RECORD or self.nn.current_epoch == 0:
+                log.info("Sending zip with experiment specs to configured inbox")
+                self.emailer.send_report(self.trainer.final_result_str)
+            else:
+                log.info("Model has not been trained for enough epochs - skipping attachment send")
         log.info("Cleaning up GPU memory")
         torch.cuda.empty_cache()
 
@@ -71,8 +73,6 @@ class LightningTrainer:
         if self.hp.plotter_class:
             plt_class = getattr(lightning.assets.plotter, self.hp.plotter_class)
             self.plt = plt_class(faces=self.data.faces(), n_verts=self.data.num_verts())
-
-
 
     def _init_trainer(self, fast_dev_run):
 

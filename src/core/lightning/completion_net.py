@@ -159,6 +159,10 @@ class CompletionLightningModel(PytorchNet):
             if self.hp.exp_name is None or not self.hp.exp_name:
                 self.hp.exp_name = 'default_exp'
 
+            # Epochs:
+            if self.hp.max_epochs is None:
+                self.hp.max_epochs = 10000000
+
             # Correctness of config parameters:
             assert self.hp.VIS_N_MESH_SETS <= self.hp.batch_size, \
                 f"Plotter needs requires batch size >= N_MESH_SETS={self.hp.VIS_N_MESH_SETS}"
