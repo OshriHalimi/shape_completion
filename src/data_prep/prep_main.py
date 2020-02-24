@@ -12,7 +12,7 @@ import random
 
 sys.path.append(os.path.abspath(os.path.join('..', 'core')))
 from util.string_op import banner, print_warning, print_error, title
-from util.mesh.io import read_obj_verts
+from util.mesh.mio import read_obj_verts
 from util.mesh.plot import plot_mesh_montage, plot_mesh
 from util.mesh.ops import box_center
 from util.fs import assert_new_dir

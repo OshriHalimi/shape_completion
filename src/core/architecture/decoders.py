@@ -84,7 +84,7 @@ class Regressor(nn.Module):
 class Template:
     def __init__(self, in_channels, dev):
         from cfg import UNIVERSAL_PRECISION, SMPL_TEMPLATE_PATH
-        from util.mesh.io import read_ply
+        from util.mesh.mio import read_ply
         from util.mesh.ops import batch_vnrmls
 
         vertices, faces, colors = read_ply(SMPL_TEMPLATE_PATH)
