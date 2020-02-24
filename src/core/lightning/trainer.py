@@ -95,7 +95,10 @@ class LightningTrainer:
                                          f=self.data.faces() if self.hp.save_completions > 1 else None)
 
         if self.hp.email_report:
-            self.emailer = TensorboardEmailer(exp_dp=self.exp_dp)
+            if self.hp.GCREDS_PATH.is_file():
+                self.emailer = TensorboardEmailer(exp_dp=self.exp_dp)
+            else:
+                log.warning("Could not find GMAIl credentials file - Skipping Emailer class init")
 
         self.trainer = Trainer(fast_dev_run=fast_dev_run, num_sanity_val_steps=0, weights_summary=None,
                                gpus=self.hp.gpus, distributed_backend=self.hp.distributed_backend,

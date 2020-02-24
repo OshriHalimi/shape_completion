@@ -26,7 +26,12 @@ DANGEROUS_MASK_THRESH = 100  # The minimal length allowed for mask vertex indice
 PRIMARY_RESULTS_DIR = (pathlib.Path(__file__).parents[0] / '..' / '..' / 'results').resolve()
 PRIMARY_DATA_DIR = (pathlib.Path(__file__).parents[0] / '..' / '..' / 'data').resolve()
 SMPL_TEMPLATE_PATH = PRIMARY_DATA_DIR / 'templates' / 'template_color.ply'
+GCREDS_PATH = PRIMARY_DATA_DIR / 'collaterals' / 'gmail_credentials.txt'
 SAVE_MESH_AS = 'obj'  # Currently implemented - ['obj','off'] # For lightning.assets.completion_saver
+# ----------------------------------------------------------------------------------------------------------------------
+#                                                      RECORD
+# ----------------------------------------------------------------------------------------------------------------------
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                  VISUALIZATION - For lightning.assets.plotter
 # ----------------------------------------------------------------------------------------------------------------------

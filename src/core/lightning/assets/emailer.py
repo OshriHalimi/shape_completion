@@ -4,10 +4,15 @@ from datetime import datetime
 import os
 
 
+
 class TensorboardEmailer:
     def __init__(self, exp_dp):
-        self.sender = "giovanni.cvpr@gmail.com"
-        self.password = "cvpr2020" # TODO - This password exists on a public github
+        from cfg import GCREDS_PATH
+        with open(GCREDS_PATH,'r') as f:
+            l = f.readlines()
+
+        self.sender = l[0].split('=')[1].strip()
+        self.password = l[1].split('=')[1].strip()
         self.to = self.sender
         self.exp_dp = exp_dp
         self.zip_fp = self.exp_dp / "email_package.zip"

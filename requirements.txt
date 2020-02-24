@@ -38,8 +38,7 @@ yagmail
 # [7] The executable for PyRender is supplied, but you might need to compile it again on
 #     a different machine. Remember to download glm and fix its include path in compile.sh
 #
-# -----------------------------------------------------------------------------------
-#
+# -----------------------------------------------------------------------------------#
 #                            Collaterals - Windows only
 # -----------------------------------------------------------------------------------#
 # [8] Optional: If you want to support full tensoboard features, install tensorflow via:
@@ -49,6 +48,14 @@ yagmail
 #  *  Surf to: https://graphviz.gitlab.io/_pages/Download/windows/graphviz-2.38.msi
 #  *  Install the application to C:\Program Files (x86)\Graphviz2.38
 #  *  Add to your PATH variable: "C:\Program Files (x86)\Graphviz2.38\bin"
+# -----------------------------------------------------------------------------------#
+#                            		Collaterals
+# -----------------------------------------------------------------------------------#
+# [10] GMAIl Credentials - We use the yagmail package to send the Tensorboard logs to 
+#      a shared email account. You can configure the email account by placing a txt 
+#      file under data/collaterals/gmail_credentials.txt with the following information: 
+#      user=yourmail@gmail.com
+#      pass=yourpassword 
 # -----------------------------------------------------------------------------------#
 #                           		    Debug
 # -----------------------------------------------------------------------------------#
