@@ -22,7 +22,7 @@ def parser():
     # Check-pointing
     p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
     # TODO - Don't forget to change me!
-    p.add_argument('--version', type=none_or_int, default=0,
+    p.add_argument('--version', type=none_or_int, default=None,
                    help='Weights will be saved at weight_dir=exp_name/version_{version}. '
                         'Use None to automatically choose an unused version')
     p.add_argument('--resume_cfg', nargs=2, type=bool, default=(False, True),
@@ -44,7 +44,7 @@ def parser():
     # Train Config:
     p.add_argument('--force_train_epoches', type=int, default=1,
                    help="Force train for this amount. Usually we'd early stop using the callback. Use 1 to disable")
-    p.add_argument('--max_epochs', type=int, default=5, # Must be over 1
+    p.add_argument('--max_epochs', type=int, default=None,  # Must be over 1
                    help='Maximum epochs to train for. Use None for close to infinite epochs')
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
 

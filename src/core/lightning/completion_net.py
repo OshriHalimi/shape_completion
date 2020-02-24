@@ -5,6 +5,7 @@ from util.mesh.ops import batch_vnrmls
 from util.torch.nn import PytorchNet
 from util.func import all_variables_by_module_name
 from copy import deepcopy
+import sys
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -161,7 +162,7 @@ class CompletionLightningModel(PytorchNet):
 
             # Epochs:
             if self.hp.max_epochs is None:
-                self.hp.max_epochs = 10000000
+                self.hp.max_epochs = sys.maxsize
 
             # Correctness of config parameters:
             assert self.hp.VIS_N_MESH_SETS <= self.hp.batch_size, \
