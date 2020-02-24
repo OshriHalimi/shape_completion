@@ -1,7 +1,7 @@
 from collections import OrderedDict
 from collections.abc import MutableMapping
 from bisect import bisect_right
-from util.container import max_dict_depth, min_dict_depth, deep_dict_to_rdict,to_list
+from util.container import max_dict_depth, min_dict_depth, deep_dict_to_rdict, to_list
 from util.strings import banner, warn
 from json import dumps
 import random
@@ -288,6 +288,44 @@ def _generic_fs_hit_build_aux(fp, hit):
     return hit
 
 
+def mixmao_hit(with_write=True):
+    from pathlib import Path
+    import os
+    import sys
+    from tqdm import tqdm
+    from collections import defaultdict
+    mixmao_dir = Path(r"Z:\ShapeCompletion\Mixamo\projection_2_of_10_angs_seq_frac_1")
+    subs = [f'0{i}0' for i in range(10)]
+    hit = {}
+    for sub in tqdm(subs, file=sys.stdout, dynamic_ncols=True):
+        hit[sub] = {}
+        for seq_dir in tqdm(os.listdir(mixmao_dir / sub), file=sys.stdout, dynamic_ncols=True):
+            hit[sub][seq_dir] = {}
+            seq_dp = mixmao_dir / sub / seq_dir
+            projs = os.listdir(seq_dp)
+            if len(projs) > 0:
+                hit[sub][seq_dir] = {}
+                for proj_file in projs:
+                    pose = int(proj_file.split('_')[0])
+                    if os.stat(seq_dp / proj_file).st_size > 0:
+                        hit[sub][seq_dir][pose] = hit[sub][seq_dir].get(pose, 0) + 1
+                    else:
+                        print(f'Empty File error: {sub}/{seq_dir}/{pose}')
+                for k, v in hit[sub][seq_dir].items():
+                    if v != 2:
+                        print(f'Invalid double proj error: {sub}/{seq_dir}/{k}')
+
+    hit = HierarchicalIndexTree(hit, in_memory=False)
+    print(hit)
+    if with_write:
+        from pickle import dump
+        from cfg import PRIMARY_DATA_DIR
+        tgt_fp = PRIMARY_DATA_DIR / f'mixamo_projection_2_of_10_angs_seq_frac_1_hit.pkl'
+        with open(tgt_fp, "wb") as file:
+            dump(hit, file)
+            print(f'Created index at {tgt_fp.resolve()}')
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                Test Modules
 # ----------------------------------------------------------------------------------------------------------------------
@@ -378,4 +416,4 @@ def generic_hit():
 
 
 if __name__ == "__main__":
-    generic_hit()
+    mixmao_hit()
