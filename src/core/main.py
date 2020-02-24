@@ -22,14 +22,14 @@ def parser():
     # Check-pointing
     p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
     # TODO - Don't forget to change me!
-    p.add_argument('--version', type=none_or_int, default=7,
+    p.add_argument('--version', type=none_or_int, default=0,
                    help='Weights will be saved at weight_dir=exp_name/version_{version}. '
                         'Use None to automatically choose an unused version')
     p.add_argument('--resume_cfg', nargs=2, type=bool, default=(False, True),
                    help='Only works if version != None and and weight_dir exists. '
                         '1st Bool: Whether to attempt restore of early stopping callback. '
                         '2nd Bool: Whether to attempt restore learning rate scheduler')
-    p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=3,
+    p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f). '
                         'Use 3 for gt,tp,gt_part,tp_part save as well.')
 
@@ -44,7 +44,7 @@ def parser():
     # Train Config:
     p.add_argument('--force_train_epoches', type=int, default=1,
                    help="Force train for this amount. Usually we'd early stop using the callback. Use 1 to disable")
-    p.add_argument('--max_epochs', type=int, default=100,
+    p.add_argument('--max_epochs', type=int, default=1, # Must be over 1
                    help='Maximum epochs to train for')
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
 
@@ -83,7 +83,7 @@ def parser():
                    help='The plotter class or None for no plot')  # TODO - generalize this
 
     # Completion Report
-    p.add_argument('--email_report', type=bool, default=False, #TODO - check this 
+    p.add_argument('--email_report', type=bool, default=True,
                    help='Email basic tensorboard dir if True')
 
     return [p]
@@ -107,10 +107,10 @@ def train_main():
                        batch_size=nn.hp.batch_size, device=nn.hp.dev, n_channels=nn.hp.in_channels, method='rand_f2p',
                        s_dynamic=[False] * 2)
 
-    # Supply the network with the loaders:
-    trainer = LightningTrainer(nn, [ldrs1[0], [ldrs1[1], ldrs2[0]], [ldrs1[2], ldrs2[1]]])
-    # trainer = LightningTrainer(nn,ldrs1)
-    trainer.train()
+    # # Supply the network with the loaders:
+    # trainer = LightningTrainer(nn, [ldrs1[0], [ldrs1[1], ldrs2[0]], [ldrs1[2], ldrs2[1]]])
+    trainer = LightningTrainer(nn,[None,None,ldrs2[0]])
+    # trainer.train()
     trainer.test()
     trainer.finalize()
 

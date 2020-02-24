@@ -7,7 +7,7 @@ import os
 class TensorboardEmailer:
     def __init__(self, exp_dp):
         self.sender = "giovanni.cvpr@gmail.com"
-        self.password = "cvpr2020"
+        self.password = "cvpr2020" # TODO - This password exists on a public github
         self.to = self.sender
         self.exp_dp = exp_dp
         self.zip_fp = self.exp_dp / "email_package.zip"
@@ -19,7 +19,7 @@ class TensorboardEmailer:
             to=self.to,
             subject=f"[{datetime.now()}] Results for Experiment : {self.exp_dp.name} from {os.environ['COMPUTERNAME']}",
             contents=final_results_str,
-            attachments=self.zip_fp,
+            attachments=[self.zip_fp],
         )
 
     def prep_attachment(self):
@@ -30,7 +30,7 @@ class TensorboardEmailer:
         zf.write(exp_dump_dp, exp_dump_arch)
 
         exp_dp = self.exp_dp
-        exp_dp_arch = os.path.join(exp_dump_dp, exp_dp.name)
+        exp_dp_arch = os.path.join(exp_dump_arch, exp_dp.name)
         zf.write(exp_dp, exp_dp_arch)
 
         metrics_fp = self.exp_dp / 'metrics.csv'
@@ -46,6 +46,6 @@ class TensorboardEmailer:
         zf.write(tf_dp, tf_dp_arch)
 
         for f in os.listdir(self.exp_dp / 'tf'):
-            zf.write(f, os.path.join(tf_dp_arch, os.path.basename(f)))
+            zf.write(os.path.join(tf_dp,f), os.path.join(tf_dp_arch, f))
 
         zf.close()
