@@ -211,40 +211,47 @@ class TrainerDataLoadingMixin(ABC):
         :return:
         """
 
-        self.init_train_dataloader(model)
+        if not self.testing: # MANO
+            self.init_train_dataloader(model)
+            self.init_val_dataloader(model)
         self.init_test_dataloader(model)
-        self.init_val_dataloader(model)
+
 
         if self.use_ddp or self.use_ddp2:
             # wait for all processes to catch up
             dist.barrier()
 
             # load each dataloader
-            self.get_train_dataloader()
+            if not self.testing: # MANO
+                self.get_train_dataloader()
+                self.get_val_dataloaders()
             self.get_test_dataloaders()
-            self.get_val_dataloaders()
+
 
         # on TPUs load each dataloader only on process 0
         # this will trigger the data downloads
         if self.use_tpu and XLA_AVAILABLE:
             if self.tpu_local_core_rank == 0:
-                self.get_train_dataloader()
+                if not self.testing: # MANO
+                    self.get_train_dataloader()
+                    self.get_val_dataloaders()
                 self.get_test_dataloaders()
-                self.get_val_dataloaders()
+
 
             # wait for all processes to catch up
             torch_xla.core.xla_model.rendezvous()
 
         # support IterableDataset for train data
-        self.is_iterable_train_dataloader = (
-            EXIST_ITER_DATASET and isinstance(self.get_train_dataloader().dataset, IterableDataset))
-        if self.is_iterable_train_dataloader and not isinstance(self.val_check_interval, int):
-            m = '''
-            When using an iterableDataset for `train_dataloader`,
-            `Trainer(val_check_interval)` must be an int.
-            An int k specifies checking validation every k training batches
-            '''
-            raise MisconfigurationException(m)
+        if not self.testing: # MANO
+            self.is_iterable_train_dataloader = (
+                EXIST_ITER_DATASET and isinstance(self.get_train_dataloader().dataset, IterableDataset))
+            if self.is_iterable_train_dataloader and not isinstance(self.val_check_interval, int):
+                m = '''
+                When using an iterableDataset for `train_dataloader`,
+                `Trainer(val_check_interval)` must be an int.
+                An int k specifies checking validation every k training batches
+                '''
+                raise MisconfigurationException(m)
 
     def determine_data_use_amount(self, train_percent_check, val_percent_check,
                                   test_percent_check, overfit_pct):

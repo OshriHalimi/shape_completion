@@ -30,7 +30,7 @@ class LightningTrainer:
         # Training Asset place-holders:
         self.saver, self.early_stop = None, False  # Internal Trainer Assets are marked with False, not None
         # Testing Asset place-holders:
-        self.plt, self.tb_sup = None, None
+        self.plt, self.tb_sup, self.emailer = None, None,None
         # Additional Structures:
         self.trainer, self.exp_dp = None, None
 
@@ -56,7 +56,7 @@ class LightningTrainer:
 
         # If needed, send the final report via email:
         if self.emailer:
-            # assert self.trainer.tqdm_metrics
+            log.info("Sending zip with experiment specs to configured inbox")
             self.emailer.send_report(self.trainer.final_result_str)
 
         log.info("Cleaning up GPU memory")
@@ -72,8 +72,6 @@ class LightningTrainer:
             plt_class = getattr(lightning.assets.plotter, self.hp.plotter_class)
             self.plt = plt_class(faces=self.data.faces(), n_verts=self.data.num_verts())
 
-        if self.hp.email_report:
-            self.emailer = TensorboardEmailer(exp_dp=self.exp_dp)
 
 
     def _init_trainer(self, fast_dev_run):
@@ -95,6 +93,9 @@ class LightningTrainer:
             self.saver = CompletionSaver(exp_dir=self.exp_dp, testset_names=self.data.testset_names(),
                                          extended_save=(self.hp.save_completions == 3),
                                          f=self.data.faces() if self.hp.save_completions > 1 else None)
+
+        if self.hp.email_report:
+            self.emailer = TensorboardEmailer(exp_dp=self.exp_dp)
 
         self.trainer = Trainer(fast_dev_run=fast_dev_run, num_sanity_val_steps=0, weights_summary=None,
                                gpus=self.hp.gpus, distributed_backend=self.hp.distributed_backend,
@@ -157,10 +158,10 @@ class ParametricData:
         return 1 if self.train_ldr else 0
 
     def num_vald_loaders(self):
-        return len(self.vald_ldrs) if self.vald_ldrs else 0
+        return len(self.vald_ldrs)
 
     def num_test_loaders(self):
-        return len(self.test_ldrs) if self.test_ldrs else 0
+        return len(self.test_ldrs)
 
     def id2vald_ds(self, set_id):
         return self.vald_set_names[set_id]

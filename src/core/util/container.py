@@ -51,7 +51,7 @@ def first(iterable, condition=lambda x: True):
 
 def to_list(l,encapsulate_none=True):
     if not encapsulate_none and l is None:
-        return l
+        return []
     if isinstance(l, list):
         return l
     elif isinstance(l, Sequence):
