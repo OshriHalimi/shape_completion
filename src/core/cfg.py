@@ -31,7 +31,7 @@ SAVE_MESH_AS = 'obj'  # Currently implemented - ['obj','off'] # For lightning.as
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      RECORD
 # ----------------------------------------------------------------------------------------------------------------------
-MIN_EPOCHS_NEEDED_SEND_EMAIL_RECORD = 1 # We supress any results that have trained for less than 200 epochs
+MIN_EPOCHS_TO_SEND_EMAIL_RECORD = 1 # We supress any results that have trained for less than 200 epochs
 # ----------------------------------------------------------------------------------------------------------------------
 #                                  VISUALIZATION - For lightning.assets.plotter
 # ----------------------------------------------------------------------------------------------------------------------

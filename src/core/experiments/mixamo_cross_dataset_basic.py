@@ -1,13 +1,10 @@
-from util.torch.nn import PytorchNet, set_determinsitic_run
-from dataset.datasets import FullPartDatasetMenu
-from util.strings import banner, set_logging_to_stdout
-from util.func import tutorial
-from util.torch.data import none_or_int, none_or_str
-from test_tube import HyperOptArgumentParser
-from architecture.models import F2PEncoderDecoderRealistic
 from lightning.trainer import LightningTrainer
-from dataset.index import HierarchicalIndexTree  # Needed for pickle
+from util.torch.nn import set_determinsitic_run
+from util.torch.data import none_or_int, none_or_str
+from util.strings import banner, set_logging_to_stdout
+from dataset.datasets import FullPartDatasetMenu
 from dataset.transforms import *
+from architecture.models import *
 
 set_logging_to_stdout()
 set_determinsitic_run()  # Set a universal random seed
@@ -20,8 +17,8 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
 
     # Check-pointing
-    p.add_argument('--exp_name', type=str, default='test_code', help='The experiment name. Leave empty for default')
-    # TODO - Don't forget to change me!
+    p.add_argument('--exp_name', type=str, default='mixamo_cross_dataset_basic',  # TODO - Don't forget to change me!
+                   help='The experiment name. Leave empty for default')
     p.add_argument('--version', type=none_or_int, default=None,
                    help='Weights will be saved at weight_dir=exp_name/version_{version}. '
                         'Use None to automatically choose an unused version')
@@ -29,30 +26,28 @@ def parser():
                    help='Only works if version != None and and weight_dir exists. '
                         '1st Bool: Whether to attempt restore of early stopping callback. '
                         '2nd Bool: Whether to attempt restore learning rate scheduler')
-    p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=3,
+    p.add_argument('--save_completions', type=int, choices=[0, 1, 2, 3], default=2,
                    help='Use 0 for no save. Use 1 for vertex only save in obj file. Use 2 for a full mesh save (v&f). '
                         'Use 3 for gt,tp,gt_part,tp_part save as well.')
 
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
-    p.add_argument('--counts', nargs=3, type=none_or_int, default=(10, 10, 10),
-                   help='[Train,Validation,Test] number of samples. Use None for all in partition')
     p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
                    help='Number of input channels')
 
     # Train Config:
     p.add_argument('--force_train_epoches', type=int, default=1,
                    help="Force train for this amount. Usually we'd early stop using the callback. Use 1 to disable")
-    p.add_argument('--max_epochs', type=int, default=100000000,
-                   help='Maximum epochs to train for')
+    p.add_argument('--max_epochs', type=int, default=None,  # Must be over 1
+                   help='Maximum epochs to train for. Use None for close to infinite epochs')
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
 
     # Optimizer
     p.add_argument("--weight_decay", type=float, default=0, help="Adam's weight decay - usually use 1e-4")
     p.add_argument("--plateau_patience", type=none_or_int, default=None,
                    help="Number of epoches to wait on learning plateau before reducing step size. Use None to shut off")
-    p.add_argument("--early_stop_patience", type=int, default=100,  # TODO - Remember to setup resume_cfg correctly
+    p.add_argument("--early_stop_patience", type=int, default=80,  # TODO - Remember to setup resume_cfg correctly
                    help="Number of epoches to wait on learning plateau before stopping train")
     # Without early stop callback, we'll train for cfg.MAX_EPOCHS
 
@@ -72,7 +67,7 @@ def parser():
     # Computation
     p.add_argument('--gpus', type=none_or_int, default=-1, help='Use -1 to use all available. Use None to run on CPU')
     p.add_argument('--distributed_backend', type=str, default='dp', help='supports three options dp, ddp, ddp2')
-    # TODO - ddp2,ddp Untested
+    # TODO - ddp2,ddp Untested. Multiple GPUS - not tested
 
     # Visualization
     p.add_argument('--use_auto_tensorboard', type=bool, default=3,
@@ -83,7 +78,7 @@ def parser():
                    help='The plotter class or None for no plot')  # TODO - generalize this
 
     # Completion Report
-    p.add_argument('--email_report', type=bool, default=False, #TODO - check this
+    p.add_argument('--email_report', type=bool, default=True,
                    help='Email basic tensorboard dir if True')
 
     return [p]
@@ -94,21 +89,63 @@ def parser():
 # ----------------------------------------------------------------------------------------------------------------------
 def train_main():
     banner('Network Init')
-    nn = F2PEncoderDecoderRealistic(parser())
+    nn = F2PEncoderDecoder(parser())
     nn.identify_system()
 
     # Bring in data:
-    ds = FullPartDatasetMenu.get('FaustPyProj')
-    ldrs1 = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=nn.hp.counts, s_shuffle=[True] * 3, s_transform=[Center()] * 3,
-                       batch_size=nn.hp.batch_size, device=nn.hp.dev, n_channels=nn.hp.in_channels, method='f2p',
-                       s_dynamic=[False] * 3)
+    ldrs = mixamo_loader_set(nn.hp)
 
     # Supply the network with the loaders:
-    trainer = LightningTrainer(nn, [ldrs1[0], [ldrs1[1]], [ldrs1[2]]])
-    # trainer = LightningTrainer(nn,ldrs1)
+    trainer = LightningTrainer(nn, ldrs)
     trainer.train()
     trainer.test()
     trainer.finalize()
 
+
+def mixamo_loader_set(hp):
+    # TODO - Oshri remember to change me path to Mixamo.
+    ds_mixamo = FullPartDatasetMenu.get('MixamoPyProj', data_dir_override="Z:\ShapeCompletion\Mixamo")
+    ldrs = ds_mixamo.loaders(split=[0.8, 0.1, 0.1], s_nums=[10000, 1000, 1000], s_shuffle=[True] * 3,
+                             s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev,
+                             n_channels=hp.in_channels, method='rand_f2p', s_dynamic=[True, False, False])
+    ldrs[1], ldrs[2] = [ldrs[1]], [ldrs[2]]
+
+    ds = FullPartDatasetMenu.get('FaustPyProj')
+    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+                         batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
+                         method='f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
+    ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
+
+    ds = FullPartDatasetMenu.get('DFaustPyProj')
+    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+                         batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
+                         method='rand_f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
+    ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
+
+    ds = FullPartDatasetMenu.get('DFaustPyProjSeq',
+                                 data_dir_override=hp.PRIMARY_DATA_DIR / 'synthetic' / 'DFaustPyProj')
+    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+                         batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
+                         method='rand_f2p_seq', s_shuffle=[True] * 2, s_dynamic=[False, False])
+    ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
+
+    ds = FullPartDatasetMenu.get('AmassValdPyProj')  # AmassTestPyProj sucks
+    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+                         batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
+                         method='rand_f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
+    ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
+
+    ds = FullPartDatasetMenu.get('AmassTrainPyProj')
+    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+                         batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
+                         method='rand_f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
+    ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
+
+    return ldrs
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+#
+# ----------------------------------------------------------------------------------------------------------------------
 if __name__ == '__main__':
     train_main()

@@ -151,7 +151,7 @@ def visuals_tester():
     from dataset.datasets import FullPartDatasetMenu
     from dataset.transforms import Center
 
-    ds = FullPartDatasetMenu.get('DFaustPyProj')
+    ds = FullPartDatasetMenu.get('MixamoPyProj',data_dir_override="Z:\ShapeCompletion\Mixamo")
     samp = ds.sample(1,transforms=[Center()],n_channels=3,method='rand_f2p')  # dim:
     gt = samp['gt'][0]
     mask = samp['gt_mask'][0]
@@ -159,7 +159,7 @@ def visuals_tester():
     gt_part = gt[mask,:]
 
 
-    plot_mesh_montage([tp,gt,gt_part], strategy='spheres',clr='lightblue')
+    plot_mesh_montage([tp,gt,gt_part], strategy='spheres',clr='lightblue',grid_on=True)
 
 
 if __name__ == '__main__':

@@ -7,6 +7,15 @@ from util.mesh.ios import read_npz_mask, read_off_verts, read_obj_verts
 import scipy.io as sio
 import re
 
+# This snippet is needed to solve the unpickling error. See shorturl.at/jktw2
+try:
+    if __name__ != '__main__':
+        import __main__
+
+        __main__.HierarchicalIndexTree = HierarchicalIndexTree
+except:
+    pass
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                     Abstract
@@ -106,7 +115,12 @@ class DFaustPyProj(ParametricCompletionDataset):
         return read_off_verts(fp)
 
 
+class DFaustPyProjSeq(DFaustPyProj):  # Only needed for a different naming convention. TODO - Find some better way
+    pass
+
 # ----------------------------------------------------------------------------------------------------------------------
+
+
 #                                           Implementations - Amass
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -137,7 +151,7 @@ class MixamoPyProj(ParametricCompletionDataset):  # Should be: MixamoPyProj_2k_1
                          disk_space_bytes=2.4e+12)
 
     def _construct_hit(self):
-        with open(self._data_dir / 'Mixamo_hit.pkl', "rb") as f:
+        with open(self._data_dir / 'mixamo_projection_2_of_10_angs_seq_frac_1_hit.pkl', "rb") as f:
             return load(f)
 
     def _hi2proj_path(self, hi):
@@ -155,7 +169,7 @@ class MixamoPyProj(ParametricCompletionDataset):  # Should be: MixamoPyProj_2k_1
         return read_npz_mask(fp)
 
     def _full_path2data(self, fp):
-        return read_obj_verts(fp)
+        return 100 * read_obj_verts(fp)  # Factor of 100 is for scale fix
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -170,6 +184,7 @@ class FullPartDatasetMenu:
         'FaustPyProj': FaustPyProj,
         'FaustMatProj': FaustMatProj,
         'DFaustPyProj': DFaustPyProj,
+        'DFaustPyProjSeq': DFaustPyProjSeq,
         'MixamoPyProj': MixamoPyProj
     }
 
@@ -187,7 +202,7 @@ class FullPartDatasetMenu:
 # ----------------------------------------------------------------------------------------------------------------------
 def test_dataset():
     from dataset.transforms import Center
-    ds = FullPartDatasetMenu.get('DFaustPyProj')
+    ds = FullPartDatasetMenu.get('MixamoPyProj', data_dir_override="Z:\ShapeCompletion\Mixamo")
     # for ds_name in FullPartDatasetMenu.which():
     #     ds = FullPartDatasetMenu.get(ds_name)
     #     print(ds.num_datapoints_by_method('f2p') , ds._hit_in_memory)
@@ -196,7 +211,7 @@ def test_dataset():
     #         print(d)
     #         break
 
-    ldr = ds.loaders(s_nums=1000, batch_size=10, device='cpu-single', method='rand_f2p_seq', n_channels=6,
+    ldr = ds.loaders(s_nums=1000, batch_size=10, device='cpu-single', method='rand_f2p', n_channels=6,
                      s_dynamic=True)
     for d in ldr:
         print(d)

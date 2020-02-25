@@ -33,12 +33,15 @@ class LightningTrainer:
         self.plt, self.tb_sup, self.emailer = None, None, None
         # Additional Structures:
         self.trainer, self.exp_dp = None, None
+        # Flags
+        self.testing_only = True
 
     def train(self, debug_mode=False):
         banner('Training Phase')
         if not self.trainer:
             self._init_training_assets()
             log.info(f'Training on dataset: {self.data.curr_trainset_name()}')
+            self.testing_only = False
 
         self._trainer(debug_mode).fit(self.nn, self.data.train_ldr, self.data.vald_ldrs, self.data.test_ldrs)
         # train_dataloader=None, val_dataloader=None, test_dataloader=None
@@ -55,8 +58,8 @@ class LightningTrainer:
             self.tb_sup.finalize()
 
         # If needed, send the final report via email:
-        if self.emailer:  # Long enough train, or test only - TODO - find some smarter way for only test
-            if self.nn.current_epoch >= self.hp.MIN_EPOCHS_NEEDED_SEND_EMAIL_RECORD or self.nn.current_epoch == 0:
+        if self.emailer:  # Long enough train, or test only
+            if self.nn.current_epoch >= self.hp.MIN_EPOCHS_TO_SEND_EMAIL_RECORD or self.testing_only:
                 log.info("Sending zip with experiment specs to configured inbox")
                 self.emailer.send_report(self.trainer.final_result_str)
             else:
