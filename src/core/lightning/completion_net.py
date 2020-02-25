@@ -92,7 +92,7 @@ class CompletionLightningModel(PytorchNet):
     def validation_end(self, outputs):
 
         if self.assets.data.num_vald_loaders() == 1:
-            outputs = [outputs] # Incase singleton case
+            outputs = [outputs]  # Incase singleton case
         log_dict, progbar_dict = {}, {}
         avg_val_loss = 0
         for i in range(len(outputs)):  # Number of validation datasets
@@ -122,7 +122,7 @@ class CompletionLightningModel(PytorchNet):
 
     def test_end(self, outputs):
         if self.assets.data.num_test_loaders() == 1:
-            outputs = [outputs] # Incase singleton case
+            outputs = [outputs]  # Incase singleton case
         log_dict, progbar_dict = {}, {}
         avg_test_loss = 0
         for i in range(len(outputs)):  # Number of test datasets

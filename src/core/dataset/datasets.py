@@ -118,6 +118,7 @@ class DFaustPyProj(ParametricCompletionDataset):
 class DFaustPyProjSeq(DFaustPyProj):  # Only needed for a different naming convention. TODO - Find some better way
     pass
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 
 

@@ -49,7 +49,7 @@ def first(iterable, condition=lambda x: True):
     return next(x for x in iterable if condition(x))
 
 
-def to_list(l,encapsulate_none=True):
+def to_list(l, encapsulate_none=True):
     if not encapsulate_none and l is None:
         return []
     if isinstance(l, list):

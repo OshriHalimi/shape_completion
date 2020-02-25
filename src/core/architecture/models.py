@@ -50,6 +50,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
         y = self.decoder(y)
         return {'completion_xyz': y}
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
 # ----------------------------------------------------------------------------------------------------------------------
@@ -58,9 +59,9 @@ class F2PEncoderDecoderRealistic(CompletionLightningModel):
         # Encoder takes a 3D point cloud as an input.
         # Note that a linear layer is applied to the global feature vector
         self.encoder_full = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size,
-                                    dense=self.hparams.dense_encoder)
+                                         dense=self.hparams.dense_encoder)
         self.encoder_part = ShapeEncoder(in_channels=3, code_size=self.hparams.code_size,
-                                    dense=self.hparams.dense_encoder)
+                                         dense=self.hparams.dense_encoder)
         self.decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
                                     out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
 
@@ -88,7 +89,7 @@ class F2PEncoderDecoderRealistic(CompletionLightningModel):
         bs = part.size(0)
         nv = part.size(1)
 
-        part_code = self.encoder_part(part[:,:,:3])  # [b x code_size]
+        part_code = self.encoder_part(part[:, :, :3])  # [b x code_size]
         full_code = self.encoder_full(full)  # [b x code_size]
 
         part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
@@ -102,9 +103,10 @@ class F2PEncoderDecoderRealistic(CompletionLightningModel):
 class F2PDGCNNEncoderDecoder(F2PEncoderDecoder):
     def _build_model(self):
         self.encoder = ShapeEncoderDGCNN(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size,
-                                             k=20, device=self.hparams.dev)
+                                         k=20, device=self.hparams.dev)
         self.decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
                                     out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
@@ -156,7 +158,7 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
         full_code = full_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         gt_code = gt_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
 
-        completion = self.comp_decoder(torch.cat((full, part_code, full_code), 2).contiguous() )
+        completion = self.comp_decoder(torch.cat((full, part_code, full_code), 2).contiguous())
 
         template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
         full_rec = self.rec_decoder(torch.cat((template, full_code), 2).contiguous())
@@ -164,6 +166,7 @@ class F2PEncoderDecoderSkeptic(CompletionLightningModel):
         gt_rec = self.rec_decoder(torch.cat((template, gt_code), 2).contiguous())
 
         return {'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec, 'gt_rec': gt_rec}
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
@@ -228,7 +231,9 @@ class F2PEncoderJointDecoderSkeptic(CompletionLightningModel):
         gt_rec = self.rec_decoder(torch.cat((template, gt_code), 2).contiguous())
 
         # TODO: What if the ntetwork returns more than one completion?
-        return {'completion_xyz': completion_1, 'completion_xyz_2': completion_2, 'full_rec': full_rec_1, 'full_rec_2': full_rec_2, 'part_rec': part_rec, 'gt_rec': gt_rec}
+        return {'completion_xyz': completion_1, 'completion_xyz_2': completion_2, 'full_rec': full_rec_1,
+                'full_rec_2': full_rec_2, 'part_rec': part_rec, 'gt_rec': gt_rec}
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
@@ -286,16 +291,19 @@ class F2PEncoderRegressorDecoderSkeptic(CompletionLightningModel):
         comp_code = comp_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         gt_code = gt_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
 
-        completion = self.comp_decoder(torch.cat((full, comp_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        completion = self.comp_decoder(
+            torch.cat((full, comp_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
 
         template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
-        full_rec = self.rec_decoder(torch.cat((template, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        part_rec = self.rec_decoder(torch.cat((template, part_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        gt_rec = self.rec_decoder(torch.cat((template, gt_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        full_rec = self.rec_decoder(
+            torch.cat((template, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        part_rec = self.rec_decoder(
+            torch.cat((template, part_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        gt_rec = self.rec_decoder(
+            torch.cat((template, gt_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
 
         output_dict.update({'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec, 'gt_rec': gt_rec})
         return output_dict
-
 
 
 # ----------------------------------------------------------------------------------------------------------------------
@@ -309,11 +317,14 @@ class PointContextNet(CompletionLightningModel):
         self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size,
                                     dense=self.hparams.dense_encoder)
         self.rec_decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + self.hparams.code_size,
-                                    out_channels=self.hparams.out_channels, num_convl=self.hparams.rec_decoder_convl)
-        self.comp_decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + self.hparams.out_channels + self.hparams.code_size * 2,
-                                    out_channels=self.hparams.out_channels, num_convl=self.hparams.comp_decoder_convl)
+                                        out_channels=self.hparams.out_channels,
+                                        num_convl=self.hparams.rec_decoder_convl)
+        self.comp_decoder = ShapeDecoder(
+            pnt_code_size=self.hparams.in_channels + self.hparams.out_channels + self.hparams.code_size * 2,
+            out_channels=self.hparams.out_channels, num_convl=self.hparams.comp_decoder_convl)
         self.context_decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + self.hparams.code_size,
-                                    out_channels=self.hparams.out_channels, num_convl=self.hparams.context_decoder_convl)
+                                            out_channels=self.hparams.out_channels,
+                                            num_convl=self.hparams.context_decoder_convl)
 
     def _init_model(self):
         self.encoder.init_weights()
@@ -347,25 +358,33 @@ class PointContextNet(CompletionLightningModel):
         part_code = self.encoder(part)  # [b x code_size]
         full_code = self.encoder(full)  # [b x code_size]
         gt_code = self.encoder(gt)  # [b x code_size]
-        comp_code = torch.cat((part_code, full_code), 1).contiguous()  #[b x 2*code_size]
+        comp_code = torch.cat((part_code, full_code), 1).contiguous()  # [b x 2*code_size]
 
         part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         full_code = full_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         comp_code = comp_code.unsqueeze(1).expand(bs, nv, 2 * self.hparams.code_size)  # [b x nv x 2*code_size]
         gt_code = gt_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
 
-        #template reconsturction
+        # template reconsturction
         template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
-        full_rec = self.rec_decoder(torch.cat((template, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        part_rec = self.rec_decoder(torch.cat((template, part_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        gt_rec = self.rec_decoder(torch.cat((template, gt_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        full_rec = self.rec_decoder(
+            torch.cat((template, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        part_rec = self.rec_decoder(
+            torch.cat((template, part_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        gt_rec = self.rec_decoder(
+            torch.cat((template, gt_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
 
-        #Point context $ completion
-        point_context = self.context_decoder(torch.cat((full, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        completion = self.comp_decoder(torch.cat((full, point_context, comp_code), 2).contiguous())  # decoder input: [b x nv x (2 * in_channels + 2 * code_size)]
+        # Point context $ completion
+        point_context = self.context_decoder(
+            torch.cat((full, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        completion = self.comp_decoder(torch.cat((full, point_context, comp_code),
+                                                 2).contiguous())  # decoder input: [b x nv x (2 * in_channels + 2 * code_size)]
 
-        output_dict = {'completion_xyz': completion, 'point_context': point_context, 'full_rec': full_rec, 'part_rec': part_rec, 'gt_rec': gt_rec}
+        output_dict = {'completion_xyz': completion, 'point_context': point_context, 'full_rec': full_rec,
+                       'part_rec': part_rec, 'gt_rec': gt_rec}
         return output_dict
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
 # ----------------------------------------------------------------------------------------------------------------------
@@ -416,12 +435,16 @@ class F2PEncoderDecoderTBased(CompletionLightningModel):
         comp_code = comp_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         gt_code = gt_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
 
-        #all reconsturction (also completion are achieved by FIXED template deformation)
+        # all reconsturction (also completion are achieved by FIXED template deformation)
         template = self.template.get_template().expand(bs, nv, self.hparams.in_channels)
-        full_rec = self.decoder(torch.cat((template, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        part_rec = self.decoder(torch.cat((template, part_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        gt_rec = self.decoder(torch.cat((template, gt_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
-        completion = self.decoder(torch.cat((template, comp_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        full_rec = self.decoder(
+            torch.cat((template, full_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        part_rec = self.decoder(
+            torch.cat((template, part_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        gt_rec = self.decoder(
+            torch.cat((template, gt_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
+        completion = self.decoder(
+            torch.cat((template, comp_code), 2).contiguous())  # decoder input: [b x nv x (in_channels + code_size)]
 
         output_dict.update({'completion_xyz': completion, 'full_rec': full_rec, 'part_rec': part_rec, 'gt_rec': gt_rec})
         return output_dict

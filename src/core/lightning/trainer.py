@@ -3,7 +3,6 @@ from lightning.pytorch_lightning.loggers import TestTubeLogger
 from lightning.pytorch_lightning import Trainer
 from lightning.assets.completion_saver import CompletionSaver
 from lightning.assets.emailer import TensorboardEmailer
-from collections.abc import Sequence
 from util.container import to_list, first
 import lightning.assets.plotter
 from util.torch.nn import TensorboardSupervisor

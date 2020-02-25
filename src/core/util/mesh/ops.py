@@ -53,7 +53,7 @@ def moments(v):
 
 def padded_part_by_mask(vi, v):
     # Pad the mask to length:
-    needed_padding_len = v.shape[0] - len(vi) # Truncates ALL input channels
+    needed_padding_len = v.shape[0] - len(vi)  # Truncates ALL input channels
     mask_vi_padded = np.append(vi, np.random.choice(vi, needed_padding_len, replace=True))  # Copies
     return v[mask_vi_padded, :]
 
@@ -72,7 +72,7 @@ def vertex_mask_indicator(nv, vi):
 def trunc_to_vertex_mask(v, f, vi):
     # TODO: Warning supports only watertight meshes (not scans) - Need to remove vertices unref by f2
     if f is None:
-        return v[vi,:],None
+        return v[vi, :], None
     else:
         nv = v.shape[0]
         # Compute new vertices:

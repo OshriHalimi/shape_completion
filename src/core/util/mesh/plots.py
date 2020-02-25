@@ -147,19 +147,20 @@ def mesh_append(p, v, f=None, n=None, strategy='mesh', grid_on=False, clr='light
 #                                                    Test Suite
 # ----------------------------------------------------------------------------------------------------------------------#
 from dataset.index import HierarchicalIndexTree
+
+
 def visuals_tester():
     from dataset.datasets import FullPartDatasetMenu
     from dataset.transforms import Center
 
-    ds = FullPartDatasetMenu.get('MixamoPyProj',data_dir_override="Z:\ShapeCompletion\Mixamo")
-    samp = ds.sample(1,transforms=[Center()],n_channels=3,method='rand_f2p')  # dim:
+    ds = FullPartDatasetMenu.get('MixamoPyProj', data_dir_override="Z:\ShapeCompletion\Mixamo")
+    samp = ds.sample(1, transforms=[Center()], n_channels=3, method='rand_f2p')  # dim:
     gt = samp['gt'][0]
     mask = samp['gt_mask'][0]
     tp = samp['tp'][0]
-    gt_part = gt[mask,:]
+    gt_part = gt[mask, :]
 
-
-    plot_mesh_montage([tp,gt,gt_part], strategy='spheres',clr='lightblue',grid_on=True)
+    plot_mesh_montage([tp, gt, gt_part], strategy='spheres', clr='lightblue', grid_on=True)
 
 
 if __name__ == '__main__':

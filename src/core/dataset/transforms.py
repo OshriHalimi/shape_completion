@@ -1,7 +1,7 @@
 import random
 import numbers
 from itertools import repeat
-from util.mesh.ops import vnrmls, moments, padded_part_by_mask, flip_vertex_mask,trunc_to_vertex_mask
+from util.mesh.ops import vnrmls, moments, padded_part_by_mask, flip_vertex_mask, trunc_to_vertex_mask
 import numpy as np
 import math
 
@@ -158,6 +158,7 @@ class MaskDecimation(Transform):
     def __repr__(self):
         return self.__class__.__name__ + f'(frac={self._frac},keys={self._keys})'
 
+
 class RandomScale(Transform):
     """
     scales (tuple): scaling factor interval, e.g. :obj:`(a, b)`, then scale
@@ -288,12 +289,12 @@ def test_suite():
         dp['gt'] = dp['gt'].squeeze()
         gt = dp['gt']
         mask = dp['gt_mask'][0]
-        gt_part = gt[mask,:]
+        gt_part = gt[mask, :]
         # trans = RandomTranslate(0.01, keys=['gt'])
         # print(trans)
         v = gt_part[:, :3]
         n = gt_part[:, 3:6]
-        _,f = trunc_to_vertex_mask(gt[:,:3],ds.faces(),mask)
+        _, f = trunc_to_vertex_mask(gt[:, :3], ds.faces(), mask)
         plot_mesh(v=v, strategy='spheres')
         dp = trans(dp)
         v = gt[:, :3]

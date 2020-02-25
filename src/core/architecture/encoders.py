@@ -37,6 +37,7 @@ class ShapeEncoder(nn.Module):
     def forward(self, shape):
         return self.encoder(shape)
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                           Encoder - DGCNN
 # ----------------------------------------------------------------------------------------------------------------------
@@ -82,7 +83,8 @@ class ShapeEncoderDGCNN(nn.Module):
         idx = idx + idx_base
         idx = idx.view(-1)
         _, num_dims, _ = x.size()
-        x = x.transpose(2, 1).contiguous()  # (batch_size, num_points, num_dims)  -> (batch_size*num_points, num_dims) #   batch_size * num_points * k + range(0, batch_size*num_points)
+        x = x.transpose(2,
+                        1).contiguous()  # (batch_size, num_points, num_dims)  -> (batch_size*num_points, num_dims) #   batch_size * num_points * k + range(0, batch_size*num_points)
         feature = x.view(batch_size * num_points, -1)[idx, :]
         feature = feature.view(batch_size, num_points, self.k, num_dims)
         x = x.view(batch_size, num_points, 1, num_dims).repeat(1, 1, self.k, 1)
@@ -121,12 +123,15 @@ class ShapeEncoderDGCNN(nn.Module):
         x = F.leaky_relu(self.bn6(self.linear1(x)), negative_slope=0.2)  # [B x code_size]
         return x
 
+
 def knn(x, k):
     inner = -2 * torch.matmul(x.transpose(2, 1), x)
     xx = torch.sum(x ** 2, dim=1, keepdim=True)
     pairwise_distance = -xx - inner - xx.transpose(2, 1)
     idx = pairwise_distance.topk(k=k, dim=-1)[1]  # (batch_size, num_points, k)
     return idx
+
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Encoders
 # ----------------------------------------------------------------------------------------------------------------------

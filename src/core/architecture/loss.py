@@ -3,6 +3,7 @@ from util.mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_fnrmls_fare
 from util.strings import warn
 from architecture.decoders import Template
 
+
 # ----------------------------------------------------------------------------------------------------------------------
 #                           Full Losses (different architecture might have different losses)
 # ----------------------------------------------------------------------------------------------------------------------
@@ -19,8 +20,10 @@ class BasicLoss:
         completion_gt = input['gt']
         completion_rec = network_output['completion_xyz']
 
-        loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
+        loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=completion_rec,
+                                            w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
         return loss_dict
+
 
 class SkepticLoss:
     def __init__(self, hp, f):
@@ -42,10 +45,11 @@ class SkepticLoss:
         nv = completion_gt.shape[1]
         w_part = self.shape_diff._mask_part_weight(part_idx, nv)
 
-        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
+        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec,
+                                                 w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
         loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
-        loss_dict_full = self.shape_diff.compute(full, full_rec,w=1)
-        loss_dict_gt = self.shape_diff.compute(completion_gt, gt_rec, w=1) # bring gt_rec close to gt
+        loss_dict_full = self.shape_diff.compute(full, full_rec, w=1)
+        loss_dict_gt = self.shape_diff.compute(completion_gt, gt_rec, w=1)  # bring gt_rec close to gt
 
         loss_dict_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
         loss_dict_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
@@ -56,8 +60,11 @@ class SkepticLoss:
         loss_dict.update(loss_dict_part)
         loss_dict.update(loss_dict_full)
         loss_dict.update(loss_dict_gt)
-        loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'])
+        loss_dict.update(
+            total_loss=loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] +
+                       loss_dict['total_loss_gt'])
         return loss_dict
+
 
 class JointDecoderSkepticLoss:
     def __init__(self, hp, f):
@@ -83,23 +90,28 @@ class JointDecoderSkepticLoss:
         w_part = self.shape_diff._mask_part_weight(part_idx, nv)
 
         # Loss terms calculation
-        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec_1, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
-        loss_dict_comp_2 = self.shape_diff.compute(completion_gt, completion_rec_2, w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
+        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec_1,
+                                                 w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
+        loss_dict_comp_2 = self.shape_diff.compute(completion_gt, completion_rec_2,
+                                                   w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
         loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
         loss_dict_full = self.shape_diff.compute(full_1, full_rec_1, w=1)
         loss_dict_full_2 = self.shape_diff.compute(full_2, full_rec_2, w=1)
-        loss_dict_gt = self.shape_diff.compute(completion_gt, gt_rec, w=1) # bring gt_rec close to gt
-        loss_dict_joint_decoder = self.shape_diff.compute(completion_rec_1, completion_rec_2,w=1)  # Here comes the joint term
+        loss_dict_gt = self.shape_diff.compute(completion_gt, gt_rec, w=1)  # bring gt_rec close to gt
+        loss_dict_joint_decoder = self.shape_diff.compute(completion_rec_1, completion_rec_2,
+                                                          w=1)  # Here comes the joint term
 
         # Dictionary formatting
         loss_dict_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
         loss_dict_comp_2 = {f'{k}_comp': v for k, v in loss_dict_comp_2.items()}
-        loss_dict_comp = {k: 0.5 * (loss_dict_comp[k] + loss_dict_comp_2[k]) for k in loss_dict_comp.keys()}  # Use average loss of two completions
+        loss_dict_comp = {k: 0.5 * (loss_dict_comp[k] + loss_dict_comp_2[k]) for k in
+                          loss_dict_comp.keys()}  # Use average loss of two completions
         loss_dict_joint_decoder = {f'{k}_joint_decoder': v for k, v in loss_dict_joint_decoder.items()}
         loss_dict_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
         loss_dict_full = {f'{k}_full': v for k, v in loss_dict_full.items()}
         loss_dict_full_2 = {f'{k}_full': v for k, v in loss_dict_full_2.items()}
-        loss_dict_full = {k: 0.5 * (loss_dict_full[k] + loss_dict_full_2[k]) for k in loss_dict_full.keys()}  # Use average loss of two full shape reconstructions
+        loss_dict_full = {k: 0.5 * (loss_dict_full[k] + loss_dict_full_2[k]) for k in
+                          loss_dict_full.keys()}  # Use average loss of two full shape reconstructions
         loss_dict_gt = {f'{k}_gt': v for k, v in loss_dict_gt.items()}
 
         # Dictionary update
@@ -108,7 +120,9 @@ class JointDecoderSkepticLoss:
         loss_dict.update(loss_dict_full)
         loss_dict.update(loss_dict_gt)
         loss_dict.update(loss_dict_joint_decoder)
-        loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'] + loss_dict['total_loss_joint_decoder'])
+        loss_dict.update(
+            total_loss=loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] +
+                       loss_dict['total_loss_gt'] + loss_dict['total_loss_joint_decoder'])
         return loss_dict
 
 
@@ -137,12 +151,14 @@ class PointContextLoss:
         nv = completion_gt.shape[1]
         w_part = self.shape_diff._mask_part_weight(part_idx, nv)
 
-        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty (only for completion)
+        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec,
+                                                 w=1)  # TODO calculate mask: w, w.r.t to mask penalty (only for completion)
         template = self.template.vertices.expand(bs, nv, self.out_channels)
         loss_dict_context = self.shape_diff.compute(template, point_context, w=1)
         loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
-        loss_dict_full = self.shape_diff.compute(full, full_rec,w=1)
-        loss_dict_gt = self.shape_diff.compute(gt_rec, completion_rec, w=1) #bring completion_rec close to gt_rec (gt_rec always better than completion_rec in template based decoder)
+        loss_dict_full = self.shape_diff.compute(full, full_rec, w=1)
+        loss_dict_gt = self.shape_diff.compute(gt_rec, completion_rec,
+                                               w=1)  # bring completion_rec close to gt_rec (gt_rec always better than completion_rec in template based decoder)
 
         loss_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
         loss_context = {f'{k}_context': v for k, v in loss_dict_context.items()}
@@ -155,7 +171,9 @@ class PointContextLoss:
         loss_dict.update(loss_part)
         loss_dict.update(loss_full)
         loss_dict.update(loss_gt)
-        loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_context'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'])
+        loss_dict.update(
+            total_loss=loss_dict['total_loss_comp'] + loss_dict['total_loss_context'] + loss_dict['total_loss_part'] +
+                       loss_dict['total_loss_full'] + loss_dict['total_loss_gt'])
         return loss_dict
 
 
@@ -182,10 +200,12 @@ class TBasedLoss:
         nv = completion_gt.shape[1]
         w_part = self.shape_diff._mask_part_weight(part_idx, nv)
 
-        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec, w=1)  # TODO calculate mask: w, w.r.t to mask penalty (only for completion)
+        loss_dict_comp = self.shape_diff.compute(completion_gt, completion_rec,
+                                                 w=1)  # TODO calculate mask: w, w.r.t to mask penalty (only for completion)
         loss_dict_part = self.shape_diff.compute(completion_gt, part_rec, w=w_part)
-        loss_dict_full = self.shape_diff.compute(full, full_rec,w=1)
-        loss_dict_gt = self.shape_diff.compute(gt_rec, completion_rec, w=1) #bring completion_rec close to gt_rec (gt_rec always better than completion_rec in template based decoder)
+        loss_dict_full = self.shape_diff.compute(full, full_rec, w=1)
+        loss_dict_gt = self.shape_diff.compute(gt_rec, completion_rec,
+                                               w=1)  # bring completion_rec close to gt_rec (gt_rec always better than completion_rec in template based decoder)
 
         loss_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
         loss_part = {f'{k}_part': v for k, v in loss_dict_part.items()}
@@ -199,13 +219,16 @@ class TBasedLoss:
         loss_dict.update(loss_full)
         loss_dict.update(loss_gt)
         loss_dict.update(loss_code)
-        loss_dict.update(total_loss = loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] + loss_dict['total_loss_gt'])
+        loss_dict.update(
+            total_loss=loss_dict['total_loss_comp'] + loss_dict['total_loss_part'] + loss_dict['total_loss_full'] +
+                       loss_dict['total_loss_gt'])
         return loss_dict
+
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                   Loss Terms
 # ----------------------------------------------------------------------------------------------------------------------
-#Relies on the fact the shapes have the same connectivity
+# Relies on the fact the shapes have the same connectivity
 class ShapeDiffLoss:
     def __init__(self, hp, f):
         # Copy over from the hyper-params - Remove ties to the hp container for our own editing
@@ -223,8 +246,8 @@ class ShapeDiffLoss:
             self.torch_f = torch.from_numpy(f).long().to(device=self.dev, non_blocking=self.non_blocking)
 
         # Sanity Check - Input Channels:
-        #TODO: we should have a transformation block operating on the initial data, adding input channels, scaling, rotating etc.
-        #TODO: hp.in_channels should be defined with respect to transformed input data.
+        # TODO: we should have a transformation block operating on the initial data, adding input channels, scaling, rotating etc.
+        # TODO: hp.in_channels should be defined with respect to transformed input data.
         # For example: the initial data might not have normals (initial input channels = 3), however in the input pipeline
         # we add normals (before the lightning), making the input channel = 6. Now, assume we want to calculate normal loss.
         # If hp.in_channels refers to the initial input channels then the logic below won't work (the assert will fail).
@@ -252,9 +275,6 @@ class ShapeDiffLoss:
         if [p for p in self.dist_v_penalties if p > 1]:  # if using_distant_vertex
             self.dist_v_ones = torch.ones((1, 1, 1), device=self.dev, dtype=self.def_prec)
 
-
-
-
     def compute(self, shape_1, shape_2, w):
         """
         :param shape_1: first batch of shapes [b x nv x d] - for which all fields are known
@@ -276,7 +296,8 @@ class ShapeDiffLoss:
                     vnb_2, is_valid_vnb_2 = out[0:2]
                     if need_f_area:
                         f_area_2 = out[2]
-                    loss_normals = self._l2_loss(shape_1[:, :, 3:6], vnb_2, lamb=lamb, vertex_mask=w*is_valid_vnb_2.unsqueeze(2))
+                    loss_normals = self._l2_loss(shape_1[:, :, 3:6], vnb_2, lamb=lamb,
+                                                 vertex_mask=w * is_valid_vnb_2.unsqueeze(2))
                     loss_dict['normals'] = loss_normals
                     loss += loss_normals
                 elif i == 2:  # Moments:
@@ -284,7 +305,8 @@ class ShapeDiffLoss:
                     loss_dict['moments'] = loss_moments
                     loss += loss_moments
                 elif i == 3:  # Euclidean Distance Matrices (validated)
-                    loss_euc_dist = self._l2_loss(batch_euclid_dist_mat(shape_1[:, :, 0:3]), batch_euclid_dist_mat(shape_2), lamb=lamb)
+                    loss_euc_dist = self._l2_loss(batch_euclid_dist_mat(shape_1[:, :, 0:3]),
+                                                  batch_euclid_dist_mat(shape_2), lamb=lamb)
                     loss_dict['EucDist'] = loss_euc_dist
                     loss += loss_euc_dist
                 elif i == 4:  # Euclidean Distance Matrices with normals (defined on Gauss map)
@@ -297,7 +319,8 @@ class ShapeDiffLoss:
                         if need_f_area:
                             f_area_2 = out[2]
 
-                    loss_euc_dist_gauss = self._l2_loss(batch_euclid_dist_mat(shape_1[:, :, 3:6]), batch_euclid_dist_mat(vnb_2), lamb=lamb)
+                    loss_euc_dist_gauss = self._l2_loss(batch_euclid_dist_mat(shape_1[:, :, 3:6]),
+                                                        batch_euclid_dist_mat(vnb_2), lamb=lamb)
                     loss_dict['EucDistGauss'] = loss_euc_dist_gauss
                     loss += loss_euc_dist_gauss
                 elif i == 5:  # Face Areas
@@ -311,7 +334,7 @@ class ShapeDiffLoss:
                     loss += loss_areas
                 elif i == 6:  # Volume:
                     pass
-                #TODO: implement chamfer distance loss
+                # TODO: implement chamfer distance loss
                 else:
                     raise AssertionError
 
@@ -369,6 +392,7 @@ class ShapeDiffLoss:
     def _l2_loss(v1b, v2b, lamb, vertex_mask=1):
         return lamb * torch.mean(vertex_mask * ((v1b - v2b) ** 2))
 
+
 class CodeLoss():
     def __init__(self):
         pass
@@ -380,7 +404,7 @@ class CodeLoss():
         min_norm, _ = torch.min(z, dim=1)
         d = torch.norm(code_1 - code_2, dim=1)
         loss = {}
-        loss["code_loss"] = torch.mean(d/min_norm)
+        loss["code_loss"] = torch.mean(d / min_norm)
         return loss
 
 # ----------------------------------------------------------------------------------------------------------------------

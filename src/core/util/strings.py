@@ -22,8 +22,10 @@ class BColors:
 def print_warning(str):
     print(BColors.WARNING + str + BColors.ENDC)
 
+
 def print_error(str):
     print(BColors.FAIL + str + BColors.ENDC)
+
 
 def warn_overload(message, category, filename, lineno, file=None, line=None):
     # if line is None:
