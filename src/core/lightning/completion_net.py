@@ -22,6 +22,7 @@ class CompletionLightningModel(PytorchNet):
         # Bookeeping:
         self.assets = None  # Set by Trainer
         self.loss, self.opt = None, None
+        self.min_losses = {}
 
         self._build_model()
         self.type(dst_type=getattr(torch, self.hparams.UNIVERSAL_PRECISION))  # Transfer to precision
@@ -100,7 +101,10 @@ class CompletionLightningModel(PytorchNet):
             for k in outputs[i][0].keys():
                 log_dict[f'{k}_val_{ds_name}'] = torch.stack([x[k] for x in outputs[i]]).mean()
             ds_val_loss = log_dict[f'total_loss_val_{ds_name}']
-            progbar_dict[f'val_loss_{ds_name}'] = ds_val_loss
+            prog_bar_name = f'val_loss_{ds_name}'
+            progbar_dict[prog_bar_name] = ds_val_loss
+            self.min_losses[prog_bar_name] = torch.min(self.min_losses.get(prog_bar_name,ds_val_loss),ds_val_loss)
+            log_dict[f'{prog_bar_name}_min'] = self.min_losses[prog_bar_name]
             if i == 0:  # Always use the first dataset as the validation loss
                 avg_val_loss = ds_val_loss
                 progbar_dict['val_loss'] = avg_val_loss

@@ -20,8 +20,12 @@ class BasicLoss:
         completion_gt = input['gt']
         completion_rec = network_output['completion_xyz']
 
-        loss_dict = self.shape_diff.compute(shape_1=completion_gt, shape_2=completion_rec,
+        loss_dict_comp = self.shape_diff.compute(shape_1=completion_gt, shape_2=completion_rec,
                                             w=1)  # TODO calculate mask: w, w.r.t to mask penalty and distnat vertices (only for completion)
+        loss_dict_comp = {f'{k}_comp': v for k, v in loss_dict_comp.items()}
+
+        loss_dict = loss_dict_comp
+        loss_dict.update(total_loss=loss_dict['total_loss_comp'])
         return loss_dict
 
 

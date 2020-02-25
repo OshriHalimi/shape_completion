@@ -310,7 +310,7 @@ class TensorboardServer(Process):
         super().__init__()
         self.os_name = os.name
         self.log_dp = str(log_dp)
-        self.daemon = True
+        # self.daemon = True
 
     def run(self):
         if self.os_name == 'nt':  # Windows
