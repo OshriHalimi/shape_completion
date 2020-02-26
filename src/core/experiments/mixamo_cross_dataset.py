@@ -103,7 +103,7 @@ def train_main():
 
 
 def mixamo_loader_set(hp):
-    # TODO - Oshri remember to change me path to Mixamo.
+    # TODO - remember to change me path to Mixamo.
     ds_mixamo = FullPartDatasetMenu.get('MixamoPyProj', data_dir_override="Z:\ShapeCompletion\Mixamo")
     ldrs = ds_mixamo.loaders(split=[0.8, 0.1, 0.1], s_nums=[10000, 1000, 1000], s_shuffle=[True] * 3,
                              s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev,
@@ -111,10 +111,11 @@ def mixamo_loader_set(hp):
     ldrs[1], ldrs[2] = [ldrs[1]], [ldrs[2]]
 
     ds = FullPartDatasetMenu.get('FaustPyProj')
-    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+    # MIXAMO is composed from Faust subjects - Do not use them in the test/validation due to contamination
+    tv_ldrs = ds.loaders(split=[0.8,0.1,0.1], s_nums=[1000]*3, s_transform=[Center()] * 3,
                          batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
-                         method='f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
-    ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
+                         method='f2p', s_shuffle=[True] * 3, s_dynamic=[False]*3)
+    ldrs[1].append(tv_ldrs[1]), ldrs[2].append(tv_ldrs[2])
 
     ds = FullPartDatasetMenu.get('DFaustPyProj')
     tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
@@ -122,18 +123,18 @@ def mixamo_loader_set(hp):
                          method='rand_f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
     ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
 
-    ds = FullPartDatasetMenu.get('DFaustPyProjSeq',
-                                 data_dir_override=hp.PRIMARY_DATA_DIR / 'synthetic' / 'DFaustPyProj')
-    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
-                         batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
-                         method='rand_f2p_seq', s_shuffle=[True] * 2, s_dynamic=[False, False])
-    ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
+    # ds = FullPartDatasetMenu.get('DFaustPyProjSeq',
+    #                              data_dir_override=hp.PRIMARY_DATA_DIR / 'synthetic' / 'DFaustPyProj')
+    # tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+    #                      batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
+    #                      method='rand_f2p_seq', s_shuffle=[True] * 2, s_dynamic=[False, False])
+    # ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
 
-    ds = FullPartDatasetMenu.get('AmassValdPyProj')  # AmassTestPyProj sucks
-    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
-                         batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
-                         method='rand_f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
-    ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
+    # ds = FullPartDatasetMenu.get('AmassValdPyProj')  # AmassTestPyProj sucks
+    # tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+    #                      batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
+    #                      method='rand_f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
+    # ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
 
     ds = FullPartDatasetMenu.get('AmassTrainPyProj')
     tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
@@ -142,6 +143,7 @@ def mixamo_loader_set(hp):
     ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
 
     return ldrs
+
 
 
 # ----------------------------------------------------------------------------------------------------------------------
