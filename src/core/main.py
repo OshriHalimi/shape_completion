@@ -136,12 +136,12 @@ def mixamo_loader_set(hp):
                          method='rand_f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
     ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
 
-    ds = FullPartDatasetMenu.get('DFaustPyProjSeq',
-                                 data_dir_override=hp.PRIMARY_DATA_DIR / 'synthetic' / 'DFaustPyProj')
-    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
-                         batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
-                         method='rand_f2p_seq', s_shuffle=[True] * 2, s_dynamic=[False, False])
-    ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
+    # ds = FullPartDatasetMenu.get('DFaustPyProjSeq',
+    #                              data_dir_override=hp.PRIMARY_DATA_DIR / 'synthetic' / 'DFaustPyProj')
+    # tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+    #                      batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
+    #                      method='rand_f2p_seq', s_shuffle=[True] * 2, s_dynamic=[False, False])
+    # ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
 
     ds = FullPartDatasetMenu.get('AmassValdPyProj')  # AmassTestPyProj sucks
     tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,

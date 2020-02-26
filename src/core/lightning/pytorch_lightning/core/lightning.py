@@ -1222,8 +1222,8 @@ class LightningModule(ABC, GradInformation, ModelIO, ModelHooks):
         if self.trainer.truncated_bptt_steps is not None:
             tqdm_dict['split_idx'] = self.trainer.split_idx
 
-        # if self.trainer.logger is not None and self.trainer.logger.version is not None: # MANO
-        #     tqdm_dict['v_num'] = self.trainer.logger.version
+        if self.trainer.logger is not None and self.trainer.logger.version is not None:
+            tqdm_dict['v_num'] = self.trainer.logger.version
 
         return tqdm_dict
 
