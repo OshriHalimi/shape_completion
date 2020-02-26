@@ -14,20 +14,22 @@ import sys
 import torch
 import re
 from torch._six import container_abcs, string_classes, int_classes
+from types import MethodType
 
 
 # from torch.utils.data.distributed import DistributedSampler
 # from mesh.ops import trunc_to_vertex_mask
-# from types import MethodType
+
 # ----------------------------------------------------------------------------------------------------------------------
 #
 # ----------------------------------------------------------------------------------------------------------------------
 
 class HitIndexedDataset(ABC):
-    def __init__(self, data_dir_override, cls, disk_space_bytes):
+    def __init__(self, data_dir_override, cls, disk_space_bytes, suspected_corrupt=False):
 
         # Append Info:
         self._disk_space_bytes = disk_space_bytes
+        self._suspected_corrupt = suspected_corrupt
 
         # Check Data Directory:
         if data_dir_override is None:
@@ -501,6 +503,9 @@ class FullPartCompletionDataset(HitIndexedDataset, ABC):
 # ----------------------------------------------------------------------------------------------------------------------
 
 class FullPartTorchDataset(Dataset):
+    SAME_SHAPE_RETRY_BOUND = 3
+    RETRY_BOUND = SAME_SHAPE_RETRY_BOUND * 7  # Try to retry atleast 7 shapes before dying
+
     # Note that changes to Dataset will be seen in any loader derived from it before
     # This should be taken into account when decimating the Dataset index
     def __init__(self, ds_inst, transforms, method):
@@ -508,12 +513,31 @@ class FullPartTorchDataset(Dataset):
         self._transforms = transforms
         self._method = method
         self.get_func = getattr(self._ds_inst, f'_datapoint_via_{method}')
+        self.self_len = self._ds_inst.num_datapoints_by_method(self._method)
+        self.use_unsafe_meth = not self._ds_inst._suspected_corrupt
 
     def __len__(self):
-        return self._ds_inst.num_datapoints_by_method(self._method)
+        return self.self_len
 
     def __getitem__(self, si):
-        return self._transforms(self.get_func(si))
+        if self.use_unsafe_meth:
+            return self._transforms(self.get_func(si))
+        else:  # This is a hack to enable reloading
+            global_retries = 0
+            local_retries = 0
+            while 1:
+                try:
+                    return self._transforms(self.get_func(si))
+                except Exception as e:
+                    global_retries += 1
+                    local_retries += 1
+                    if global_retries == self.RETRY_BOUND:
+                        raise e
+                    if local_retries == self.SAME_SHAPE_RETRY_BOUND:
+                        local_retries = 0
+                        si += 1  # TODO - Find better way
+                        if si == self.self_len:  # Double back
+                            si = 0
 
 
 # ----------------------------------------------------------------------------------------------------------------------

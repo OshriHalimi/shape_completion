@@ -37,7 +37,7 @@ class LightningTrainer:
 
     def train(self, debug_mode=False):
         banner('Training Phase')
-        if not self.trainer:
+        if self.trainer is None:
             self._init_training_assets()
             log.info(f'Training on dataset: {self.data.curr_trainset_name()}')
             self.testing_only = False
@@ -51,13 +51,13 @@ class LightningTrainer:
 
     def finalize(self):
         # Called after all epochs, for cleanup
-        if self.plt and self.plt.is_alive():
+        if self.plt is not None and self.plt.is_alive():
             self.plt.finalize()
-        if self.tb_sup:
+        if self.tb_su is not None:
             self.tb_sup.finalize()
 
         # If needed, send the final report via email:
-        if self.emailer:  # Long enough train, or test only
+        if self.emailer is not None:  # Long enough train, or test only
             if self.nn.current_epoch >= self.hp.MIN_EPOCHS_TO_SEND_EMAIL_RECORD or self.testing_only:
                 log.info("Sending zip with experiment specs to configured inbox")
                 self.emailer.send_report(self.trainer.final_result_str)
@@ -72,7 +72,7 @@ class LightningTrainer:
         self.early_stop = EarlyStopping(monitor='val_loss', patience=self.hp.early_stop_patience, verbose=True,
                                         mode='min')
 
-        if self.hp.plotter_class:
+        if self.hp.plotter_class is not None:
             plt_class = getattr(lightning.assets.plotter, self.hp.plotter_class)
             self.plt = plt_class(faces=self.data.faces(), n_verts=self.data.num_verts())
 
@@ -118,14 +118,14 @@ class LightningTrainer:
         log.info(f'Current run directory: {str(self.exp_dp)}')
 
     def _trainer(self, fast_dev_run=False):
-        if not self.trainer:
+        if self.trainer is None:
             self._init_trainer(fast_dev_run)
         return self.trainer
 
 
 class ParametricData:
     def __init__(self, loader_complex):
-        self.train_ldr = loader_complex[0]
+        self.train_ldr = loader_complex[0] # TODO - should we add support for multiple training sets?
         self.vald_ldrs = to_list(loader_complex[1], encapsulate_none=False)
         self.test_ldrs = to_list(loader_complex[2], encapsulate_none=False)
 
@@ -178,7 +178,7 @@ class ParametricData:
         return self.rep_ldr.faces()
 
     def torch_faces(self):
-        assert self.torch_f
+        assert self.torch_f is not None
         return self.torch_f
 
     def num_verts(self):
@@ -189,7 +189,7 @@ class ParametricData:
 
     def append_data_args(self, hp):
 
-        if self.train_ldr:
+        if self.train_ldr is not None:
             setattr(hp, f'train_ds', self.train_ldr.recon_table())
         for i in range(self.num_vald_loaders()):
             setattr(hp, f'vald_ds_{i}', self.vald_ldrs[i].recon_table())
@@ -201,6 +201,7 @@ class ParametricData:
 
         if hp.compute_output_normals:
             assert hp.in_channels >= 6, "In channels not aligned to loss/plot config"
-            self.torch_f = torch.from_numpy(self.faces()).long().to(device=hp.dev, non_blocking=hp.NON_BLOCKING)
+            # self.torch_f = torch.from_numpy(self.faces()).long().to(device=hp.dev, non_blocking=hp.NON_BLOCKING)
+            # TODO - Return this when we have the generic loss
 
         return hp

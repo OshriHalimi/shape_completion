@@ -149,7 +149,7 @@ class AmassTestPyProj(AmassProjDataset, ABC):
 class MixamoPyProj(ParametricCompletionDataset):  # Should be: MixamoPyProj_2k_10ang_1fr
     def __init__(self, data_dir_override):
         super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=6890,
-                         disk_space_bytes=2.4e+12)
+                         disk_space_bytes=2.4e+12, suspected_corrupt=True)
 
     def _construct_hit(self):
         with open(self._data_dir / 'mixamo_projection_2_of_10_angs_seq_frac_1_hit.pkl', "rb") as f:

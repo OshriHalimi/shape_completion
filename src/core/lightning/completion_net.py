@@ -45,11 +45,11 @@ class CompletionLightningModel(PytorchNet):
 
         output_dict = self.forward(input_dict)
         # TODO - Implement Generic Loss and fix this function
-        if self.hparams.compute_output_normals:
-            vnb, vnb_is_valid = batch_vnrmls(output_dict['completion_xyz'], self.assets.data.torch_faces(),
-                                             return_f_areas=False)
-            output_dict['completion_vnb'] = vnb
-            output_dict['completion_vnb_is_valid'] = vnb_is_valid
+        # if self.hparams.compute_output_normals: # TODO - Return this when we have the generic loss function
+        #     vnb, vnb_is_valid = batch_vnrmls(output_dict['completion_xyz'], self.assets.data.torch_faces(),
+        #                                      return_f_areas=False)
+        #     output_dict['completion_vnb'] = vnb
+        #     output_dict['completion_vnb_is_valid'] = vnb_is_valid
 
         return output_dict
 
@@ -73,7 +73,7 @@ class CompletionLightningModel(PytorchNet):
         loss_dict = {f'{k}_train': v for k, v in loss_dict.items()}  # make different logs for train, test, validation
         train_loss = loss_dict['total_loss_train']
 
-        if self.assets.plt and batch_idx == 0:  # On first batch
+        if self.assets.plt is not None and batch_idx == 0:  # On first batch
             self.assets.plt.cache(self.assets.plt.prepare_plotter_dict(b, completion))  # New tensors, without grad
 
         return {
@@ -84,7 +84,7 @@ class CompletionLightningModel(PytorchNet):
     def validation_step(self, b, batch_idx, set_id=0):
         pred = self.complete(b)
 
-        if self.assets.plt and batch_idx == 0 and set_id == 0:  # On first batch, of first dataset. TODO - Generalize
+        if self.assets.plt is not None and batch_idx == 0 and set_id == 0:  # On first batch, of first dataset. TODO - Generalize
             new_data = (self.assets.plt.uncache(), self.assets.plt.prepare_plotter_dict(b, pred))
             self.assets.plt.push(new_data=new_data, new_epoch=self.current_epoch)
 
@@ -120,7 +120,7 @@ class CompletionLightningModel(PytorchNet):
     def test_step(self, b, _, set_id=0):
 
         pred = self.complete(b)
-        if self.assets.saver:  # TODO - Generalize this
+        if self.assets.saver is not None:  # TODO - Generalize this
             self.assets.saver.save_completions_by_batch(pred, b, set_id)
         return self.loss.compute(b, pred)
 
