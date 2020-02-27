@@ -51,11 +51,6 @@ class LightningTrainer:
 
     def finalize(self):
         # Called after all epochs, for cleanup
-        if self.plt is not None and self.plt.is_alive():
-            self.plt.finalize()
-        if self.tb_su is not None:
-            self.tb_sup.finalize()
-
         # If needed, send the final report via email:
         if self.emailer is not None:  # Long enough train, or test only
             if self.nn.current_epoch >= self.hp.MIN_EPOCHS_TO_SEND_EMAIL_RECORD or self.testing_only:
@@ -63,6 +58,12 @@ class LightningTrainer:
                 self.emailer.send_report(self.trainer.final_result_str)
             else:
                 log.info("Model has not been trained for enough epochs - skipping attachment send")
+
+        if self.plt is not None and self.plt.is_alive():
+            self.plt.finalize()
+        if self.tb_sup is not None:
+            self.tb_sup.finalize()
+
         log.info("Cleaning up GPU memory")
         torch.cuda.empty_cache()
 
@@ -125,7 +126,7 @@ class LightningTrainer:
 
 class ParametricData:
     def __init__(self, loader_complex):
-        self.train_ldr = loader_complex[0] # TODO - should we add support for multiple training sets?
+        self.train_ldr = loader_complex[0]  # TODO - should we add support for multiple training sets?
         self.vald_ldrs = to_list(loader_complex[1], encapsulate_none=False)
         self.test_ldrs = to_list(loader_complex[2], encapsulate_none=False)
 
