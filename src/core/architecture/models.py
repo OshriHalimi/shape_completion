@@ -33,7 +33,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
         return p
 
     def forward(self, input_dict):
-        part = input_dict['gt_part']
+        part = input_dict['gt_part'] if 'gt_part' in input_dict else input_dict['gt_noise'] # TODO - Generalize this
         full = input_dict['tp']
 
         # part, full [bs x nv x in_channels]

@@ -2,8 +2,8 @@ import torch
 from util.mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_fnrmls_fareas, batch_moments
 from util.strings import warn
 from architecture.decoders import Template
-
-
+# from chamferdist import ChamferDist
+# distpc1topc2, distpc2topc1, idx1, idx2 = chamferDist(pc1, pc2)
 # ----------------------------------------------------------------------------------------------------------------------
 #                           Full Losses (different architecture might have different losses)
 # ----------------------------------------------------------------------------------------------------------------------

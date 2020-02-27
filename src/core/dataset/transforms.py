@@ -1,6 +1,7 @@
 import random
 import numbers
 from itertools import repeat
+from collections.abc import Sequence
 from util.mesh.ops import vnrmls, moments, padded_part_by_mask, flip_vertex_mask, trunc_to_vertex_mask
 import numpy as np
 import math
@@ -9,6 +10,8 @@ import math
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                  Transforms- Abstract
 # ----------------------------------------------------------------------------------------------------------------------
+from util.mesh.plots import plot_mesh_montage
+
 
 class Transform:
     def __repr__(self):
@@ -256,7 +259,32 @@ class RandomTranslate(Transform):
     def __repr__(self):
         return self.__class__.__name__ + f'(translate={self._translate},keys={self._keys})'
 
+class RandomGaussianNoise(Transform):
+    # WARNING: After this operation, vertex normals are not going to fit- TODO
+    # STD - Either a range or a float
+    # Output keys must be same as keys or completely new
+    def __init__(self, std, keys=('gt',),okeys=('gt',), slicer=slice(0, 3)):
+        if isinstance(std,Sequence):
+            std = tuple(std)
+        self._std = std
+        self._keys = keys
+        self._okeys = okeys
+        self._slicer = slicer
 
+    def __call__(self, x):
+        for ok,k in zip(self._okeys,self._keys):
+            arr = x[k][:,self._slicer]
+            std = np.random.uniform(low=self._std[0],high=self._std[1]) if isinstance(self._std,tuple) else self._std
+            noise = (std * np.random.standard_normal(arr.shape)).astype(arr.dtype)
+            if ok == k:
+                x[k][:,self._slicer] = arr + noise
+            else:
+                x[ok] = arr + noise
+        return x
+
+    def __repr__(self):
+        return self.__class__.__name__ + \
+               f'(std={self._std},keys={self._keys},okeys={self._okeys},slicer={self._slicer})'
 # ----------------------------------------------------------------------------------------------------------------------
 #                                               Data Augmentation Transforms
 # ----------------------------------------------------------------------------------------------------------------------
@@ -283,19 +311,19 @@ def test_suite():
     from dataset.datasets import FullPartDatasetMenu
     from util.mesh.plots import plot_mesh
     ds = FullPartDatasetMenu.get('FaustPyProj')
-    single_ldr = ds.loaders(s_nums=1000, s_shuffle=True, s_transform=[MaskDecimation(0.1)],
-                            n_channels=6, method='f2p', batch_size=1, device='cpu-single')
+    single_ldr = ds.loaders(s_nums=1000, s_shuffle=True, s_transform=[RandomGaussianNoise((0,0.05),okeys=('gt_noise',))],
+                            n_channels=6, method='rand_f2f', batch_size=1, device='cpu-single')
     for dp in single_ldr:
         dp['gt'] = dp['gt'].squeeze()
         gt = dp['gt']
-        mask = dp['gt_mask'][0]
-        gt_part = gt[mask, :]
+        # mask = dp['gt_mask'][0]
+        # gt_part = gt[mask, :]
         # trans = RandomTranslate(0.01, keys=['gt'])
         # print(trans)
-        v = gt_part[:, :3]
-        n = gt_part[:, 3:6]
-        _, f = trunc_to_vertex_mask(gt[:, :3], ds.faces(), mask)
-        plot_mesh(v=v, strategy='spheres')
+        # v = gt_part[:, :3]
+        # n = gt_part[:, 3:6]
+        # _, f = trunc_to_vertex_mask(gt[:, :3], ds.faces(), mask)
+        plot_mesh_montage(vb=[gt[:, :3],dp['gt_noise']],fb=ds.faces(),strategy='spheres')
         dp = trans(dp)
         v = gt[:, :3]
         n = gt[:, 3:6]

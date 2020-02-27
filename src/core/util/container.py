@@ -1,5 +1,6 @@
 from collections.abc import MutableMapping
 from collections import OrderedDict, Sequence
+from copy import deepcopy
 import random
 import numpy as np
 
@@ -14,6 +15,9 @@ def enum_eq(enum1, enum2):
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                     Lists
 # ----------------------------------------------------------------------------------------------------------------------
+def list_dup(l,n):
+    return [deepcopy(l) for _ in range(n)]
+
 def split_frac(l, fracs):
     # Accumulate the percentages
     splits = np.cumsum(fracs).astype(np.float)

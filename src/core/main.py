@@ -34,13 +34,13 @@ def parser():
     # Dataset Config:
     # NOTE: A well known ML rule: double the learning rate if you double the batch size.
     p.add_argument('--batch_size', type=int, default=10, help='SGD batch size')
-    p.add_argument('--in_channels', choices=[3, 6, 12], default=6,
+    p.add_argument('--in_channels', choices=[3, 6, 12], default=3,
                    help='Number of input channels')
 
     # Train Config:
     p.add_argument('--force_train_epoches', type=int, default=1,
                    help="Force train for this amount. Usually we'd early stop using the callback. Use 1 to disable")
-    p.add_argument('--max_epochs', type=int, default=None,  # Must be over 1
+    p.add_argument('--max_epochs', type=int, default=2,  # Must be over 1
                    help='Maximum epochs to train for. Use None for close to infinite epochs')
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
 
@@ -74,7 +74,7 @@ def parser():
     p.add_argument('--use_auto_tensorboard', type=bool, default=3,
                    help='Mode: 0 - Does nothing. 1 - Opens up only server. 2 - Opens up only chrome. 3- Opens up both '
                         'chrome and server')
-    p.add_argument('--plotter_class', type=none_or_str, choices=[None, 'CompletionPlotter'],
+    p.add_argument('--plotter_class', type=none_or_str, choices=[None, 'CompletionPlotter','DenoisingPlotter'],
                    default='CompletionPlotter',
                    help='The plotter class or None for no plot')  # TODO - generalize this
 
@@ -95,6 +95,7 @@ def train_main():
 
     # Bring in data:
     ldrs = mixamo_loader_set(nn.hp)
+    # ldrs = denoising_loader_set(nn.hp)
 
     # Supply the network with the loaders:
     trainer = LightningTrainer(nn, ldrs)
@@ -115,23 +116,34 @@ def test_main():
     trainer.finalize()
 
 
+def denoising_loader_set(hp):
+    ds = FullPartDatasetMenu.get('DFaustPyProj')
+    assert hp.in_channels == 3  # Normals are not valid after noise
+    ldrs = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=[10, 10, 10], s_shuffle=[True] * 3,
+                      s_transform=[Center(), RandomGaussianNoise((0, 0.05), okeys=('gt_noise',))],
+                      batch_size=hp.batch_size, device=hp.dev,
+                      n_channels=hp.in_channels, method='rand_f2f', s_dynamic=[True, False, False])
+
+    return ldrs
+
+
 def mixamo_loader_set(hp):
     # TODO - remember to change me path to Mixamo.
     ds_mixamo = FullPartDatasetMenu.get('MixamoPyProj', data_dir_override="Z:\ShapeCompletion\Mixamo")
     ldrs = ds_mixamo.loaders(split=[0.8, 0.1, 0.1], s_nums=[10000, 1000, 1000], s_shuffle=[True] * 3,
-                             s_transform=[Center()] * 3, batch_size=hp.batch_size, device=hp.dev,
+                             s_transform=[Center()], batch_size=hp.batch_size, device=hp.dev,
                              n_channels=hp.in_channels, method='rand_f2p', s_dynamic=[True, False, False])
     ldrs[1], ldrs[2] = [ldrs[1]], [ldrs[2]]
 
     ds = FullPartDatasetMenu.get('FaustPyProj')
     # MIXAMO is composed from Faust subjects - Do not use them in the test/validation due to contamination
-    tv_ldrs = ds.loaders(split=[0.8,0.1,0.1], s_nums=[1000]*3, s_transform=[Center()] * 3,
+    tv_ldrs = ds.loaders(split=[0.8, 0.1, 0.1], s_nums=[1000] * 3, s_transform=[Center()],
                          batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
-                         method='f2p', s_shuffle=[True] * 3, s_dynamic=[False]*3)
+                         method='f2p', s_shuffle=[True] * 3, s_dynamic=[False] * 3)
     ldrs[1].append(tv_ldrs[1]), ldrs[2].append(tv_ldrs[2])
 
     ds = FullPartDatasetMenu.get('DFaustPyProj')
-    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()],
                          batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
                          method='rand_f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
     ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
@@ -150,7 +162,7 @@ def mixamo_loader_set(hp):
     # ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
 
     ds = FullPartDatasetMenu.get('AmassTrainPyProj')
-    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()] * 2,
+    tv_ldrs = ds.loaders(split=[0.2, 0.8], s_nums=[1000, 1000], s_transform=[Center()],
                          batch_size=hp.batch_size, device=hp.dev, n_channels=hp.in_channels,
                          method='rand_f2p', s_shuffle=[True] * 2, s_dynamic=[False, False])
     ldrs[1].append(tv_ldrs[0]), ldrs[2].append(tv_ldrs[1])
