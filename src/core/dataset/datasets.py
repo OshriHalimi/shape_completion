@@ -3,7 +3,7 @@ from dataset.abstract import ParametricCompletionDataset
 from dataset.index import HierarchicalIndexTree
 from pickle import load
 import numpy as np
-from util.mesh.ios import read_npz_mask, read_off_verts, read_obj_verts
+from util.mesh.ios import read_npz_mask, read_off_verts, read_obj_verts,read_ply_verts
 import scipy.io as sio
 import re
 
@@ -50,6 +50,25 @@ class AmassProjDataset(ParametricCompletionDataset, ABC):
     def _full_path2data(self, fp):
         return read_off_verts(fp)
 
+class SMALProjDataset(ParametricCompletionDataset, ABC):
+    def _construct_hit(self):
+        hit = {}
+        for sub_id in range(10):
+            hit[sub_id] = {}
+            for pose_id in range(10):
+                hit[sub_id][pose_id] = 10
+        return HierarchicalIndexTree(hit, in_memory=True)
+    def _hi2proj_path(self, hi):
+        return self._proj_dir / hi[0] / f'{hi[1]}_{hi[2]}.npz'
+
+    def _hi2full_path(self, hi):
+        return self._full_dir / hi[0] / f'{hi[1]}.ply'
+
+    def _proj_path2data(self, fp):
+        return read_npz_mask(fp)
+
+    def _full_path2data(self, fp):
+        return read_ply_verts(fp)
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                           Implementations - Faust
@@ -120,8 +139,6 @@ class DFaustPyProjSeq(DFaustPyProj):  # Only needed for a different naming conve
 
 
 # ----------------------------------------------------------------------------------------------------------------------
-
-
 #                                           Implementations - Amass
 # ----------------------------------------------------------------------------------------------------------------------
 
@@ -141,6 +158,27 @@ class AmassTestPyProj(AmassProjDataset, ABC):
     def __init__(self, data_dir_override):
         super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=6890, disk_space_bytes=691769344)
 
+
+# ----------------------------------------------------------------------------------------------------------------------
+#                                           Implementations - SMAL
+# ----------------------------------------------------------------------------------------------------------------------
+
+class SMALTrainPyProj(SMALProjDataset, ABC):
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=3889,
+                         disk_space_bytes=172032000*5*5)
+
+
+class SMALValdPyProj(SMALProjDataset, ABC):
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=3889,
+                         disk_space_bytes=172032000*5)
+
+
+class SMALTestPyProj(SMALProjDataset, ABC):
+    def __init__(self, data_dir_override):
+        super().__init__(data_dir_override=data_dir_override, cls='synthetic', n_verts=3889,
+                         disk_space_bytes=172032000*5)
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                           Implementation - Mixamo
@@ -182,6 +220,9 @@ class FullPartDatasetMenu:
         'AmassTestPyProj': AmassTestPyProj,
         'AmassValdPyProj': AmassValdPyProj,
         'AmassTrainPyProj': AmassTrainPyProj,
+        'SMALTestPyProj' : SMALTestPyProj,
+        'SMALValdPyProj' : SMALValdPyProj,
+        'SMALTrainPyProj' : SMALTrainPyProj,
         'FaustPyProj': FaustPyProj,
         'FaustMatProj': FaustMatProj,
         'DFaustPyProj': DFaustPyProj,

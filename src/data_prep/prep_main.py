@@ -8,34 +8,14 @@ from tqdm import tqdm
 from deformations import Projection
 from pathlib import Path
 import time
-import random
+# import random
 
 sys.path.append(os.path.abspath(os.path.join('..', 'core')))
-from util.string_op import banner, print_warning, print_error, title
-from util.mesh.mio import read_obj_verts
-from util.mesh.plot import plot_mesh_montage, plot_mesh
+from util.strings import banner, print_warning, print_error, title
+from util.mesh.ios import read_obj_verts
+from util.mesh.plots import plot_mesh_montage, plot_mesh
 from util.mesh.ops import box_center
-from util.fs import assert_new_dir
-
-
-import os
-import sys
-import psutil
-
-def restart_program():
-    """Restarts the current program, with file objects and descriptors
-       cleanup
-    """
-
-    try:
-        p = psutil.Process(os.getpid())
-        for handler in p.open_files() + p.connections():
-            os.close(handler.fd)
-    except Exception as e:
-        print(e)
-
-    python = sys.executable
-    os.execl(python, python, *sys.argv)
+from util.fs import assert_new_dir, restart_program
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #                                                       Globals
@@ -44,27 +24,10 @@ WORK_DIR = (Path(__file__).parents[0]).resolve()
 OUTPUT_DIR = WORK_DIR / 'tmp_outputs'
 COLLATERALS_DIR = WORK_DIR / 'collaterals'
 
-if os.name == 'nt':
-    MIXAMO_NETWORK_DIR = Path('Z:\ShapeCompletion\Mixamo\Blender\MPI-FAUST')
-    MIXAMO_NETWORK_OUT_DIR = Path('Z:\ShapeCompletion\Mixamo')
-else:  # Presuming Linux
-    MIXAMO_NETWORK_DIR = Path("/usr/samba_mount/ShapeCompletion/Mixamo/Blender/MPI-FAUST")
-    # r"/run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/Blender/MPI-FAUST"
-    MIXAMO_NETWORK_OUT_DIR = Path("/usr/samba_mount/ShapeCompletion/Mixamo")
 
-
-# Mounting Instructions: [shutil does not support samba soft-links]
-# sudo apt install samba
-# sudo apt install cifs-utils
-# sudo mkdir /usr/samba_mount
-# sudo mount -t cifs -o auto,username=mano,uid=$(id -u),gid=$(id -g) //132.68.36.59/data /usr/samba_mount/
-# To install CUDA runtime 10.2 on the Linux Machine, go to:
-# https://developer.nvidia.com/cuda-downloads
-# And choose the deb(local) version 
 # ----------------------------------------------------------------------------------------------------------------------#
 #
 # ----------------------------------------------------------------------------------------------------------------------#
-
 
 def project_mixamo_main():
     banner('MIXAMO Creation')
@@ -72,10 +35,15 @@ def project_mixamo_main():
     m = MixamoCreator(deformer=deformer, pose_frac_from_sequence=1)
     for sub in m.subjects():
         m.deform_subject(sub=sub, rerun_partial_seqs=True)
-        if sub == '005':
-            break
         # We can break here, if we want to split the workload to many computers
 
+def project_mixamo_main():
+    banner('MIXAMO Creation')
+    deformer = Projection(num_angles=10, pick_k=2)
+    m = MixamoCreator(deformer=deformer, pose_frac_from_sequence=1)
+    for sub in m.subjects():
+        m.deform_subject(sub=sub, rerun_partial_seqs=True)
+        # We can break here, if we want to split the workload to many computers
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #
@@ -108,14 +76,30 @@ class MixamoCreator(DataCreator):
     MIXAMO_SUB_NAMES = tuple(f'0{i}0' for i in range(10))  # General Usage
     LOWEST_COMPLETION_THRESH = 0.5  # Under this, the sequence will not be taken
     MIN_NUMBER_OF_POSES_PER_SEQUENCE = 10  # Will not take the sequence if under this
-    PROJ_SCALE_BY = 100  # How much to scale the vertices by for PyRender deformation
+    PROJ_SCALE_BY = 100  # How much to scale the vertices by for pyrender deformation
     MAX_FAILURE_THRESH = 10
+    if os.name == 'nt':
+        MIXAMO_NETWORK_DIR = Path(r'Z:\ShapeCompletion\Mixamo\Blender\MPI-FAUST')
+        MIXAMO_NETWORK_OUT_DIR = Path(r'Z:\ShapeCompletion\Mixamo')
+    else:  # Presuming Linux
+        MIXAMO_NETWORK_DIR = Path(r"/usr/samba_mount/ShapeCompletion/Mixamo/Blender/MPI-FAUST")
+        # r"/run/user/1000/gvfs/smb-share:server=132.68.36.59,share=data/ShapeCompletion/Mixamo/Blender/MPI-FAUST"
+        MIXAMO_NETWORK_OUT_DIR = Path(r"/usr/samba_mount/ShapeCompletion/Mixamo")
+        # Mounting Instructions: [shutil does not support samba soft-links]
+        # sudo apt install samba
+        # sudo apt install cifs-utils
+        # sudo mkdir /usr/samba_mount
+        # sudo mount -t cifs -o auto,username=mano,uid=$(id -u),gid=$(id -g) //132.68.36.59/data /usr/samba_mount/
+        # To install CUDA runtime 10.2 on the Linux Machine, go to:
+        # https://developer.nvidia.com/cuda-downloads
+        # And choose the deb(local) version
+
     def __init__(self, deformer, pose_frac_from_sequence=1):
         self.pose_frac_from_sequence = pose_frac_from_sequence
         super().__init__(deformer)
         # Create Network Results:
-        self.network_full_dp = Path(MIXAMO_NETWORK_DIR)
-        self.network_dump_dp = Path(MIXAMO_NETWORK_OUT_DIR) / self.deform_identifier()
+        self.network_full_dp = Path(self.MIXAMO_NETWORK_DIR)
+        self.network_dump_dp = Path(self.MIXAMO_NETWORK_OUT_DIR) / self.deform_identifier()
         assert self.network_full_dp.is_dir(), f"Cannot find network path {self.network_full_dp}"
         self.network_dump_dp.mkdir(parents=True, exist_ok=True)
         print(f'Network outputs will be located at {self.network_dump_dp}')
@@ -143,7 +127,8 @@ class MixamoCreator(DataCreator):
         return list(fp.glob('*.obj'))  # glob actually returns a generator
 
     def deform_subject(self, sub, rerun_partial_seqs=True):
-        banner(title(f'Mixamo Dataset :: Subject {sub} :: Deformation {self.deform_identifier()} Commencing'))
+        banner(title(f'{self.dataset_name()} Dataset :: Subject {sub} :: Deformation '
+                     f'{self.deform_identifier()} Commencing'))
         lcd, lcd_fp = self._local_cache_dict(sub)
         # lcd_fp = str(lcd_fp) # Atomic write does not support pathlib
         if rerun_partial_seqs:
@@ -209,7 +194,7 @@ class MixamoCreator(DataCreator):
             i = 0
             for mask in masks:
                 if mask is not None:
-                    np.savez(seq_dp / f'{pose}_{i}_angi_{mask[1]}.npz', mask=mask[0])  # TODO - remove tuple assumption
+                    np.savez(seq_dp / f'{pose}_{i}.npz', mask=mask[0], angi=mask[1])  # TODO - remove tuple assumption
                     completed += 1
                     i += 1
 
@@ -249,7 +234,8 @@ class MixamoCreator(DataCreator):
                 print(f'Saved validation cache for subject {sub} at {lcd_fp}')
         return lcd, lcd_fp
 
-    def _print_lcd_analysis(self, lcd, print_lcd=False):
+    @staticmethod
+    def _print_lcd_analysis(lcd, print_lcd=False):
         # Analysis:
         print('Cache Status:')
         empty, completed, partial = 0, 0, 0
@@ -269,9 +255,19 @@ class MixamoCreator(DataCreator):
 #
 # ----------------------------------------------------------------------------------------------------------------------#
 
+class SMALCreator(DataCreator):
+    def __init__(self, deformer):
+        super().__init__(deformer)
+        pass
+
+
+# ----------------------------------------------------------------------------------------------------------------------#
+#
+# ----------------------------------------------------------------------------------------------------------------------#
+
 
 if __name__ == '__main__':
-    project_mixamo_main()
+    project_smal_main()
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #

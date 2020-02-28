@@ -7,6 +7,10 @@ results/
 */stats_cache.mat
 */noise_cache.mat
 *cache.mat
+smal_CVPR2017.pkl
+smal_CVPR2017_data.pkl
+basicmodel_m_lbs_10_207_0_v1.0.0.pkl
+basicModel_f_lbs_10_207_0_v1.0.0.pkl
 article_sup/
 article_stats.mat
 tmp/

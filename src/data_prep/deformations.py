@@ -3,10 +3,10 @@ from abc import ABC
 import sys
 import os
 import torch
-from external.PyRender.lib import render
+from external_tools.pyrender.lib import render
 
 sys.path.append(os.path.abspath(os.path.join('..', 'core'))) # For core.utils
-from util.mesh.plot import plot_mesh_montage, plot_mesh
+from util.mesh.plots import plot_mesh_montage, plot_mesh
 
 # ----------------------------------------------------------------------------------------------------------------------#
 #

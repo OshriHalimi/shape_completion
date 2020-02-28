@@ -2,11 +2,27 @@ import os
 import shutil
 import tempfile as tmp
 from contextlib import contextmanager
-
+import sys
+import psutil
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                             File System
 # ----------------------------------------------------------------------------------------------------------------------
+
+def restart_program():
+    """Restarts the current program, with file objects and descriptors
+       cleanup
+    """
+
+    try:
+        p = psutil.Process(os.getpid())
+        for handler in p.open_files() + p.connections():
+            os.close(handler.fd)
+    except Exception as e:
+        print(e)
+
+    python = sys.executable
+    os.execl(python, python, *sys.argv)
 
 
 def assert_new_dir(dp, parents=False):

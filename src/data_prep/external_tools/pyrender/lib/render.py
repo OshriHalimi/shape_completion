@@ -9,7 +9,7 @@ try:
     Render = cdll.LoadLibrary(os.path.join(LIB_PATH, 'libRender.so'))
 except OSError as e:
     if e.errno == 8:  # winerror 193
-        warn('PyRender does not support Windows')
+        warn('pyrender does not support Windows')
     else:
         raise e
 

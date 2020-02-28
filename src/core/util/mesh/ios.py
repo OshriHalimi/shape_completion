@@ -68,6 +68,10 @@ def read_off(fp):
 
     return np.array(vbuf), np.array(fbuf)
 
+def read_ply_verts(fp):
+    with open(fp, 'rb') as f:
+        plydata = PlyData.read(f)
+    return np.column_stack((plydata['vertex']['x'], plydata['vertex']['y'], plydata['vertex']['z']))
 
 def read_ply(fp):
     with open(fp, 'rb') as f:

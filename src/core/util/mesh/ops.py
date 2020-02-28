@@ -85,6 +85,12 @@ def trunc_to_vertex_mask(v, f, vi):
         f2 = vlut[f]
         # Keep only faces with valid vertices:
         f2 = f2[np.sum(f2 == -1, axis=1) == 0, :]
+
+        # TODO - Check this
+        # faces = faces.reshape(-1)
+        # unique_points_index = np.unique(faces)
+        # unique_points = pts[unique_points_index]
+
     return v2, f2
 
 
@@ -94,6 +100,22 @@ def box_center(v):
     bbox_z = [np.min(v[:, 2]), np.max(v[:, 2])]
     center = 0.5 * np.array([bbox_x[0] + bbox_x[1], bbox_y[0] + bbox_y[1], bbox_z[0] + bbox_z[1]])
     return v - np.expand_dims(center, axis=0)
+
+# TODO - Check this
+def normalize_unitL2ball_pointcloud(points):
+    #normalize  to unit ball pointcloud
+    #points N_points, 3
+    points[:,0:3] = points[:,0:3] / np.sqrt(np.max(np.sum(points[:,0:3]**2, 1)))
+    return points
+
+# TODO - Check this
+def normalize_by_channel(points):
+    #normalize  to unit ball pointcloud
+    #points N_points, 3
+    points[:,0] = points[:,0] / np.max(points[:,0])
+    points[:,1] = points[:,1] / np.max(points[:,1])
+    points[:,2] = points[:,2] / np.max(points[:,2])
+    return points
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
