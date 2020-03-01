@@ -81,7 +81,7 @@ def read_ply(fp):
     y = plydata['vertex']['y']
     z = plydata['vertex']['z']
     v = np.column_stack((x, y, z))
-    if 'red' in plydata['vertex']:
+    if 'red' in plydata['vertex']._property_lookup:
         r = plydata['vertex']['red']
         g = plydata['vertex']['green']
         b = plydata['vertex']['blue']

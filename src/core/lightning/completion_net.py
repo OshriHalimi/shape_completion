@@ -1,7 +1,8 @@
 import torch
 from torch.optim.lr_scheduler import ReduceLROnPlateau  # , CosineAnnealingLR
 import architecture.loss
-from util.mesh.ops import batch_vnrmls
+# from util.mesh.ops import batch_vnrmls
+from collections import defaultdict
 from util.torch.nn import PytorchNet
 from util.func import all_variables_by_module_name
 from copy import deepcopy
@@ -22,7 +23,7 @@ class CompletionLightningModel(PytorchNet):
         # Bookeeping:
         self.assets = None  # Set by Trainer
         self.loss, self.opt = None, None
-        self.min_losses = {}
+        self.min_losses = defaultdict(float)
 
         self._build_model()
         self.type(dst_type=getattr(torch, self.hparams.UNIVERSAL_PRECISION))  # Transfer to precision
@@ -61,7 +62,7 @@ class CompletionLightningModel(PytorchNet):
         if self.hp.plateau_patience is not None:
             # sched = CosineAnnealingLR(optimizer, T_max=10)
             sched = ReduceLROnPlateau(self.opt, mode='min', patience=self.hp.plateau_patience, verbose=True,
-                                      cooldown=self.hp.DEF_LR_SCHED_COOLDOWN, eps=self.hp.DEF_MINIMAL_LR)
+                                      cooldown=self.hp.DEF_LR_SCHED_COOLDOWN, eps=self.hp.DEF_MINIMAL_LR,factor=0.5)
             # Options: factor=0.1, threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0, eps=1e-08
             return [self.opt], [sched]
         else:
@@ -103,7 +104,9 @@ class CompletionLightningModel(PytorchNet):
             ds_val_loss = log_dict[f'total_loss_val_{ds_name}']
             prog_bar_name = f'val_loss_{ds_name}'
             progbar_dict[prog_bar_name] = ds_val_loss
-            self.min_losses[prog_bar_name] = torch.min(self.min_losses.get(prog_bar_name,ds_val_loss),ds_val_loss)
+            ds_val_loss_cpu = ds_val_loss.item()
+            if ds_val_loss_cpu < self.min_losses[prog_bar_name]:
+                self.min_losses[prog_bar_name] = ds_val_loss_cpu
             log_dict[f'{prog_bar_name}_min'] = self.min_losses[prog_bar_name]
             if i == 0:  # Always use the first dataset as the validation loss
                 avg_val_loss = ds_val_loss

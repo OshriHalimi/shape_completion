@@ -143,8 +143,31 @@ def testn():
     #         print(f'{n} :: {d}')
 
 
+
+def pickle_face_creator():
+    from util.mesh.ios import read_ply
+    from pickle import dump,load
+    path = r'C:\Users\idoim\Desktop\ShapeCompletion\data\synthetic\SMALValdPyProj\full\cats\0.ply'
+    v,f,_ = read_ply(path)
+    with open("face_template.pkl","wb") as fh:
+        dump(f,fh)
+    with open("face_template.pkl","rb") as fh:
+        print(load(fh))
+
+
+class A:
+    HELLO = 1
+    def __init__(self):
+        print(self.HELLO)
+class B(A):
+    HELLO = 2
+    def __init__(self):
+        super().__init__()
+        print(self.HELLO)
+
+
 # -----------------------------------------------------------------------------------------------------------------------
 #
 # -----------------------------------------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    teste2()
+    pickle_face_creator()

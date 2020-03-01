@@ -33,5 +33,8 @@ class CompletionSaver:
                 tp_v = b['tp'][i, :, :3]
                 self.save_func(dump_dp / f'gt_{gt_hi}_tp_{tp_hi}_tp', tp_v, self.f)
 
-                gt_part_v, gt_part_f = trunc_to_vertex_mask(gt_v, self.f, b['gt_mask'][i])
-                self.save_func(dump_dp / f'gt_{gt_hi}_tp_{tp_hi}_gtpart', gt_part_v, gt_part_f)
+                if 'gt_mask' in b:
+                    gt_part_v, gt_part_f = trunc_to_vertex_mask(gt_v, self.f, b['gt_mask'][i])
+                    self.save_func(dump_dp / f'gt_{gt_hi}_tp_{tp_hi}_gtpart', gt_part_v, gt_part_f)
+                else:  # TODO - Quick hack for gt_noise. Fix this
+                    self.save_func(dump_dp / f'gt_{gt_hi}_tp_{tp_hi}_gtnoise', b['gt_noise'][i], None)

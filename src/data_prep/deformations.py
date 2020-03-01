@@ -5,13 +5,13 @@ import os
 import torch
 from external_tools.pyrender.lib import render
 
-sys.path.append(os.path.abspath(os.path.join('..', 'core'))) # For core.utils
+sys.path.append(os.path.abspath(os.path.join('..', 'core')))  # For core.utils
 from util.mesh.plots import plot_mesh_montage, plot_mesh
+from util.fs import restart_program
 
-# ----------------------------------------------------------------------------------------------------------------------#
-#
-# ----------------------------------------------------------------------------------------------------------------------#
-DANGEROUS_MASK_LEN = 100
+
+class DeformationFailureError(Exception):
+    pass
 
 
 # ----------------------------------------------------------------------------------------------------------------------#
@@ -19,12 +19,21 @@ DANGEROUS_MASK_LEN = 100
 # ----------------------------------------------------------------------------------------------------------------------#
 class Deformation(ABC):
     def deform(self, v, f):
+        # Must return list of dictionaries
         raise NotImplementedError
 
     def name(self):
         return self.__class__.__name__.lower()
 
     def num_expected_deformations(self):
+        # Must return int
+        raise NotImplementedError
+
+    def reset(self):
+        raise DeformationFailureError  # Presuming that a failure is not fixable
+
+    def needs_validation(self):
+        # Must return bool
         raise NotImplementedError
 
 
@@ -32,33 +41,32 @@ class Deformation(ABC):
 #
 # ----------------------------------------------------------------------------------------------------------------------#
 class Projection(Deformation):
-    def __init__(self, num_angles=10, elevation=None, pick_k=None):
+    DANGEROUS_MASK_LEN = 100
+
+    def __init__(self, max_angs=10, angs_to_take=None, elevation=None):
         # TODO - Implement elevation compute
-        if pick_k is None:
-            pick_k = num_angles
+        if angs_to_take is None:
+            angs_to_take = max_angs
         else:
-            assert pick_k <= num_angles
-        self.pick_k = pick_k
-        self.num_angles = num_angles
-        self.range = np.arange(num_angles)
+            assert angs_to_take <= max_angs
+        self.angs_to_take = angs_to_take
+        self.num_angles = max_angs
+        self.range = np.arange(max_angs)
         # Needed by Render
         self.render_info = {'Height': 480, 'Width': 640, 'fx': 575, 'fy': 575, 'cx': 319.5, 'cy': 239.5}
         render.setup(self.render_info)
         self.world2cam_mats = self._prep_world2cam_mats()
 
-
-    def name(self):
-        return f'{super().name()}_{self.pick_k}_of_{self.num_angles}_angs'
-
     def deform(self, v, f):
 
-        assert v.dtype == 'float32'
-        assert f.dtype == 'int32'
+        assert v.dtype == 'float32' and f.dtype == 'int32'
+
         masks = []
-        if self.pick_k == self.num_angles:
+        if self.angs_to_take == self.num_angles:
             angle_ids = self.range
         else:
-            angle_ids = sorted(np.random.choice(self.range, size=self.pick_k, replace=False))
+            angle_ids = sorted(np.random.choice(self.range, size=self.angs_to_take, replace=False))
+
         for angi in angle_ids:
             # render.setup(self.render_info)
             context = render.set_mesh(v, f)
@@ -66,21 +74,28 @@ class Projection(Deformation):
             mask, _, _ = render.get_vmap(context, self.render_info)  # vindices, vweights, findices
             mask = np.unique(mask)
             # Sanity:
-            if len(mask) < DANGEROUS_MASK_LEN:
+            if len(mask) < self.DANGEROUS_MASK_LEN:
                 masks.append(None)
             else:
-                masks.append((mask,angi))
+                masks.append({'mask': mask, 'angi': angi})
 
             # render.clear()
 
         return masks
 
+    def name(self):
+        return f'{super().name()}_{self.angs_to_take}_of_{self.num_angles}_angs'
+
     def num_expected_deformations(self):
-        return self.pick_k
+        return self.angs_to_take
 
     def reset(self):
-        render.reset()
-        render.setup(self.render_info)
+        restart_program()
+        # render.reset()
+        # render.setup(self.render_info)
+
+    def needs_validation(self):
+        return True
 
     def _prep_world2cam_mats(self):
 

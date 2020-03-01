@@ -114,7 +114,6 @@ def align_file_extension(fp, tgt):
 def assert_is_dir(d):
     assert os.path.isdir(d), f"Directory {d} is invalid"
 
-
 def get_exp_version(cache_dir):
     last_version = -1
     try:
