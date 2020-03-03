@@ -2,7 +2,6 @@ import numpy as np
 from abc import ABC
 import sys
 import os
-import torch
 from external_tools.pyrender.lib import render
 
 sys.path.append(os.path.abspath(os.path.join('..', 'core')))  # For core.utils
@@ -54,7 +53,8 @@ class Projection(Deformation):
         self.range = np.arange(max_angs)
         # Needed by Render
         self.render_info = {'Height': 480, 'Width': 640, 'fx': 575, 'fy': 575, 'cx': 319.5, 'cy': 239.5}
-        render.setup(self.render_info)
+        if os.name!='nt':
+            render.setup(self.render_info)
         self.world2cam_mats = self._prep_world2cam_mats()
 
     def deform(self, v, f):
@@ -77,14 +77,17 @@ class Projection(Deformation):
             if len(mask) < self.DANGEROUS_MASK_LEN:
                 masks.append(None)
             else:
-                masks.append({'mask': mask, 'angi': angi})
+                masks.append({'mask': mask, 'angle_id': angi})
 
             # render.clear()
 
         return masks
 
-    def name(self):
-        return f'{super().name()}_{self.angs_to_take}_of_{self.num_angles}_angs'
+    def name(self,full=True):
+        if full:
+            return f'{super().name()}_{self.angs_to_take}_of_{self.num_angles}_angs'
+        else:
+            return super().name()
 
     def num_expected_deformations(self):
         return self.angs_to_take

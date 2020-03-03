@@ -15,7 +15,7 @@ from types import MethodType
 
 sys.path.append(os.path.abspath(os.path.join('..', 'core')))
 from util.strings import banner, print_warning, print_error, title
-from util.mesh.ios import read_obj_verts, read_ply_verts
+from util.mesh.ios import read_obj_verts, read_ply_verts, read_off
 from util.mesh.plots import plot_mesh_montage, plot_mesh
 from util.mesh.ops import box_center
 from util.fs import assert_new_dir
@@ -48,7 +48,26 @@ def project_mixamo_main():
 def project_smal_main():
     banner('SMAL Projection')
     deformer = Projection(max_angs=10, angs_to_take=10)
-    m = SMALCreator(deformer, Path(r'C:\Users\idoim\Desktop\ShapeCompletion\data\synthetic\SMALTestPyProj\full'))
+    in_dp = ROOT / '..' / 'data' / 'synthetic' / 'SMALTestPyProj' / 'full'
+    m = SMALCreator(deformer, in_dp)
+    for sub in m.subjects():
+        m.deform_subject(sub=sub)
+
+
+def project_faust_scan_train_main():
+    banner('FAUST Training Scans Projection')
+    deformer = Projection(max_angs=10, angs_to_take=10)
+    in_dp = ROOT / '..' / 'data' / 'scan' / 'FaustTrainScanPyProj' / 'full'
+    m = FaustTrainScanCreator(deformer, in_dp)
+    for sub in m.subjects():
+        m.deform_subject(sub=sub)
+
+
+def project_faust_scan_test_main():
+    banner('FAUST Test Scans Projection')
+    deformer = Projection(max_angs=10, angs_to_take=10)
+    in_dp = ROOT / '..' / 'data' / 'scan' / 'FaustTestScanPyProj' / 'full'
+    m = FaustTestScanCreator(deformer, in_dp)
     for sub in m.subjects():
         m.deform_subject(sub=sub)
 
@@ -61,8 +80,9 @@ class DataCreator:
     MIN_VGROUP_SIZE = 10  # Under this, the validation group will be considered too small to take
     MAX_FAILED_VGROUPS_BEFORE_RESET = 7  # For PyRender deformation only - maximum amount of failures before reset
 
-    TMP_ROOT = tempfile._get_default_tempdir()
+    TMP_ROOT = Path(tempfile._get_default_tempdir())
     OUT_ROOT = Path(OUTPUT_ROOT)  # May be overridden
+    OUT_IS_A_NETWORK_PATH = False
     RECORD_ROOT = OUT_ROOT  # May be overridden
 
     COLLAT_DP = Path(COLLATERALS_DIR)
@@ -71,14 +91,13 @@ class DataCreator:
 
         # Sanity:
         self.in_dp = Path(in_dp)
-        assert self.OUT_ROOT.is_dir(), f"Could not find directory {self.OUT_ROOT}"
-        assert self.in_dp.id_dir(), f"Could not find directory {self.in_dp}"
+        assert self.in_dp.is_dir(), f"Could not find directory {self.in_dp}"
 
         # Set deformer:
         self.deformer = deformer
         self.shape_frac_from_vgroup = shape_frac_from_vgroup
         ds_id, deform_id = self.dataset_name(), self.deform_name()
-        self.read_shape = MethodType(getattr(self, f'read_shape_for_{deform_id.lower()}'), self)
+        self.read_shape = getattr(self, f'read_shape_for_{deformer.name(False).lower()}')
 
         # Create dirs for the dataset + specific deformation:
         self.out_dp = self.OUT_ROOT / ds_id / deform_id / 'outputs'
@@ -86,9 +105,12 @@ class DataCreator:
         print(f'Target output directory: {self.out_dp}')
 
         if deformer.needs_validation():
-            assert self.TMP_ROOT.is_dir(), f"Could not find directory {self.TMP_ROOT}"
-            self.tmp_dp = self.TMP_ROOT / ds_id / deform_id
-            self.tmp_dp.mkdir(parents=True, exist_ok=True)
+            if self.OUT_IS_A_NETWORK_PATH:
+                assert self.TMP_ROOT.is_dir(), f"Could not find directory {self.TMP_ROOT}"
+                self.tmp_dp = self.TMP_ROOT / ds_id / deform_id
+                self.tmp_dp.mkdir(parents=True, exist_ok=True)
+            else:
+                self.tmp_dp = self.out_dp
             self.record_dp = self.RECORD_ROOT / ds_id / deform_id / 'record'
             self.record_dp.mkdir(parents=True, exist_ok=True)
             print(f'Target validation-records directory: {self.record_dp}')
@@ -97,10 +119,12 @@ class DataCreator:
         return self.__class__.__name__[:-7]  # Without the Creator
 
     def deform_name(self):
-        return f'{self.deformer.name()}_seq_frac_{self.shape_frac_from_vgroup}'.replace('.', '_')
+        return f'{self.deformer.name()}_vg_frac_{self.shape_frac_from_vgroup}'.replace('.', '_')
 
     def deform_shape(self, fp):
         v, f = self.read_shape(fp)
+        if os.name == 'nt':  # Dirty Hack
+            return [{'mask': v, 'angi': i} for i in range(self.deformer.num_expected_deformations())]
         deformed = self.deformer.deform(v, f)
         # parts = [v[masks[i][0],:] for i in range(self.deformer.num_expected_deformations())]
         # plot_mesh_montage(vb=parts,strategy='spheres')
@@ -108,7 +132,7 @@ class DataCreator:
 
     def deform_subject(self, sub):
         banner(title(f'{self.dataset_name()} Dataset :: Subject {sub} :: Deformation {self.deform_name()} Commencing'))
-        (self.out_dp / sub).mkdir(exist_ok=True)  # TODO - Presuming this dir structure
+        (self.tmp_dp / sub).mkdir(exist_ok=True)  # TODO - Presuming this dir structure
 
         if self.deformer.needs_validation():
             self._deform_subject_validated(sub)
@@ -124,7 +148,8 @@ class DataCreator:
 
             comp_frac = self._deform_and_locally_save_vgroup(sub, vg)
             if comp_frac >= self.MIN_VGROUP_SUCCESS_FRAC:
-                self._transfer_local_vgroup_to_out_dir(sub, vg)
+                if self.OUT_IS_A_NETWORK_PATH:
+                    self._transfer_local_vgroup_to_out_dir(sub, vg)
 
                 vgd[vg] = comp_frac  # Save the VGD to local area:
                 with open(vgd_fp, 'w') as handle:
@@ -144,7 +169,7 @@ class DataCreator:
             vg_dp = self.out_dp / sub / vg  # TODO - Presuming this dir structure
             vg_dp.mkdir(exist_ok=True, parents=True)
             for fp in self.shape_fps_per_vgroup(sub, vg):
-                shape_name = fp.with_suffix('')  # TODO - Presuming this name
+                shape_name = fp.with_suffix('').name  # TODO - Presuming this name
                 deformed = self.deform_shape(fp)
                 for i, d in enumerate(deformed):
                     np.savez(vg_dp / f'{shape_name}_{i}.npz', **d)  # TODO - generalize save
@@ -161,14 +186,14 @@ class DataCreator:
             shape_fps = np.random.choice(shape_fps, size=num_to_take, replace=False)
 
         # Create all needed directories:
-        vg_dp = self.out_dp / sub / vg  # TODO - Presuming this dir structure
+        vg_dp = self.tmp_dp / sub / vg  # TODO - Presuming this dir structure
         assert_new_dir(vg_dp, parents=True)
 
         completed = 0
         total = len(shape_fps) * self.deformer.num_expected_deformations()
         # Project:
         for fp in shape_fps:
-            shape_name = fp.with_suffix('')  # TODO - Presuming this name
+            shape_name = fp.with_suffix('').name  # TODO - Presuming this name
             deformed = self.deform_shape(fp)
             i = 0
             for d in deformed:
@@ -234,9 +259,10 @@ class DataCreator:
 class MixamoCreator(DataCreator):
     RECORD_ROOT = Path(OUTPUT_ROOT)  # Override
     if os.name == 'nt':  # Override
-        OUT_ROOT = Path(r'Z:\ShapeCompletion')
+        OUT_ROOT = Path(r'Z:\ShapeCompletion\Mixamo')
     else:  # Presuming Linux
-        OUT_ROOT = Path(r"/usr/samba_mount/ShapeCompletion")
+        OUT_ROOT = Path(r"/usr/samba_mount/ShapeCompletion/Mixamo")
+    OUT_IS_A_NETWORK_PATH = True
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -288,7 +314,7 @@ class SMALCreator(DataCreator):
     def vgroups_per_subject(self, sub):
         fp = self.in_dp / sub
         assert fp.is_dir(), f"Could not find path {fp}"
-        return [f.with_suffix('') for f in fp.glob('*')]
+        return [f.with_suffix('').name for f in fp.glob('*')]
 
     def shape_fps_per_vgroup(self, sub, vg):
         return [self.in_dp / sub / f'{vg}.ply']
@@ -297,6 +323,36 @@ class SMALCreator(DataCreator):
         v = read_ply_verts(fp).astype('float32')
         v = box_center(v)
         return v, self.f
+
+
+class FaustTrainScanCreator(DataCreator):
+    MIN_VGROUP_SUCCESS_FRAC = 1
+    MIN_VGROUP_SIZE = 0
+
+    def __init__(self, deformer, in_dp):
+        super().__init__(deformer, in_dp, 1)
+
+    def subjects(self):
+        return list(range(10))
+
+    def vgroups_per_subject(self, sub):
+        fp = self.in_dp / sub
+        assert fp.is_dir(), f"Could not find path {fp}"
+        return [f.with_suffix('').name for f in fp.glob('*')]
+
+    def shape_fps_per_vgroup(self, sub, vg):
+        fp = self.in_dp / sub / vg
+        return fp.glob('*')
+
+    def read_shape_for_projection(self, fp):
+        v, f = read_off(fp)
+        v = v.astype('float32')
+        v = box_center(v)
+        return v, f
+
+
+class FaustTestScanCreator(FaustTrainScanCreator):
+    pass
 
 
 # ----------------------------------------------------------------------------------------------------------------------#

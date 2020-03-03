@@ -8,7 +8,7 @@ LIB_PATH = os.path.dirname(os.path.abspath(__file__))
 try:
     Render = cdll.LoadLibrary(os.path.join(LIB_PATH, 'libRender.so'))
 except OSError as e:
-    if e.errno == 8:  # winerror 193
+    if e.errno in [8,22]:  # winerror 193
         warn('pyrender does not support Windows')
     else:
         raise e
