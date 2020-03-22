@@ -110,7 +110,8 @@ class LightningTrainer:
                                min_epochs=self.hp.force_train_epoches,
                                max_epochs=self.hp.max_epochs,
                                print_nan_grads=False,
-                               resume_cfg=self.hp.resume_cfg)
+                               resume_cfg=self.hp.resume_cfg,
+                               accumulate_grad_batches=self.hp.accumulate_grad_batches)
         # log_gpu_memory = 'min_max' or 'all'  # How to log the GPU memory
         # track_grad_norm = 2  # Track L2 norm of the gradient # Track the Gradient Norm
         # log_save_interval = 100

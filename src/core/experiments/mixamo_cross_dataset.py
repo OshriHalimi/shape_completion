@@ -17,7 +17,7 @@ def parser():
     p = HyperOptArgumentParser(strategy='random_search')
 
     # Check-pointing
-    p.add_argument('--exp_name', type=str, default='mixamo_cross_dataset_basic',  # TODO - Don't forget to change me!
+    p.add_argument('--exp_name', type=str, default='mixamo_cross_dataset_basic_accumulate_gradients',  # TODO - Don't forget to change me!
                    help='The experiment name. Leave empty for default')
     p.add_argument('--version', type=none_or_int, default=None,
                    help='Weights will be saved at weight_dir=exp_name/version_{version}. '
@@ -42,6 +42,7 @@ def parser():
     p.add_argument('--max_epochs', type=int, default=None,  # Must be over 1
                    help='Maximum epochs to train for. Use None for close to infinite epochs')
     p.add_argument('--lr', type=float, default=0.001, help='The learning step to use')
+    p.add_argument('--accumulate_grad_batches', type=int, default=10, help='Number of batches to accumulate gradients. Use 1 for no accumulation')
 
     # Optimizer
     p.add_argument("--weight_decay", type=float, default=0, help="Adam's weight decay - usually use 1e-4")
