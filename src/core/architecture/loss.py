@@ -1,5 +1,5 @@
 import torch
-from util.mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_fnrmls_fareas, batch_moments
+from util.mesh.ops import batch_euclid_dist_mat, batch_vnrmls, batch_fnrmls_fareas, batch_moments, distChamfer
 from util.strings import warn
 from architecture.decoders import Template
 # from chamferdist import ChamferDist
@@ -336,9 +336,12 @@ class ShapeDiffLoss:
                     loss_areas = self._l2_loss(f_area_1, f_area_2, lamb=lamb, vertex_mask=w)
                     loss_dict['Areas'] = loss_areas
                     loss += loss_areas
-                elif i == 6:  # Volume:
+                elif i == 6:  # chamfer distance:
+                    loss_chamfer = lamb * distChamfer(shape_1[:, :, 0:3], shape_2)
+                    loss_dict['chamfer'] = loss_chamfer
+                    loss += loss_chamfer
+                elif i == 7:  # Volume:
                     pass
-                # TODO: implement chamfer distance loss
                 else:
                     raise AssertionError
 

@@ -3,7 +3,7 @@ from test_tube import HyperOptArgumentParser
 import torch
 from architecture.encoders import ShapeEncoder, ShapeEncoderDGCNN
 from architecture.decoders import ShapeDecoder, Template, Regressor
-
+from cfg import UNIVERSAL_PRECISION
 
 # ----------------------------------------------------------------------------------------------------------------------
 #                                                      BASE
@@ -14,7 +14,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
         # Note that a linear layer is applied to the global feature vector
         self.encoder = ShapeEncoder(in_channels=self.hparams.in_channels, code_size=self.hparams.code_size,
                                     dense=self.hparams.dense_encoder)
-        self.decoder = ShapeDecoder(pnt_code_size=self.hparams.in_channels + 2 * self.hparams.code_size,
+        self.decoder = ShapeDecoder(pnt_code_size=self.hparams.code_size_in_shape + 2 * self.hparams.code_size, #self.hparams.in_channels --> 100 latent space dimension
                                     out_channels=self.hparams.out_channels, num_convl=self.hparams.decoder_convl)
 
     def _init_model(self):
@@ -26,6 +26,7 @@ class F2PEncoderDecoder(CompletionLightningModel):
         p = HyperOptArgumentParser(parents=parent_parser, add_help=False, conflict_handler='resolve')
         p.add_argument('--dense_encoder', default=False, type=bool)
         p.add_argument('--code_size', default=512, type=int)
+        p.add_argument('--code_size_in_shape', default=30, type=int)
         p.add_argument('--out_channels', default=3, type=int)
         p.add_argument('--decoder_convl', default=5, type=int)
         if not parent_parser:  # Name clash with parent
@@ -46,7 +47,9 @@ class F2PEncoderDecoder(CompletionLightningModel):
         part_code = part_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
         full_code = full_code.unsqueeze(1).expand(bs, nv, self.hparams.code_size)  # [b x nv x code_size]
 
-        y = torch.cat((full, part_code, full_code), 2).contiguous()  # [b x nv x (in_channels + 2*code_size)]
+        latent_in_shape = torch.randn(bs, nv, self.hparams.code_size_in_shape, device=self.hparams.dev, dtype=getattr(torch, UNIVERSAL_PRECISION), requires_grad = False)
+        #y = torch.cat((full, part_code, full_code), 2).contiguous()  # [b x nv x (in_channels + 2*code_size)]
+        y = torch.cat((latent_in_shape, part_code, full_code), 2).contiguous()  # [b x nv x (code_size_in_shape + 2*code_size)]
         y = self.decoder(y)
         return {'completion_xyz': y}
 
