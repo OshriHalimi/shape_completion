@@ -16,7 +16,7 @@
 pytorch-lightning # Does not support versions
 torchviz==0.0.1
 psutil==5.6.7
-scipy==1.4.1
+scipy==1.10.0
 scikit_learn==0.20.2
 matplotlib==3.0.2
 pyvista==0.23.0
